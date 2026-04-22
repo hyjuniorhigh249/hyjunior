@@ -7,43 +7,63 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="pip-tool.js"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; }
-        .nav-btn { @apply flex items-center w-full px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all mb-1; }
-        .nav-btn.active { @apply bg-slate-800 text-white shadow-lg; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; }
+        .nav-btn { @apply flex items-center w-full px-4 py-3.5 rounded-xl font-bold text-slate-400 hover:bg-slate-800 hover:text-white transition-all mb-2 ease-in-out; }
+        .nav-btn.active { @apply bg-slate-800 text-white shadow-lg ring-1 ring-slate-700; }
+        .nav-icon { @apply mr-3 text-lg; }
     </style>
 </head>
-<body class="flex h-screen bg-slate-100 overflow-hidden">
+<body class="flex h-screen overflow-hidden">
 
-    <aside class="w-48 bg-white border-r border-slate-200 p-4 flex flex-col shrink-0">
-        <div class="mb-8 px-2">
-            <h1 class="text-xl font-black text-slate-800 italic">浩元行政</h1>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Management System</p>
+    <aside class="w-56 bg-slate-900 p-5 flex flex-col shrink-0 shadow-2xl">
+        <div class="mb-10 px-2">
+            <div class="text-2xl font-black text-white tracking-tighter italic">浩元行政</div>
+            <div class="text-[9px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">Management Hub</div>
         </div>
 
-        <nav class="space-y-1 flex-1">
-            <button onclick="changePage('students.html', this)" class="nav-btn active">
-                <span>👤 學生總檔</span>
+        <nav class="flex-1">
+            <p class="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 ml-2">主選單</p>
+            
+            <button onclick="changePage('dashboard.html', this)" class="nav-btn active">
+                <span class="nav-icon">📊</span>
+                <span class="text-sm">首頁儀表板</span>
             </button>
+
+            <button onclick="changePage('students.html', this)" class="nav-btn">
+                <span class="nav-icon">👤</span>
+                <span class="text-sm">學生總檔</span>
+            </button>
+
             <button onclick="changePage('classes.html', this)" class="nav-btn">
-                <span>👥 班級管理</span>
+                <span class="nav-icon">👥</span>
+                <span class="text-sm">班級管理</span>
             </button>
         </nav>
 
-        <div class="mt-auto pt-4 border-t">
-            <button onclick="startPiP()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-xs shadow-md transition-all active:scale-95">
+        <div class="mt-auto pt-6 border-t border-slate-800">
+            <button onclick="startPiP()" class="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl font-black text-xs shadow-lg shadow-emerald-900/20 transition-all active:scale-95 flex flex-col items-center gap-1">
+                <span class="text-lg">📱</span>
                 開啟迷你通訊窗
             </button>
+            <div class="text-[9px] text-slate-600 text-center mt-3 font-medium">版本 v2.4.0</div>
         </div>
     </aside>
 
-    <main class="flex-1 relative">
-        <iframe id="main-content" src="students.html" class="w-full h-full border-none"></iframe>
+    <main class="flex-1 bg-slate-100 relative">
+        <iframe id="main-content" src="dashboard.html" class="w-full h-full border-none"></iframe>
     </main>
 
     <script>
         function changePage(url, btn) {
             // 切換 iframe 內容
-            document.getElementById('main-content').src = url;
+            const iframe = document.getElementById('main-content');
+            
+            // 加入淡出效果
+            iframe.style.opacity = '0';
+            setTimeout(() => {
+                iframe.src = url;
+                iframe.style.opacity = '1';
+            }, 150);
 
             // 更新按鈕樣式
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));

@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             <div class="mt-4 pt-4 border-t border-slate-100">
                 <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 px-2">快捷工具</p>
-                <button onclick="startPiP()" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-blue-600 hover:bg-blue-50 text-sm transition">
+                <button onclick="startPiP()" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-blue-600 hover:bg-blue-50 text-sm transition text-left">
                     <span>📱</span> 迷你通訊窗
                 </button>
             </div>
@@ -24,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </nav>
     `;
     
-    // 找到頁面中的 sidebar-container 並注入
     const container = document.getElementById('sidebar-container');
     if (container) {
         container.innerHTML = sidebarHTML;

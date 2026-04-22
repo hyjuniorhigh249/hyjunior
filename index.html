@@ -7,51 +7,74 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="pip-tool.js"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; }
-        /* 恢復您習慣的導覽列樣式 */
-        .nav-btn { @apply w-full px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all mb-1 text-left; }
-        .nav-btn.active { @apply bg-slate-100 text-slate-900 border border-slate-200 shadow-sm; }
+        /* 使用更現代的字體組合，增加閱讀舒適度 */
+        body { 
+            font-family: "Inter", "PingFang TC", "Microsoft JhengHei", sans-serif; 
+            background-color: #fcfcfc;
+        }
+        
+        /* 導覽按鈕優化：增加垂直間隔、字距與內距 */
+        .nav-btn { 
+            @apply flex items-center w-full px-5 py-3.5 rounded-xl font-bold text-slate-500 
+                   hover:bg-slate-50 hover:text-slate-800 transition-all mb-3 text-left;
+            letter-spacing: 0.025em;
+        }
+        
+        /* 啟用狀態的按鈕 */
+        .nav-btn.active { 
+            @apply bg-white text-slate-900 border border-slate-200 shadow-sm;
+        }
+
+        .nav-icon { @apply mr-3 text-lg opacity-80; }
     </style>
 </head>
-<body class="flex h-screen bg-slate-50 overflow-hidden">
+<body class="flex h-screen overflow-hidden">
 
-    <aside class="w-44 bg-white border-r border-slate-200 p-4 flex flex-col shrink-0">
-        <div onclick="changePage('dashboard.html', null)" class="cursor-pointer mb-8 px-2 group">
-            <h1 class="text-xl font-black text-slate-800 italic group-hover:text-blue-600 transition-colors">浩元行政</h1>
-            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">System Home</p>
+    <aside class="w-56 bg-white border-r border-slate-200 p-6 flex flex-col shrink-0">
+        
+        <div onclick="changePage('dashboard.html', document.getElementById('btn-dash'))" class="cursor-pointer mb-10 group">
+            <h1 class="text-2xl font-black text-slate-800 italic tracking-tighter group-hover:text-emerald-600 transition-colors">
+                浩元行政
+            </h1>
+            <div class="h-1 w-8 bg-emerald-500 mt-1 rounded-full group-hover:w-12 transition-all"></div>
         </div>
 
-        <nav class="space-y-1 flex-1">
-            <button onclick="changePage('students.html', this)" class="nav-btn active">
-                <span>👤 學生總檔</span>
+        <nav class="flex-1">
+            <button id="btn-dash" onclick="changePage('dashboard.html', this)" class="nav-btn">
+                <span class="nav-icon">📊</span>
+                <span>數據概況</span>
             </button>
-            <button onclick="changePage('classes.html', this)" class="nav-btn">
-                <span>👥 班級管理</span>
+
+            <button id="btn-students" onclick="changePage('students.html', this)" class="nav-btn active">
+                <span class="nav-icon">👤</span>
+                <span>學生總檔</span>
+            </button>
+
+            <button id="btn-classes" onclick="changePage('classes.html', this)" class="nav-btn">
+                <span class="nav-icon">👥</span>
+                <span>班級管理</span>
             </button>
         </nav>
 
-        <div class="mt-auto pt-4 border-t border-slate-100">
-            <button onclick="startPiP()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-xs shadow-sm transition-all active:scale-95">
-                開啟迷你通訊窗
+        <div class="mt-auto pt-6 border-t border-slate-100">
+            <button onclick="startPiP()" class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
+                <span>💬</span> 開啟通訊窗
             </button>
         </div>
     </aside>
 
-    <main class="flex-1 relative">
+    <main class="flex-1 bg-slate-50 relative">
         <iframe id="main-content" src="students.html" class="w-full h-full border-none"></iframe>
     </main>
 
     <script>
         function changePage(url, btn) {
-            document.getElementById('main-content').src = url;
+            const iframe = document.getElementById('main-content');
+            iframe.src = url;
 
-            // 更新按鈕樣式
+            // 更新按鈕高亮狀態
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            if(btn) {
-                btn.classList.add('active');
-            } else {
-                // 如果是點標題回首頁，不顯示任何按鈕高亮
-            }
+            if(btn) btn.classList.add('active');
         }
     </script>
 </body>

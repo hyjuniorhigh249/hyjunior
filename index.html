@@ -8,32 +8,39 @@
     <script src="pip-tool.js"></script>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; }
-        /* 側邊欄按鈕基礎樣式 */
-        .nav-link { @apply px-3 py-2 rounded-lg font-bold text-slate-600 hover:bg-slate-50 transition text-sm text-left flex items-center gap-1; }
-        /* 啟用狀態樣式 */
-        .nav-link.active { @apply bg-slate-100 text-slate-900; }
+        /* 依照截圖還原：更粗、更大的導航字體與間距 */
+        .nav-link { 
+            @apply flex items-center px-3 py-2 rounded-lg font-bold text-slate-600 
+                   hover:bg-slate-50 transition text-sm gap-2 w-full text-left; 
+        }
+        /* 選取狀態：深色背景、白色文字 (依照您的截圖右側樣式) */
+        .nav-link.active { 
+            @apply bg-[#1e293b] text-white shadow-md; 
+        }
+        /* 圖示加大 */
+        .nav-link span:first-child { @apply text-base; }
     </style>
 </head>
 <body class="flex h-screen bg-white overflow-hidden">
 
     <nav class="w-40 bg-white border-r border-slate-200 p-3 flex flex-col gap-1 shrink-0 h-screen sticky top-0">
-        <div onclick="changePage('dashboard.html', this)" class="cursor-pointer font-black text-lg mb-4 text-slate-800 border-b pb-2 text-center italic">
+        <div onclick="changePage('dashboard.html', null)" class="cursor-pointer font-black text-lg mb-4 text-slate-800 border-b pb-2 text-center italic">
             浩元行政
         </div>
 
-        <button onclick="changePage('dashboard.html', this)" class="nav-link">
-            🏠 數據概況
+        <button id="nav-dash" onclick="changePage('dashboard.html', this)" class="nav-link">
+            <span>🏠</span> 數據概況
         </button>
-        <button onclick="changePage('students.html', this)" class="nav-link active">
-            👥 學生總檔
+        <button id="nav-students" onclick="changePage('students.html', this)" class="nav-link active">
+            <span>👥</span> 學生總檔
         </button>
-        <button onclick="changePage('classes.html', this)" class="nav-link">
-            📚 班級管理
+        <button id="nav-classes" onclick="changePage('classes.html', this)" class="nav-link">
+            <span>📚</span> 班級管理
         </button>
         
         <div class="mt-4 pt-4 border-t border-slate-100">
-            <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 px-2">快捷工具</p>
-            <button onclick="startPiP()" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-blue-600 hover:bg-blue-50 text-sm transition text-left">
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 px-2 tracking-tighter">快捷工具</p>
+            <button onclick="startPiP()" class="nav-link text-blue-600 hover:bg-blue-50">
                 <span>📱</span> 迷你通訊窗
             </button>
         </div>
@@ -45,17 +52,16 @@
         </div>
     </nav>
 
-    <main class="flex-1 bg-white relative">
+    <main class="flex-1 relative bg-white">
         <iframe id="main-content" src="students.html" class="w-full h-full border-none"></iframe>
     </main>
 
     <script>
         function changePage(url, btn) {
-            const iframe = document.getElementById('main-content');
-            iframe.src = url;
+            document.getElementById('main-content').src = url;
 
-            // 更新按鈕高亮狀態 (排除標題點擊)
-            if (btn && btn.tagName === 'BUTTON') {
+            // 只有點擊按鈕時才更新樣式
+            if (btn) {
                 document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
             }

@@ -12,6 +12,7 @@
         .accordion-open .accordion-content { max-height: 1000px; }
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
+        input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; }
     </style>
 </head>
 <body class="p-8">
@@ -50,16 +51,34 @@
                     <label class="text-[10px] font-black text-slate-400 uppercase ml-1">班級名稱*</label>
                     <input type="text" id="m-class-name" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold" placeholder="例如：國三甲班">
                 </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1">任課老師</label>
+                    <input type="text" id="m-class-teacher" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold" placeholder="老師姓名">
+                </div>
+                
                 <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1">任課老師</label>
-                        <input type="text" id="m-class-teacher" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold" placeholder="老師姓名">
+                    <div class="col-span-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1">上課星期</label>
+                        <select id="m-class-day" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold bg-white">
+                            <option value="1">每週一</option>
+                            <option value="2">每週二</option>
+                            <option value="3">每週三</option>
+                            <option value="4">每週四</option>
+                            <option value="5">每週五</option>
+                            <option value="6">每週六</option>
+                            <option value="0">每週日</option>
+                        </select>
                     </div>
                     <div>
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1">上課時間</label>
-                        <input type="text" id="m-class-schedule" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold" placeholder="週三 18:30...">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1">開始時間</label>
+                        <input type="time" id="m-class-start" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1">結束時間</label>
+                        <input type="time" id="m-class-end" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold">
                     </div>
                 </div>
+
                 <div>
                     <label class="text-[10px] font-black text-slate-400 uppercase ml-1">備註說明</label>
                     <textarea id="m-class-note" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 h-24 font-bold" placeholder="關於此班級的雜項記錄..."></textarea>
@@ -89,16 +108,15 @@
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        const DAYS = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
         let activeClassIdForMembers = null;
         let allClassData = [];
 
-        async function init() {
-            fetchClasses();
-        }
+        async function init() { fetchClasses(); }
 
         async function fetchClasses() {
             document.getElementById('status-text').innerText = "更新中...";
-            const { data, error } = await supabaseClient.from('classes').select('*').order('created_at', { ascending: false });
+            const { data, error } = await supabaseClient.from('classes').select('*').order('schedule_day', { ascending: true });
             if (error) return;
 
             allClassData = data;
@@ -107,6 +125,11 @@
             activeList.innerHTML = ""; archiveList.innerHTML = "";
 
             data.forEach(cls => {
+                // 格式化顯示時間：週三 18:30 - 21:00
+                const timeStr = cls.schedule_day !== null 
+                    ? `${DAYS[cls.schedule_day]} ${cls.schedule_start?.slice(0,5) || '--:--'} - ${cls.schedule_end?.slice(0,5) || '--:--'}`
+                    : '未設定時間';
+
                 const html = `
                 <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm transition hover:shadow-md">
                     <div class="p-4 flex items-center justify-between cursor-pointer" onclick="this.parentElement.classList.toggle('accordion-open')">
@@ -115,7 +138,7 @@
                             <div>
                                 <h4 class="font-black text-slate-800 text-lg">${cls.name}</h4>
                                 <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                                    老師：${cls.teacher || '未設定'} | 時間：${cls.schedule || '未設定'} | 成員：${cls.members ? cls.members.length : 0} 位
+                                    老師：${cls.teacher || '未設定'} | 時間：${timeStr} | 成員：${cls.members ? cls.members.length : 0} 位
                                 </p>
                             </div>
                         </div>
@@ -153,7 +176,9 @@
             document.getElementById('m-class-id').value = "";
             document.getElementById('m-class-name').value = "";
             document.getElementById('m-class-teacher').value = "";
-            document.getElementById('m-class-schedule').value = "";
+            document.getElementById('m-class-day').value = "1";
+            document.getElementById('m-class-start').value = "18:30";
+            document.getElementById('m-class-end').value = "21:30";
             document.getElementById('m-class-note').value = "";
             openModal('class-modal');
         }
@@ -165,24 +190,30 @@
             document.getElementById('m-class-id').value = cls.id;
             document.getElementById('m-class-name').value = cls.name;
             document.getElementById('m-class-teacher').value = cls.teacher || "";
-            document.getElementById('m-class-schedule').value = cls.schedule || "";
+            document.getElementById('m-class-day').value = cls.schedule_day ?? "1";
+            document.getElementById('m-class-start').value = cls.schedule_start || "";
+            document.getElementById('m-class-end').value = cls.schedule_end || "";
             document.getElementById('m-class-note').value = cls.note || "";
             openModal('class-modal');
         }
 
         async function saveClass() {
             const id = document.getElementById('m-class-id').value;
-            const name = document.getElementById('m-class-name').value.trim();
-            const teacher = document.getElementById('m-class-teacher').value.trim();
-            const schedule = document.getElementById('m-class-schedule').value.trim();
-            const note = document.getElementById('m-class-note').value.trim();
             const btn = document.getElementById('save-btn');
+            
+            const payload = {
+                name: document.getElementById('m-class-name').value.trim(),
+                teacher: document.getElementById('m-class-teacher').value.trim(),
+                schedule_day: parseInt(document.getElementById('m-class-day').value),
+                schedule_start: document.getElementById('m-class-start').value,
+                schedule_end: document.getElementById('m-class-end').value,
+                note: document.getElementById('m-class-note').value.trim()
+            };
 
-            if(!name) return alert("請輸入班級名稱");
+            if(!payload.name) return alert("請輸入班級名稱");
 
             btn.disabled = true;
             btn.innerText = "正在儲存...";
-            const payload = { name, teacher, schedule, note };
 
             let result;
             if (id) {
@@ -203,7 +234,6 @@
 
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-
         async function toggleArchive(id, status) { await supabaseClient.from('classes').update({ is_archived: status }).eq('id', id); fetchClasses(); }
         async function deleteClass(id, count) { if(count > 0) return alert("請先清空成員再刪除班級"); if(confirm("確定刪除？")) { await supabaseClient.from('classes').delete().eq('id', id); fetchClasses(); } }
         async function openMemberModal(id, name) { activeClassIdForMembers = id; document.getElementById('member-modal-title').innerText = `管理「${name}」成員`; openModal('member-modal'); searchStudentsForClass(); }

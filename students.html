@@ -6,9 +6,9 @@
     <title>學生總檔 - 浩元行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="pip-tool.js"></script>
+    <script src="pip-tool.js"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f4f7f9; font-size: 13px; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; font-size: 13px; }
         .form-input { @apply w-full px-4 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all font-bold text-slate-700; }
         .detail-label { @apply text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1; }
         .stu-table th { position: sticky; top: 0; background: #fff; z-index: 10; padding: 10px; border-bottom: 2px solid #edf2f7; }
@@ -19,23 +19,9 @@
         .modal.active { display: flex; }
     </style>
 </head>
-<body class="min-h-screen flex">
+<body class="min-h-screen">
 
-    <nav class="w-40 bg-white border-r border-slate-200 p-3 flex flex-col gap-1 shrink-0">
-        <div class="font-black text-lg mb-4 text-slate-800 border-b pb-2 text-center italic">浩元行政</div>
-        <a href="index.html" class="px-3 py-2 rounded-lg font-bold text-slate-500 hover:bg-slate-50 text-sm">🏠 首頁概況</a>
-        <a href="students.html" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-sm shadow-md">👤 學生總檔</a>
-        <a href="classes.html" class="px-3 py-2 rounded-lg font-bold text-slate-500 hover:bg-slate-50 text-sm">👥 班級管理</a>
-
-        <div class="mt-4 pt-4 border-t border-slate-100">
-            <p class="text-[10px] font-black text-slate-400 uppercase mb-2 px-2">快捷工具</p>
-            <button onclick="startPiP()" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-blue-600 hover:bg-blue-50 text-xs transition text-left">
-                <span>📱</span> 迷你通訊窗
-            </button>
-        </div>
-    </nav>
-
-    <main class="flex-1 flex flex-col min-h-0">
+    <main class="flex flex-col h-screen">
         <div class="bg-white border-b border-slate-200 p-2 px-6 flex items-center justify-between shadow-sm z-20">
             <div class="relative flex-1 max-w-2xl">
                 <span class="absolute left-3 top-2 text-slate-400">🔍</span>
@@ -92,9 +78,7 @@
                 <h3 class="text-2xl font-black text-slate-800">修改學生資訊</h3>
                 <button onclick="closeModal('detail-modal')" class="text-slate-300 hover:text-slate-800 text-2xl transition">✕</button>
             </div>
-            
             <input type="hidden" id="edit-id">
-            
             <div class="grid grid-cols-2 gap-x-8 gap-y-4">
                 <div class="space-y-4">
                     <div><label class="detail-label block">學生姓名*</label><input type="text" id="edit-name" class="form-input"></div>
@@ -134,11 +118,7 @@
 
         let students = [], classes = [], selectedName = "";
 
-        async function init() {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) { window.location.href = "index.html"; return; }
-            fetchData();
-        }
+        async function init() { fetchData(); }
 
         async function updateStatus(state) {
             const dot = document.getElementById('status-dot'), text = document.getElementById('status-text');
@@ -182,7 +162,6 @@
         function openEditModal(id) {
             const s = students.find(x => String(x.id) === String(id));
             if (!s) return;
-
             document.getElementById('edit-id').value = s.id;
             document.getElementById('edit-name').value = s.name || '';
             document.getElementById('edit-telO').value = s.tel_o || '';
@@ -198,11 +177,7 @@
             const targetUuid = document.getElementById('edit-id').value;
             const btn = document.getElementById('save-edit-btn');
             if (!targetUuid) return;
-
-            btn.disabled = true;
-            btn.innerText = "儲存中...";
-            updateStatus('syncing');
-
+            btn.disabled = true; btn.innerText = "儲存中..."; updateStatus('syncing');
             const updates = {
                 name: document.getElementById('edit-name').value.trim(),
                 tel_o: document.getElementById('edit-telO').value.trim(),
@@ -212,25 +187,11 @@
                 addr: document.getElementById('edit-addr').value.trim(),
                 note: document.getElementById('edit-note').value.trim()
             };
-
             try {
-                const { data, error } = await supabaseClient
-                    .from('students')
-                    .update(updates)
-                    .eq('id', targetUuid)
-                    .select();
-
+                const { error } = await supabaseClient.from('students').update(updates).eq('id', targetUuid);
                 if (error) throw error;
-                closeModal('detail-modal');
-                await fetchData();
-            } catch (err) {
-                console.error("Update Error:", err);
-                alert("修改失敗：" + err.message);
-                updateStatus('error');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "儲存所有修改";
-            }
+                closeModal('detail-modal'); fetchData();
+            } catch (err) { alert("修改失敗：" + err.message); } finally { btn.disabled = false; btn.innerText = "儲存所有修改"; }
         }
 
         async function handleAddStudent() {
@@ -272,8 +233,5 @@
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
         window.onload = init;
     </script>
-
-    <script src="pip-tool.js"></script>
-    <script src="sidebar.js"></script>
 </body>
 </html>

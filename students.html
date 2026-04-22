@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>學生總檔 - 浩元行政雲端系統</title>
+    <title>學生總檔 (連動版) - 浩元行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -10,7 +10,8 @@
         .form-input { @apply w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all; }
         .stu-table th { position: sticky; top: 0; background: #fff; z-index: 10; padding: 12px 10px; border-bottom: 2px solid #edf2f7; }
         .stu-table td { padding: 10px; border-bottom: 1px solid #edf2f7; }
-        .loading-overlay { display: none; background: rgba(255,255,255,0.7); backdrop-filter: blur(2px); }
+        .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
+        .modal.active { display: flex; }
     </style>
 </head>
 <body class="min-h-screen flex">
@@ -23,189 +24,176 @@
     </nav>
 
     <main class="flex-1 flex flex-col min-h-0 relative">
-        <div id="loading" class="loading-overlay absolute inset-0 z-50 flex items-center justify-center font-black text-slate-400">
-            雲端資料處理中...
-        </div>
-
         <div class="bg-white border-b border-slate-200 p-3 px-6 flex items-center gap-4 shadow-sm z-20">
             <div class="relative flex-1 max-w-2xl">
                 <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
-                <input type="text" id="global-search" oninput="fetchStudents()" 
-                    placeholder="搜尋姓名、電話、學校、地址..." 
+                <input type="text" id="global-search" oninput="fetchData()" 
+                    placeholder="搜尋姓名、電話、學校、班級名稱..." 
                     class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-full bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all font-bold">
             </div>
-            <div id="auth-status" class="text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">檢查權限中...</div>
+            <div id="auth-status" class="text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full italic">正在同步雲端數據...</div>
         </div>
 
         <div class="flex-1 overflow-y-auto p-4 space-y-4">
-            
             <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 max-w-7xl mx-auto">
                 <div class="flex justify-between items-center mb-3">
-                    <h3 class="font-black text-slate-700 flex items-center gap-2">
-                        <span class="w-1.5 h-4 bg-slate-800 rounded-full"></span>
-                        新增學生基本資料
-                    </h3>
-                    <button onclick="handleAddStudent()" class="bg-slate-800 text-white px-6 py-1.5 rounded-lg font-bold hover:bg-slate-700 active:scale-95 transition">
-                        確認入庫
-                    </button>
+                    <h3 class="font-black text-slate-700 flex items-center gap-2">快速錄入新學生</h3>
+                    <button onclick="handleAddStudent()" class="bg-slate-800 text-white px-6 py-1.5 rounded-lg font-bold hover:bg-slate-700 transition">確認入庫</button>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                    <input type="text" id="f-name" class="form-input font-bold text-slate-800" placeholder="姓名*">
-                    <input type="text" id="f-school" class="form-input" placeholder="就讀學校">
-                    <input type="text" id="f-telP" class="form-input font-mono" placeholder="爸爸電話">
-                    <input type="text" id="f-telM" class="form-input font-mono" placeholder="媽媽電話">
-                    <input type="text" id="f-telO" class="form-input font-mono" placeholder="選填電話">
-                    <input type="text" id="f-addr" class="form-input" placeholder="通訊地址">
+                <div class="grid grid-cols-2 md:grid-cols-7 gap-3">
+                    <input type="text" id="f-name" class="form-input font-bold" placeholder="姓名*">
+                    <input type="text" id="f-school" class="form-input" placeholder="學校">
+                    <input type="text" id="f-telP" class="form-input" placeholder="父電話">
+                    <input type="text" id="f-telM" class="form-input" placeholder="母電話">
+                    <input type="text" id="f-telO" class="form-input" placeholder="選填電話">
+                    <input type="text" id="f-addr" class="form-input" placeholder="地址">
                     <input type="text" id="f-note" class="form-input" placeholder="備註">
                 </div>
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden max-w-7xl mx-auto">
-                <div class="overflow-x-auto" style="max-height: calc(100vh - 250px);">
+                <div class="overflow-x-auto">
                     <table class="stu-table w-full text-left border-collapse">
-                        <thead class="text-[11px] font-black text-slate-400 uppercase tracking-tighter">
+                        <thead class="text-[11px] font-black text-slate-400 uppercase">
                             <tr>
                                 <th class="w-24">姓名</th>
-                                <th class="w-44">家長電話</th>
-                                <th class="w-32">學校</th>
-                                <th>通訊地址</th>
-                                <th class="w-40">備註</th>
-                                <th class="w-16 text-center">操作</th>
+                                <th class="w-32">所屬班級</th>
+                                <th class="w-28">學校</th>
+                                <th class="w-36">家長電話</th>
+                                <th>地址</th>
+                                <th class="w-16 text-center">班級</th>
+                                <th class="w-12 text-center">刪除</th>
                             </tr>
                         </thead>
-                        <tbody id="stu-table-body" class="text-slate-600">
-                            </tbody>
+                        <tbody id="stu-table-body" class="text-slate-600"></tbody>
                     </table>
-                </div>
-                <div class="p-2 px-4 bg-slate-50 border-t flex justify-end">
-                    <span id="stu-count" class="text-[10px] font-bold text-slate-400">WAITING FOR DATA...</span>
                 </div>
             </div>
         </div>
     </main>
+
+    <div id="quick-class-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl">
+            <h3 class="text-xl font-black mb-2">快速加入班級</h3>
+            <p id="target-student-name" class="text-slate-400 font-bold mb-6 text-sm"></p>
+            <div id="class-options" class="space-y-2 max-h-60 overflow-y-auto mb-6">
+                </div>
+            <button onclick="closeModal()" class="w-full py-3 bg-slate-100 rounded-xl font-bold text-slate-500">取消</button>
+        </div>
+    </div>
 
     <script>
         const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let currentUser = null;
+        let students = [];
+        let classes = [];
+        let selectedStuName = "";
 
-        // 初始化檢查登入狀態
-        async function init() {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) {
-                alert("請先返回首頁登入！");
-                window.location.href = "index.html";
-                return;
-            }
-            currentUser = user;
-            document.getElementById('auth-status').innerText = `管理員：${user.email}`;
-            fetchStudents();
-        }
+        async function fetchData() {
+            const keyword = document.getElementById('global-search').value.toLowerCase().trim();
+            
+            // 1. 抓取班級資料 (用於顯示與搜尋)
+            const { data: classData } = await supabaseClient.from('classes').select('*');
+            classes = classData || [];
 
-        // 顯示/隱藏載入中
-        function toggleLoading(show) {
-            document.getElementById('loading').style.display = show ? 'flex' : 'none';
-        }
-
-        // 從 Supabase 抓取資料 (支援搜尋)
-        async function fetchStudents() {
-            const keyword = document.getElementById('global-search').value.trim();
-            toggleLoading(true);
-
+            // 2. 抓取學生資料 (依建立時間最近的在最上面排序)
             let query = supabaseClient.from('students').select('*').order('created_at', { ascending: false });
 
-            if (keyword) {
-                // Supabase 的 or 語法，用於多欄位關鍵字搜尋
-                query = query.or(`name.ilike.%${keyword}%,tel_p.ilike.%${keyword}%,tel_m.ilike.%${keyword}%,addr.ilike.%${keyword}%,school.ilike.%${keyword}%`);
-            }
+            const { data: stuData } = await query;
+            students = stuData || [];
 
-            const { data, error } = await query;
-
-            toggleLoading(false);
-            if (error) {
-                console.error(error);
-                document.getElementById('stu-table-body').innerHTML = `<tr><td colspan="6" class="text-center py-10 text-rose-400 font-bold">權限不足或連線失敗</td></tr>`;
-                return;
-            }
-
-            renderTable(data);
+            renderTable(keyword);
         }
 
-        // 渲染表格
-        function renderTable(list) {
+        function renderTable(keyword) {
             const body = document.getElementById('stu-table-body');
-            document.getElementById('stu-count').innerText = `TOTAL: ${list.length} STUDENTS`;
             
-            if (list.length === 0) {
-                body.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-300">查無資料</td></tr>`;
-                return;
-            }
+            // 綜合搜尋邏輯 (包含班級名稱搜尋)
+            const filtered = students.filter(s => {
+                const myClasses = classes.filter(c => c.members.includes(s.name)).map(c => c.name).join(' ');
+                const content = `${s.name} ${s.school} ${s.tel_p} ${s.tel_m} ${s.addr} ${myClasses}`.toLowerCase();
+                return content.includes(keyword);
+            });
 
-            body.innerHTML = list.map(s => `
+            body.innerHTML = filtered.map(s => {
+                const myClasses = classes.filter(c => c.members.includes(s.name));
+                return `
                 <tr class="hover:bg-slate-50 transition">
                     <td class="font-black text-slate-800">${s.name}</td>
-                    <td class="text-[11px] leading-tight text-slate-500 font-mono">
-                        ${s.tel_p ? '<div>父: '+s.tel_p+'</div>' : ''}
-                        ${s.tel_m ? '<div>母: '+s.tel_m+'</div>' : ''}
-                        ${s.tel_o ? '<div class="text-slate-300">他: '+s.tel_o+'</div>' : ''}
+                    <td>
+                        <div class="flex flex-wrap gap-1">
+                            ${myClasses.length > 0 ? myClasses.map(c => `<span class="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded font-bold">${c.name}</span>`).join('') : '<span class="text-slate-300">未入班</span>'}
+                        </div>
                     </td>
                     <td class="text-slate-500">${s.school || '-'}</td>
-                    <td class="text-xs max-w-[250px] truncate" title="${s.addr}">${s.addr || '-'}</td>
-                    <td class="text-xs text-slate-400 italic">${s.note || '-'}</td>
+                    <td class="text-[11px] font-mono">${s.tel_p || ''}<br>${s.tel_m || ''}</td>
+                    <td class="text-xs truncate max-w-[200px]">${s.addr || '-'}</td>
                     <td class="text-center">
-                        <button onclick="deleteStudent('${s.id}', '${s.name}')" class="text-slate-300 hover:text-rose-500 transition">✕</button>
+                        <button onclick="openQuickClass('${s.name}')" class="text-lg hover:scale-125 transition">➕</button>
                     </td>
-                </tr>
-            `).join('');
+                    <td class="text-center">
+                        <button onclick="deleteStu('${s.id}')" class="text-slate-300 hover:text-rose-500">✕</button>
+                    </td>
+                </tr>`;
+            }).join('');
         }
 
-        // 新增學生到 Supabase
+        // 快速加入班級功能
+        function openQuickClass(name) {
+            selectedStuName = name;
+            document.getElementById('target-student-name').innerText = `為「${name}」分配班級`;
+            const container = document.getElementById('class-options');
+            
+            // 僅顯示非過期的班級
+            const activeClasses = classes.filter(c => !c.is_archived);
+            container.innerHTML = activeClasses.map(c => {
+                const isMember = c.members.includes(name);
+                return `
+                <button onclick="${isMember ? '' : `addToClass('${c.id}')`}" 
+                    class="w-full text-left p-3 rounded-xl border font-bold flex justify-between items-center transition
+                    ${isMember ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed' : 'hover:bg-slate-800 hover:text-white border-slate-200'}">
+                    ${c.name}
+                    ${isMember ? '<span>已在班</span>' : '<span class="text-xs opacity-50">點擊加入</span>'}
+                </button>`;
+            }).join('');
+            document.getElementById('quick-class-modal').classList.add('active');
+        }
+
+        async function addToClass(clsId) {
+            const cls = classes.find(c => c.id === clsId);
+            const newMembers = [...cls.members, selectedStuName];
+            const { error } = await supabaseClient.from('classes').update({ members: newMembers }).eq('id', clsId);
+            if (!error) {
+                closeModal();
+                fetchData();
+            }
+        }
+
+        function closeModal() { document.getElementById('quick-class-modal').classList.remove('active'); }
+
         async function handleAddStudent() {
-            const name = document.getElementById('f-name').value.trim();
-            if (!name) return alert("姓名為必填項目！");
+            const name = document.getElementById('f-name').value;
+            if(!name) return alert("姓名必填");
+            const { error } = await supabaseClient.from('students').insert([{
+                name, school: document.getElementById('f-school').value,
+                tel_p: document.getElementById('f-telP').value,
+                tel_m: document.getElementById('f-telM').value,
+                addr: document.getElementById('f-addr').value,
+                note: document.getElementById('f-note').value
+            }]);
+            if(!error) { fetchData(); /* 清空欄位... */ }
+        }
 
-            const newStu = {
-                name: name,
-                school: document.getElementById('f-school').value.trim(),
-                tel_p: document.getElementById('f-telP').value.trim(),
-                tel_m: document.getElementById('f-telM').value.trim(),
-                tel_o: document.getElementById('f-telO').value.trim(),
-                addr: document.getElementById('f-addr').value.trim(),
-                note: document.getElementById('f-note').value.trim(),
-                created_by: currentUser.id
-            };
-
-            toggleLoading(true);
-            const { error } = await supabaseClient.from('students').insert([newStu]);
-            toggleLoading(false);
-
-            if (error) {
-                alert("新增失敗，請檢查權限：" + error.message);
-            } else {
-                // 清空輸入
-                ['f-name','f-school','f-telP','f-telM','f-telO','f-addr','f-note'].forEach(id => document.getElementById(id).value = '');
-                fetchStudents();
+        async function deleteStu(id) {
+            if(confirm("確定刪除？")) {
+                await supabaseClient.from('students').delete().eq('id', id);
+                fetchData();
             }
         }
 
-        // 刪除學生
-        async function deleteStudent(id, name) {
-            if (!confirm(`確定要刪除學生「${name}」嗎？此動作無法復原。`)) return;
-
-            toggleLoading(true);
-            const { error } = await supabaseClient.from('students').delete().eq('id', id);
-            toggleLoading(false);
-
-            if (error) {
-                alert("刪除失敗：" + error.message);
-            } else {
-                fetchStudents();
-            }
-        }
-
-        window.onload = init;
+        window.onload = fetchData;
     </script>
 </body>
 </html>

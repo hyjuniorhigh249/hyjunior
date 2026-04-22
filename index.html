@@ -3,173 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>浩元行政雲端系統 - 安全驗證</title>
+    <title>浩元行政管理系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="pip-tool.js"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; }
-        .login-wall { display: flex; }
-        .dashboard-content { display: none; } /* 預設隱藏所有內容 */
+        body { font-family: "Microsoft JhengHei", sans-serif; }
+        .nav-btn { @apply flex items-center w-full px-4 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition-all mb-1; }
+        .nav-btn.active { @apply bg-slate-800 text-white shadow-lg; }
     </style>
 </head>
-<body class="min-h-screen">
+<body class="flex h-screen bg-slate-100 overflow-hidden">
 
-    <div id="auth-wall" class="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center p-6 text-white">
-        <div class="w-full max-w-sm text-center">
-            <h1 class="text-3xl font-black mb-2 italic">浩元行政系統</h1>
-            <p class="text-slate-400 mb-8 font-bold">請先驗證您的 Google 管理員帳號</p>
-            
-            <div id="auth-action-area">
-                <button onclick="login()" class="w-full bg-white text-slate-900 py-4 rounded-2xl font-black shadow-xl hover:bg-slate-100 transition flex items-center justify-center gap-3">
-                    <img src="https://www.google.com/favicon.ico" class="w-5 h-5">
-                    使用 Google 帳號登入
-                </button>
-            </div>
-
-            <div id="access-denied" class="hidden mt-6 p-4 bg-rose-500/20 border border-rose-500/50 rounded-xl text-rose-200 text-sm font-bold">
-                抱歉，您的 Email 不在管理員白名單中，無法進入系統。
-            </div>
+    <aside class="w-48 bg-white border-r border-slate-200 p-4 flex flex-col shrink-0">
+        <div class="mb-8 px-2">
+            <h1 class="text-xl font-black text-slate-800 italic">浩元行政</h1>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Management System</p>
         </div>
-    </div>
 
-    <div id="main-app" class="dashboard-content min-h-screen flex">
-        <nav class="w-44 bg-white border-r border-slate-200 p-4 flex flex-col shrink-0 shadow-sm">
-            <div class="font-black text-xl mb-8 text-slate-800 border-b pb-2 text-center italic text-slate-800">浩元行政</div>
-            <div class="space-y-1">
-                <a href="index.html" class="flex items-center gap-2 px-3 py-2 rounded-lg font-bold bg-slate-800 text-white text-sm">🏠 首頁概況</a>
-                <a href="students.html" class="flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-slate-500 hover:bg-slate-50 text-sm">👤 學生總檔</a>
-                <a href="classes.html" class="flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-slate-500 hover:bg-slate-50 text-sm">👥 班級管理</a>
-            </div>
-
-            <div class="mt-4 pt-4 border-t border-slate-100">
-                <p class="text-[10px] font-black text-slate-400 uppercase mb-2 px-2">快捷工具</p>
-                <button onclick="startPiP()" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-blue-600 hover:bg-blue-50 text-xs transition text-left">
-                    <span>📱</span> 迷你通訊窗
-                </button>
-            </div>
-
-            <div class="mt-auto pt-4 border-t border-slate-100">
-                <div class="mb-3 px-2">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase">管理員</p>
-                    <p id="user-email-display" class="text-xs font-black text-slate-600 truncate"></p>
-                </div>
-                <button onclick="logout()" class="w-full border border-slate-200 text-slate-400 py-2 rounded-lg font-bold text-xs hover:bg-slate-50 transition">安全登出</button>
-            </div>
+        <nav class="space-y-1 flex-1">
+            <button onclick="changePage('students.html', this)" class="nav-btn active">
+                <span>👤 學生總檔</span>
+            </button>
+            <button onclick="changePage('classes.html', this)" class="nav-btn">
+                <span>👥 班級管理</span>
+            </button>
         </nav>
 
-        <main class="flex-1 p-8 overflow-y-auto">
-            <header class="flex justify-between items-center mb-8">
-                <div>
-                    <h1 class="text-2xl font-black text-slate-800">系統概況儀表板</h1>
-                    <p class="text-slate-400 font-bold">歡迎回來，系統已完成雲端安全連線</p>
-                </div>
-                <div id="current-date" class="text-right font-black text-slate-400 text-sm"></div>
-            </header>
+        <div class="mt-auto pt-4 border-t">
+            <button onclick="startPiP()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-xs shadow-md transition-all active:scale-95">
+                開啟迷你通訊窗
+            </button>
+        </div>
+    </aside>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest">總學生人數</p>
-                    <div class="flex items-end gap-2 mt-2">
-                        <span id="stat-students" class="text-4xl font-black text-slate-800">--</span>
-                        <span class="text-slate-400 font-bold mb-1 text-sm">人</span>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest">目前班級數</p>
-                    <div class="flex items-end gap-2 mt-2">
-                        <span id="stat-classes" class="text-4xl font-black text-slate-800">--</span>
-                        <span class="text-slate-400 font-bold mb-1 text-sm">班</span>
-                    </div>
-                </div>
-                <div class="bg-emerald-50 p-6 rounded-2xl shadow-sm border border-emerald-100">
-                    <p class="text-xs font-black text-emerald-400 uppercase tracking-widest">連線安全狀態</p>
-                    <div class="flex items-center gap-2 mt-3">
-                        <div class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                        <span class="text-emerald-700 font-black text-lg">AES-256 加密中</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <a href="students.html" class="p-8 bg-white rounded-3xl border-2 border-slate-50 hover:border-slate-800 transition group text-center shadow-sm">
-                    <span class="text-4xl block mb-2">👤</span>
-                    <span class="font-black text-slate-700">進入學生管理總檔</span>
-                </a>
-                <a href="classes.html" class="p-8 bg-white rounded-3xl border-2 border-slate-50 hover:border-slate-800 transition group text-center shadow-sm">
-                    <span class="text-4xl block mb-2">👥</span>
-                    <span class="font-black text-slate-700">進入班級編排系統</span>
-                </a>
-            </div>
-        </main>
-    </div>
+    <main class="flex-1 relative">
+        <iframe id="main-content" src="students.html" class="w-full h-full border-none"></iframe>
+    </main>
 
     <script>
-        const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        function changePage(url, btn) {
+            // 切換 iframe 內容
+            document.getElementById('main-content').src = url;
 
-        // 登入功能
-        async function login() {
-            await supabaseClient.auth.signInWithOAuth({
-                provider: 'google',
-                options: { redirectTo: window.location.origin + window.location.pathname }
-            });
+            // 更新按鈕樣式
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
         }
-
-        // 登出功能
-        async function logout() {
-            await supabaseClient.auth.signOut();
-            window.location.reload();
-        }
-
-        // 強制檢查程序
-        async function runSecurityCheck() {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-
-            if (!user) {
-                // 未登入，停留在登入牆
-                return;
-            }
-
-            // 已登入，檢查是否有管理員權限 (讀取 admins 表)
-            const { data: adminData, error } = await supabaseClient
-                .from('admins')
-                .select('email')
-                .eq('email', user.email)
-                .single();
-
-            if (error || !adminData) {
-                // 雖有 Google 帳號但不在白名單中
-                document.getElementById('access-denied').classList.remove('hidden');
-                document.getElementById('auth-action-area').classList.add('hidden');
-                return;
-            }
-
-            // 驗證成功，解鎖介面
-            document.getElementById('auth-wall').classList.add('hidden');
-            document.getElementById('main-app').style.display = 'flex';
-            document.getElementById('user-email-display').innerText = user.email;
-            
-            fetchStats();
-        }
-
-        async function fetchStats() {
-            const { count: sCount } = await supabaseClient.from('students').select('*', { count: 'exact', head: true });
-            const { count: cCount } = await supabaseClient.from('classes').select('*', { count: 'exact', head: true });
-            
-            document.getElementById('stat-students').innerText = sCount || 0;
-            document.getElementById('stat-classes').innerText = cCount || 0;
-        }
-
-        document.getElementById('current-date').innerText = new Date().toLocaleDateString('zh-TW', {
-            year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
-        });
-
-        // 啟動安全性檢查
-        runSecurityCheck();
     </script>
-
-    <script src="pip-tool.js"></script>
-    <script src="sidebar.js"></script>
 </body>
 </html>

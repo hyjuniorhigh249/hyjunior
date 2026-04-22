@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>數據概況 - 浩元行政系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        .welcome-banner {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 2rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="welcome-banner shadow-xl">
+            <h1 class="text-3xl font-black mb-2">您好，行政管理員 👋</h1>
+            <p class="text-slate-300 font-bold">歡迎回來浩元行政系統。今天有 12 位學生的資訊需要確認。</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="stat-card">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">在籍學生</p>
+                <h2 class="text-3xl font-black text-slate-800">128 <span class="text-sm font-bold text-emerald-500">+3</span></h2>
+                <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="bg-emerald-500 h-full w-[75%]"></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">開辦班級</p>
+                <h2 class="text-3xl font-black text-slate-800">14 <span class="text-sm font-bold text-slate-400">個</span></h2>
+                <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="bg-blue-500 h-full w-[60%]"></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">本月補課人次</p>
+                <h2 class="text-3xl font-black text-slate-800">24 <span class="text-sm font-bold text-rose-400">↑</span></h2>
+                <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="bg-amber-500 h-full w-[45%]"></div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">系統健康度</p>
+                <h2 class="text-3xl font-black text-emerald-500">100%</h2>
+                <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="bg-emerald-500 h-full w-[100%]"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                <h3 class="font-black text-lg mb-6 border-b pb-4">系統最近異動</h3>
+                <div class="space-y-6">
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 shrink-0">📝</div>
+                        <div>
+                            <p class="font-black text-sm text-slate-700">新學生入庫：林小明</p>
+                            <p class="text-xs text-slate-400 font-bold">10 分鐘前 · 由 管理員 操作</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 shrink-0">✅</div>
+                        <div>
+                            <p class="font-black text-sm text-slate-700">班級更動：國三數學 A 班成員已更新</p>
+                            <p class="text-xs text-slate-400 font-bold">2 小時前 · 由 系統 自動同步</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 shrink-0">📱</div>
+                        <div>
+                            <p class="font-black text-sm text-slate-700">迷你通訊窗：已更新通訊紀錄</p>
+                            <p class="text-xs text-slate-400 font-bold">5 小時前 · 系統記錄</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                <h3 class="font-black text-lg mb-6 border-b pb-4">快速捷徑</h3>
+                <div class="grid grid-cols-1 gap-3">
+                    <button onclick="parent.changePage('students.html', parent.document.getElementById('nav-students'))" class="w-full p-4 bg-slate-50 hover:bg-slate-800 hover:text-white rounded-2xl transition-all font-black text-left flex items-center justify-between group">
+                        <span>管理學生資料</span>
+                        <span class="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                    </button>
+                    <button onclick="parent.changePage('classes.html', parent.document.getElementById('nav-classes'))" class="w-full p-4 bg-slate-50 hover:bg-slate-800 hover:text-white rounded-2xl transition-all font-black text-left flex items-center justify-between group">
+                        <span>安排班級課表</span>
+                        <span class="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
+                    </button>
+                </div>
+                <div class="mt-8 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                    <p class="text-xs font-black text-blue-600 mb-2 uppercase tracking-tighter">系統公告</p>
+                    <p class="text-xs text-blue-800 font-bold leading-relaxed">歡迎使用浩元行政系統 2.0。現在側邊欄已全面統一，您可以更快速地在各項功能間切換。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

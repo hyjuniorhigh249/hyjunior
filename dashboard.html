@@ -10,7 +10,7 @@
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; color: #1e293b; }
         .stat-card {
             background: white;
-            padding: 1.25rem;
+            padding: 1.5rem;
             border-radius: 1.5rem;
             border: 1px solid #e2e8f0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -20,7 +20,7 @@
         .welcome-banner {
             background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
             color: white;
-            padding: 1.5rem 2rem;
+            padding: 2rem;
             border-radius: 2rem;
             margin-bottom: 2rem;
         }
@@ -29,6 +29,9 @@
             border-radius: 1.5rem;
             border-left: 6px solid #3b82f6;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border-top: 1px solid #f1f5f9;
+            border-right: 1px solid #f1f5f9;
+            border-bottom: 1px solid #f1f5f9;
         }
     </style>
 </head>
@@ -36,31 +39,43 @@
     <div class="max-w-7xl mx-auto">
         <div class="welcome-banner shadow-xl flex justify-between items-center">
             <div>
-                <h1 class="text-2xl font-black mb-1">老師您好 👋</h1>
-                <p id="welcome-msg" class="text-slate-300 text-sm font-bold">正在讀取系統概況...</p>
+                <h1 class="text-3xl font-black mb-2">老師您好 👋</h1>
+                <p id="welcome-msg" class="text-slate-300 font-bold">正在讀取今日系統概況...</p>
             </div>
             <div class="text-right">
-                <p id="display-date" class="text-white font-black text-lg"></p>
-                <p id="display-day" class="text-slate-400 text-xs font-bold tracking-widest uppercase"></p>
+                <p id="display-date" class="text-white font-black text-xl"></p>
+                <p id="display-day" class="text-slate-400 font-bold tracking-widest"></p>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="stat-card">
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">國中部總人數</p>
-                <h2 id="count-students" class="text-2xl font-black text-slate-800">--</h2>
+                <h2 id="count-students" class="text-3xl font-black text-slate-800">--</h2>
+                <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="bg-emerald-500 h-full w-[85%]"></div>
+                </div>
             </div>
             <div class="stat-card">
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">全部班級數</p>
-                <h2 id="count-all-classes" class="text-2xl font-black text-slate-800">--</h2>
+                <h2 id="count-all-classes" class="text-3xl font-black text-slate-800">--</h2>
+                <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="bg-blue-500 h-full w-[60%]"></div>
+                </div>
             </div>
             <div class="stat-card">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">本月新學生</p>
-                <h2 id="count-new" class="text-2xl font-black text-slate-800">--</h2>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">本月新增學生</p>
+                <h2 id="count-new" class="text-3xl font-black text-slate-800">--</h2>
+                <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="bg-amber-500 h-full w-[20%]"></div>
+                </div>
             </div>
             <div class="stat-card">
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">系統狀態</p>
-                <h2 id="sys-status" class="text-xl font-black text-emerald-500 font-mono">ONLINE</h2>
+                <h2 id="sys-status" class="text-2xl font-black text-emerald-500 font-mono">ONLINE</h2>
+                <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="bg-emerald-500 h-full w-full"></div>
+                </div>
             </div>
         </div>
 
@@ -68,17 +83,16 @@
             
             <div class="lg:col-span-2 space-y-4">
                 <h3 class="font-black text-slate-400 text-xs uppercase tracking-widest flex items-center gap-2 mb-4">
-                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Today's Classes 今日課程行程
+                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Today's Schedule 今日課程
                 </h3>
                 <div id="today-classes-list" class="space-y-4">
-                    <p class="text-slate-400 animate-pulse text-sm">正在排定今日課表...</p>
+                    <p class="text-slate-400 animate-pulse text-sm">資料讀取中...</p>
                 </div>
             </div>
 
             <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm h-fit">
                 <h3 class="font-black text-lg mb-6 border-b pb-4 flex items-center justify-between">
-                    <span>最近異動</span>
-                    <span class="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-400">LOGS</span>
+                    <span>最近異動記錄</span>
                 </h3>
                 <div id="recent-activity" class="space-y-6">
                     <p class="text-slate-400 animate-pulse text-sm">載入中...</p>
@@ -90,7 +104,8 @@
 
     <script>
         const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3V1VIdTqMr5iqnM";
+        // 修正後的 API Key，確保與其他功能頁面一致
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const DAYS_CH = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
@@ -99,25 +114,21 @@
             const now = new Date();
             const currentDay = now.getDay();
             
-            // 更新日期顯示
-            document.getElementById('display-date').innerText = `${now.getMonth()+1}月${now.getDate()}日`;
+            document.getElementById('display-date').innerText = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
             document.getElementById('display-day').innerText = DAYS_CH[currentDay];
 
             try {
-                // 1. 獲取學生總數
+                // 1. 學生總數
                 const { count: studentCount } = await supabaseClient.from('students').select('*', { count: 'exact', head: true });
                 
-                // 2. 獲取全部進行中班級數 (不分星期)
-                const { count: allClassCount } = await supabaseClient
-                    .from('classes')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('is_archived', false);
+                // 2. 全部班級數
+                const { count: allClassCount } = await supabaseClient.from('classes').select('*', { count: 'exact', head: true }).eq('is_archived', false);
 
-                // 3. 獲取本月新學生
+                // 3. 本月新學生
                 const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
                 const { count: newThisMonth } = await supabaseClient.from('students').select('*', { count: 'exact', head: true }).gte('created_at', firstDayOfMonth);
 
-                // 4. 獲取今日課程內容
+                // 4. 今日課程內容
                 const { data: todayClasses } = await supabaseClient
                     .from('classes')
                     .select('*')
@@ -125,73 +136,69 @@
                     .eq('is_archived', false)
                     .order('schedule_start', { ascending: true });
 
-                // 5. 獲取最近 5 筆異動
+                // 5. 最近異動紀錄 (最近 8 筆)
                 const { data: recentStudents } = await supabaseClient
                     .from('students')
                     .select('name, created_at')
                     .order('created_at', { ascending: false })
-                    .limit(5);
+                    .limit(8);
 
-                // 更新頂部卡片數值
+                // 更新畫面數值
                 document.getElementById('count-students').innerText = studentCount || 0;
                 document.getElementById('count-all-classes').innerText = allClassCount || 0;
                 document.getElementById('count-new').innerText = newThisMonth || 0;
                 document.getElementById('welcome-msg').innerText = `目前浩元國中部共有 ${studentCount || 0} 位學生`;
 
-                // 渲染今日課程列表
+                // 渲染課程行程
                 const classBox = document.getElementById('today-classes-list');
                 if (todayClasses && todayClasses.length > 0) {
                     classBox.innerHTML = todayClasses.map(cls => `
-                        <div class="course-card p-6 border border-slate-100">
-                            <div class="flex justify-between items-start mb-4">
+                        <div class="course-card p-5">
+                            <div class="flex justify-between items-start mb-3">
                                 <div>
                                     <div class="flex items-center gap-2 mb-1">
-                                        <span class="bg-blue-50 text-blue-600 text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                                        <span class="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase">
                                             ${cls.schedule_start?.slice(0,5)} - ${cls.schedule_end?.slice(0,5)}
                                         </span>
-                                        <span class="text-slate-400 text-xs font-bold">/ ${cls.teacher || '未排師資'} 老師</span>
+                                        <span class="text-slate-500 text-xs font-bold">${cls.teacher || '未排師資'} 老師</span>
                                     </div>
                                     <h4 class="text-xl font-black text-slate-800">${cls.name}</h4>
                                 </div>
                                 <div class="text-right">
-                                    <p class="text-[10px] font-black text-slate-300 uppercase">已點名人數</p>
+                                    <p class="text-[10px] font-black text-slate-300 uppercase">學生人數</p>
                                     <p class="text-xl font-black text-slate-700">${cls.members?.length || 0}</p>
                                 </div>
                             </div>
-                            <div class="flex flex-wrap gap-2 pt-4 border-t border-slate-50">
+                            <div class="flex flex-wrap gap-2 pt-3 border-t border-slate-50">
                                 ${cls.members && cls.members.length > 0 
-                                    ? cls.members.map(m => `<span class="px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold text-slate-600">${m}</span>`).join('')
-                                    : '<p class="text-slate-300 italic text-xs font-bold">目前班級內無學生成員</p>'}
+                                    ? cls.members.map(m => `<span class="px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold text-slate-500">${m}</span>`).join('')
+                                    : '<p class="text-slate-300 italic text-xs">暫無學生成員</p>'}
                             </div>
                         </div>
                     `).join('');
                 } else {
-                    classBox.innerHTML = `
-                        <div class="bg-white rounded-3xl p-16 text-center border-2 border-dashed border-slate-200">
-                            <span class="text-4xl block mb-4">☕</span>
-                            <p class="text-slate-400 font-bold">今天沒有排定課程，休息一下吧！</p>
-                        </div>`;
+                    classBox.innerHTML = `<div class="bg-slate-50 rounded-3xl p-12 text-center border-2 border-dashed border-slate-200"><p class="text-slate-400 font-bold">☕ 今日無安排課程</p></div>`;
                 }
 
-                // 渲染異動記錄
+                // 渲染最近異動紀錄
                 const activityBox = document.getElementById('recent-activity');
                 if (recentStudents && recentStudents.length > 0) {
                     activityBox.innerHTML = recentStudents.map(s => `
-                        <div class="flex gap-3 items-start">
-                            <div class="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 shrink-0 text-xs font-black">👤</div>
+                        <div class="flex gap-4">
+                            <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 shrink-0 font-black text-xs">👤</div>
                             <div>
-                                <p class="font-black text-[13px] text-slate-700 leading-tight">新學生錄入：${s.name}</p>
-                                <p class="text-[10px] text-slate-400 font-bold mt-1 uppercase">${new Date(s.created_at).toLocaleDateString('zh-TW')} · 系統更新</p>
+                                <p class="font-black text-sm text-slate-700">新學生錄入：${s.name}</p>
+                                <p class="text-xs text-slate-400 font-bold">${new Date(s.created_at).toLocaleString('zh-TW')} · 系統同步</p>
                             </div>
                         </div>
                     `).join('');
                 } else {
-                    activityBox.innerHTML = '<p class="text-slate-400 text-xs font-bold">暫無最新異動紀錄。</p>';
+                    activityBox.innerHTML = '<p class="text-slate-400 text-sm">暫無最新異動紀錄。</p>';
                 }
 
             } catch (err) {
-                console.error("Dashboard Error:", err);
-                document.getElementById('sys-status').innerText = "OFFLINE";
+                console.error("Dashboard Load Error:", err);
+                document.getElementById('sys-status').innerText = "ERROR";
                 document.getElementById('sys-status').classList.replace('text-emerald-500', 'text-rose-500');
             }
         }

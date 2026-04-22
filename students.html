@@ -1,23 +1,269 @@
-<style>
-    /* 新增表格行點擊效果 */
-    .stu-row { cursor: pointer; transition: background-color 0.2s; }
-    .stu-row:hover { background-color: #f1f5f9 !important; }
-    /* 詳情卡片樣式 */
-    .detail-label { @apply text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1; }
-    .detail-value { @apply text-base font-bold text-slate-700 mb-4; }
-</style>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學生總檔 - 浩元行政系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f4f7f9; font-size: 13px; }
+        .form-input { @apply w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all font-bold; }
+        .stu-table th { position: sticky; top: 0; background: #fff; z-index: 10; padding: 12px 10px; border-bottom: 2px solid #edf2f7; }
+        .stu-table td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; }
+        .stu-row { cursor: pointer; transition: all 0.2s; }
+        .stu-row:hover { background-color: #f8fafc !important; transform: scale(1.002); }
+        .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
+        .modal.active { display: flex; }
+        /* 詳情卡片字體 */
+        .detail-label { @apply text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1; }
+        .detail-value { @apply text-base font-bold text-slate-700 mb-4; }
+    </style>
+</head>
+<body class="min-h-screen flex">
 
-<table class="stu-table w-full text-left border-collapse">
-    <thead class="text-[11px] font-black text-slate-400 uppercase">
-        <tr>
-            <th class="w-24">姓名</th>
-            <th class="w-24 text-emerald-600">本人電話</th>
-            <th class="w-32">家長聯絡</th>
-            <th class="w-40">所屬班級</th>
-            <th class="w-32">就讀學校</th>
-            <th class="w-16 text-center">加班</th>
-            <th class="w-12 text-center">刪除</th>
-        </tr>
-    </thead>
-    <tbody id="stu-table-body" class="text-slate-600"></tbody>
-</table>
+    <nav class="w-40 bg-white border-r border-slate-200 p-3 flex flex-col gap-1 shrink-0">
+        <div class="font-black text-lg mb-4 text-slate-800 border-b pb-2 text-center italic">浩元行政</div>
+        <a href="index.html" class="px-3 py-2 rounded-lg font-bold text-slate-500 hover:bg-slate-50 text-sm">🏠 首頁概況</a>
+        <a href="students.html" class="px-3 py-2 rounded-lg bg-slate-800 text-white text-sm shadow-md">👤 學生總檔</a>
+        <a href="classes.html" class="px-3 py-2 rounded-lg font-bold text-slate-500 hover:bg-slate-50 text-sm">👥 班級管理</a>
+    </nav>
+
+    <main id="main-content" class="flex-1 flex flex-col min-h-0 relative opacity-0 transition-opacity duration-500">
+        <div class="bg-white border-b border-slate-200 p-3 px-6 flex items-center justify-between shadow-sm z-20">
+            <div class="relative flex-1 max-w-2xl">
+                <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+                <input type="text" id="global-search" oninput="fetchData()" 
+                    placeholder="搜尋姓名、電話、學校、班級..." 
+                    class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-full bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all font-bold">
+            </div>
+            
+            <div id="status-indicator" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 transition-all">
+                <div id="status-dot" class="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                <span id="status-text" class="text-[11px] font-black text-emerald-600 uppercase tracking-tighter">連線正常</span>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 max-w-7xl mx-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-black text-slate-700 flex items-center gap-2 text-sm">快速錄入新學生</h3>
+                    <button onclick="handleAddStudent()" class="bg-slate-800 text-white px-8 py-2 rounded-xl font-black hover:bg-slate-700 transition shadow-lg active:scale-95">確認入庫</button>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                    <input type="text" id="f-name" class="form-input" placeholder="姓名*">
+                    <input type="text" id="f-telO" class="form-input text-emerald-600" placeholder="本人電話">
+                    <input type="text" id="f-school" class="form-input" placeholder="學校">
+                    <input type="text" id="f-telP" class="form-input" placeholder="爸爸電話">
+                    <input type="text" id="f-telM" class="form-input" placeholder="媽媽電話">
+                    <input type="text" id="f-addr" class="form-input" placeholder="通訊地址">
+                    <input type="text" id="f-note" class="form-input font-normal italic" placeholder="備註">
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden max-w-7xl mx-auto">
+                <div class="overflow-x-auto min-h-[400px]">
+                    <table class="stu-table w-full text-left border-collapse">
+                        <thead class="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                            <tr>
+                                <th class="w-24">姓名</th>
+                                <th class="w-32 text-emerald-600">本人電話</th>
+                                <th class="w-32">家長聯絡</th>
+                                <th class="w-48">所屬班級</th>
+                                <th class="w-32">就讀學校</th>
+                                <th class="w-16 text-center">加班</th>
+                                <th class="w-16 text-center">刪除</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stu-table-body" class="text-slate-600"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="detail-modal" class="modal fixed inset-0 z-[60] items-center justify-center p-4">
+        <div class="bg-white rounded-[32px] p-10 w-full max-w-xl shadow-2xl relative">
+            <div class="flex justify-between items-start mb-8">
+                <div>
+                    <h3 id="d-name" class="text-3xl font-black text-slate-800">---</h3>
+                    <p id="d-school" class="text-slate-400 font-bold mt-1">---</p>
+                </div>
+                <button onclick="closeModal('detail-modal')" class="text-slate-300 hover:text-slate-800 transition text-2xl">✕</button>
+            </div>
+            <div class="grid grid-cols-2 gap-x-8">
+                <div>
+                    <p class="detail-label">本人手機</p>
+                    <p id="d-telO" class="detail-value text-emerald-600 text-xl font-mono">---</p>
+                    <p class="detail-label">家長聯絡</p>
+                    <p id="d-parents" class="detail-value text-sm">---</p>
+                </div>
+                <div>
+                    <p class="detail-label">通訊地址</p>
+                    <p id="d-addr" class="detail-value text-sm leading-relaxed">---</p>
+                </div>
+            </div>
+            <div class="mt-4 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                <p class="detail-label">備註資訊</p>
+                <p id="d-note" class="text-slate-600 font-bold italic">---</p>
+            </div>
+            <div class="mt-8 flex justify-end">
+                <button onclick="closeModal('detail-modal')" class="px-10 py-3 bg-slate-800 text-white rounded-xl font-black shadow-lg hover:bg-slate-700 transition">關閉檢視</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quick-class-modal" class="modal fixed inset-0 z-[70] items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl">
+            <h3 class="text-xl font-black mb-1">分配班級</h3>
+            <p id="target-stu-name" class="text-slate-400 font-bold mb-6 text-xs"></p>
+            <div id="class-options" class="space-y-2 max-h-64 overflow-y-auto mb-6 pr-2"></div>
+            <button onclick="closeModal('quick-class-modal')" class="w-full py-3 bg-slate-100 rounded-xl font-bold text-slate-500">返回</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let students = [], classes = [], selectedName = "";
+
+        // 安全檢查
+        async function runSecurityCheck() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) { window.location.href = "index.html"; return; }
+            
+            // 檢查管理員權限
+            const { data: admin } = await supabaseClient.from('admins').select('email').eq('email', user.email).single();
+            if (!admin) { alert("無管理員權限"); window.location.href = "index.html"; return; }
+
+            document.getElementById('main-content').classList.replace('opacity-0', 'opacity-100');
+            fetchData();
+        }
+
+        async function fetchData() {
+            updateStatus('syncing');
+            const keyword = document.getElementById('global-search').value.toLowerCase().trim();
+            
+            const { data: classData } = await supabaseClient.from('classes').select('*');
+            const { data: stuData, error } = await supabaseClient.from('students').select('*').order('created_at', { ascending: false });
+
+            if (error) { updateStatus('error'); return; }
+
+            classes = classData || [];
+            students = stuData || [];
+            renderTable(keyword);
+            updateStatus('ready');
+        }
+
+        function renderTable(keyword) {
+            const body = document.getElementById('stu-table-body');
+            const filtered = students.filter(s => {
+                const myClsNames = classes.filter(c => c.members.includes(s.name)).map(c => c.name).join(' ');
+                const content = `${s.name} ${s.tel_o} ${s.tel_p} ${s.tel_m} ${s.school} ${myClsNames}`.toLowerCase();
+                return content.includes(keyword);
+            });
+
+            body.innerHTML = filtered.map(s => {
+                const myCls = classes.filter(c => c.members.includes(s.name));
+                return `
+                <tr class="stu-row" onclick="showDetail('${s.id}')">
+                    <td class="font-black text-slate-800 text-sm">${s.name}</td>
+                    <td class="font-bold text-emerald-600 font-mono">${s.tel_o || '-'}</td>
+                    <td class="text-[10px] font-bold text-slate-400">
+                        ${s.tel_p ? '父:'+s.tel_p : ''}${s.tel_m ? ' 母:'+s.tel_m : ''}
+                    </td>
+                    <td>
+                        <div class="flex flex-wrap gap-1">
+                            ${myCls.length > 0 ? myCls.map(c => `<span class="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded font-bold">${c.name}</span>`).join('') : '<span class="text-slate-300">未入班</span>'}
+                        </div>
+                    </td>
+                    <td class="text-slate-500 font-bold">${s.school || '-'}</td>
+                    <td class="text-center" onclick="event.stopPropagation()">
+                        <button onclick="openQuickClass('${s.name}')" class="text-lg hover:scale-125 transition">➕</button>
+                    </td>
+                    <td class="text-center" onclick="event.stopPropagation()">
+                        <button onclick="deleteStu('${s.id}')" class="text-slate-300 hover:text-rose-500 transition">✕</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function updateStatus(state) {
+            const dot = document.getElementById('status-dot'), text = document.getElementById('status-text'), container = document.getElementById('status-indicator');
+            if (state === 'syncing') {
+                dot.className = "w-2 h-2 bg-amber-500 rounded-full animate-pulse";
+                text.innerText = "同步中...";
+                container.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100";
+            } else if (state === 'ready') {
+                dot.className = "w-2 h-2 bg-emerald-500 rounded-full";
+                text.innerText = "連線正常";
+                container.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100";
+            } else {
+                dot.className = "w-2 h-2 bg-rose-500 rounded-full";
+                text.innerText = "權限異常";
+                container.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-100";
+            }
+        }
+
+        async function handleAddStudent() {
+            const name = document.getElementById('f-name').value.trim();
+            if (!name) return alert("請輸入姓名");
+            updateStatus('syncing');
+            const { error } = await supabaseClient.from('students').insert([{
+                name, tel_o: document.getElementById('f-telO').value,
+                tel_p: document.getElementById('f-telP').value, tel_m: document.getElementById('f-telM').value,
+                school: document.getElementById('f-school').value, addr: document.getElementById('f-addr').value,
+                note: document.getElementById('f-note').value
+            }]);
+            if (!error) { 
+                ['f-name','f-telO','f-telP','f-telM','f-school','f-addr','f-note'].forEach(id => document.getElementById(id).value = '');
+                fetchData(); 
+            }
+        }
+
+        function showDetail(id) {
+            const s = students.find(x => x.id === id);
+            document.getElementById('d-name').innerText = s.name;
+            document.getElementById('d-school').innerText = s.school || '未設定學校';
+            document.getElementById('d-telO').innerText = s.tel_o || '無資料';
+            document.getElementById('d-parents').innerText = `父: ${s.tel_p || '-'} / 母: ${s.tel_m || '-'}`;
+            document.getElementById('d-addr').innerText = s.addr || '未登錄地址';
+            document.getElementById('d-note').innerText = s.note || '無備註事項';
+            document.getElementById('detail-modal').classList.add('active');
+        }
+
+        function openQuickClass(name) {
+            selectedName = name;
+            document.getElementById('target-stu-name').innerText = `加入 ${name} 至活躍班級`;
+            const options = document.getElementById('class-options');
+            const activeClasses = classes.filter(c => !c.is_archived);
+            options.innerHTML = activeClasses.map(c => {
+                const isMember = c.members.includes(name);
+                return `<button onclick="${isMember ? '' : `addToClass('${c.id}')`}" class="w-full text-left p-3 rounded-xl border font-bold flex justify-between items-center ${isMember ? 'bg-slate-50 text-slate-300' : 'hover:bg-slate-800 hover:text-white border-slate-200'}">
+                    ${c.name} ${isMember ? '<span class="text-[9px]">已在班</span>' : ''}
+                </button>`;
+            }).join('');
+            document.getElementById('quick-class-modal').classList.add('active');
+        }
+
+        async function addToClass(cid) {
+            const cls = classes.find(c => c.id === cid);
+            const { error } = await supabaseClient.from('classes').update({ members: [...cls.members, selectedName] }).eq('id', cid);
+            if(!error) { closeModal('quick-class-modal'); fetchData(); }
+        }
+
+        async function deleteStu(id) {
+            if (confirm("刪除學生將無法復原，確定嗎？")) {
+                await supabaseClient.from('students').delete().eq('id', id);
+                fetchData();
+            }
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        window.onload = runSecurityCheck;
+    </script>
+</body>
+</html>

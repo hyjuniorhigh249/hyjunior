@@ -24,19 +24,18 @@
             border-radius: 2rem;
             margin-bottom: 2rem;
         }
-        .loading-pulse { @apply animate-pulse bg-slate-200 text-transparent rounded; }
     </style>
 </head>
 <body class="p-8">
     <div class="max-w-7xl mx-auto">
         <div class="welcome-banner shadow-xl">
-            <h1 class="text-3xl font-black mb-2">您好，行政管理員 👋</h1>
+            <h1 class="text-3xl font-black mb-2">老師您好 👋</h1>
             <p id="welcome-msg" class="text-slate-300 font-bold">正在讀取今日系統概況...</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="stat-card">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">在籍學生</p>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">國中部總人數</p>
                 <h2 id="count-students" class="text-3xl font-black text-slate-800">--</h2>
                 <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
                     <div class="bg-emerald-500 h-full w-[85%]"></div>
@@ -53,11 +52,11 @@
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">本月新增學生</p>
                 <h2 id="count-new" class="text-3xl font-black text-slate-800">--</h2>
                 <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
-                    <div class="bg-amber-500 h-full w-[30%]"></div>
+                    <div class="bg-amber-500 h-full w-[20%]"></div>
                 </div>
             </div>
             <div class="stat-card">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">系統狀態</p>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">系統連線</p>
                 <h2 id="sys-status" class="text-2xl font-black text-emerald-500 font-mono">ONLINE</h2>
                 <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
                     <div class="bg-emerald-500 h-full w-full"></div>
@@ -67,9 +66,9 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
-                <h3 class="font-black text-lg mb-6 border-b pb-4">最近學生異動</h3>
+                <h3 class="font-black text-lg mb-6 border-b pb-4">最近異動記錄</h3>
                 <div id="recent-activity" class="space-y-6">
-                    <p class="text-slate-400 animate-pulse text-sm">正在同步最新資料...</p>
+                    <p class="text-slate-400 animate-pulse text-sm">資料同步中...</p>
                 </div>
             </div>
 
@@ -81,13 +80,9 @@
                         <span class="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                     </button>
                     <button onclick="parent.changePage('classes.html', parent.document.getElementById('nav-classes'))" class="w-full p-4 bg-slate-50 hover:bg-slate-800 hover:text-white rounded-2xl transition-all font-black text-left flex items-center justify-between group">
-                        <span>管理班級組織</span>
+                        <span>班級組織管理</span>
                         <span class="opacity-0 group-hover:opacity-100 transition-opacity">→</span>
                     </button>
-                </div>
-                <div class="mt-8 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                    <p class="text-xs font-black text-blue-600 mb-2 uppercase">系統公告</p>
-                    <p class="text-xs text-blue-800 font-bold leading-relaxed">儀表板已與資料庫同步。所有數據皆為即時更新，如有錄入新學生，請重新整理此頁以更新數據。</p>
                 </div>
             </div>
         </div>
@@ -100,30 +95,38 @@
 
         async function loadDashboardData() {
             try {
-                // 1. 讀取學生總數
-                const { count: studentCount, error: stuErr } = await supabaseClient
+                // 1. 獲取學生總數
+                const { count: studentCount } = await supabaseClient
                     .from('students')
                     .select('*', { count: 'exact', head: true });
                 
-                // 2. 讀取班級總數
-                const { count: classCount, error: clsErr } = await supabaseClient
+                // 2. 獲取班級總數
+                const { count: classCount } = await supabaseClient
                     .from('classes')
                     .select('*', { count: 'exact', head: true });
 
-                // 3. 讀取最近加入的 3 位學生作為「異動」
+                // 3. 獲取本月新增學生數 (正確邏輯：計算本月1號之後的資料)
+                const now = new Date();
+                const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+                const { count: newThisMonth } = await supabaseClient
+                    .from('students')
+                    .select('*', { count: 'exact', head: true })
+                    .gte('created_at', firstDayOfMonth);
+
+                // 4. 獲取最近 3 筆異動
                 const { data: recentStudents } = await supabaseClient
                     .from('students')
                     .select('name, created_at')
                     .order('created_at', { ascending: false })
                     .limit(3);
 
-                // 更新介面
+                // 更新畫面數值
                 document.getElementById('count-students').innerText = studentCount || 0;
                 document.getElementById('count-classes').innerText = classCount || 0;
-                document.getElementById('count-new').innerText = (studentCount > 0) ? Math.floor(studentCount * 0.1) : 0; // 模擬本月比例
-                document.getElementById('welcome-msg').innerText = `目前系統共有 ${studentCount || 0} 位學生，運作狀況良好。`;
+                document.getElementById('count-new').innerText = newThisMonth || 0;
+                document.getElementById('welcome-msg').innerText = `目前浩元國中部共有 ${studentCount || 0} 位學生`;
 
-                // 渲染最近活動
+                // 渲染活動列表
                 const activityBox = document.getElementById('recent-activity');
                 if (recentStudents && recentStudents.length > 0) {
                     activityBox.innerHTML = recentStudents.map(s => `
@@ -131,16 +134,16 @@
                             <div class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 shrink-0">👤</div>
                             <div>
                                 <p class="font-black text-sm text-slate-700">新學生錄入：${s.name}</p>
-                                <p class="text-xs text-slate-400 font-bold">${new Date(s.created_at).toLocaleString('zh-TW')} · 由 管理員 操作</p>
+                                <p class="text-xs text-slate-400 font-bold">${new Date(s.created_at).toLocaleString('zh-TW')} · 系統同步</p>
                             </div>
                         </div>
                     `).join('');
                 } else {
-                    activityBox.innerHTML = '<p class="text-slate-400 text-sm">目前尚無最近異動記錄。</p>';
+                    activityBox.innerHTML = '<p class="text-slate-400 text-sm">暫無最新異動。</p>';
                 }
 
             } catch (err) {
-                console.error("Dashboard Loading Error:", err);
+                console.error("資料加載錯誤:", err);
                 document.getElementById('sys-status').innerText = "ERROR";
                 document.getElementById('sys-status').classList.replace('text-emerald-500', 'text-rose-500');
             }

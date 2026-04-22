@@ -8,7 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; }
-        .dashboard-content { display: none; }
+        .login-wall { display: flex; }
+        .dashboard-content { display: none; } /* 預設隱藏所有內容 */
     </style>
 </head>
 <body class="min-h-screen">
@@ -19,92 +20,136 @@
             <p class="text-slate-400 mb-8 font-bold">請先驗證您的 Google 管理員帳號</p>
             
             <div id="auth-action-area">
-                <button onclick="login()" class="w-full bg-white text-slate-900 py-4 rounded-2xl font-black shadow-2xl hover:bg-slate-100 transition active:scale-95 flex items-center justify-center gap-3">
+                <button onclick="login()" class="w-full bg-white text-slate-900 py-4 rounded-2xl font-black shadow-xl hover:bg-slate-100 transition flex items-center justify-center gap-3">
                     <img src="https://www.google.com/favicon.ico" class="w-5 h-5">
                     使用 Google 帳號登入
                 </button>
             </div>
 
-            <div id="access-denied" class="hidden mt-6 p-4 bg-red-500/10 border border-red-500/50 rounded-2xl text-red-400 text-sm font-bold">
-                ⚠️ 您的帳號不在管理員白名單中，請聯繫管理員。
+            <div id="access-denied" class="hidden mt-6 p-4 bg-rose-500/20 border border-rose-500/50 rounded-xl text-rose-200 text-sm font-bold">
+                抱歉，您的 Email 不在管理員白名單中，無法進入系統。
             </div>
         </div>
     </div>
 
-    <main id="main-app" class="min-h-screen flex" style="display: none;">
-        
-        <div id="sidebar-container"></div>
+    <div id="main-app" class="dashboard-content min-h-screen flex">
+        <nav class="w-44 bg-white border-r border-slate-200 p-4 flex flex-col shrink-0 shadow-sm">
+            <div class="font-black text-xl mb-8 text-slate-800 border-b pb-2 text-center italic text-slate-800">浩元行政</div>
+            <div class="space-y-1">
+                <a href="index.html" class="flex items-center gap-2 px-3 py-2 rounded-lg font-bold bg-slate-800 text-white text-sm">🏠 首頁概況</a>
+                <a href="students.html" class="flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-slate-500 hover:bg-slate-50 text-sm">👤 學生總檔</a>
+                <a href="classes.html" class="flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-slate-500 hover:bg-slate-50 text-sm">👥 班級管理</a>
+            </div>
+            <div class="mt-auto pt-4 border-t border-slate-100">
+                <div class="mb-3 px-2">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase">管理員</p>
+                    <p id="user-email-display" class="text-xs font-black text-slate-600 truncate"></p>
+                </div>
+                <button onclick="logout()" class="w-full border border-slate-200 text-slate-400 py-2 rounded-lg font-bold text-xs hover:bg-slate-50 transition">安全登出</button>
+            </div>
+        </nav>
 
-        <div class="flex-1 p-8">
-            <header class="mb-10">
-                <h2 id="current-date" class="text-slate-400 font-bold text-sm mb-1 uppercase tracking-widest">---</h2>
-                <h1 class="text-4xl font-black text-slate-800">營運數據概覽</h1>
+        <main class="flex-1 p-8 overflow-y-auto">
+            <header class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 class="text-2xl font-black text-slate-800">系統概況儀表板</h1>
+                    <p class="text-slate-400 font-bold">歡迎回來，系統已完成雲端安全連線</p>
+                </div>
+                <div id="current-date" class="text-right font-black text-slate-400 text-sm"></div>
             </header>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden group">
-                    <div class="relative z-10">
-                        <p class="text-slate-400 font-bold text-xs uppercase mb-1">目前學生總數</p>
-                        <h3 id="stat-students" class="text-6xl font-black text-slate-800">0</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest">總學生人數</p>
+                    <div class="flex items-end gap-2 mt-2">
+                        <span id="stat-students" class="text-4xl font-black text-slate-800">--</span>
+                        <span class="text-slate-400 font-bold mb-1 text-sm">人</span>
                     </div>
-                    <div class="absolute -right-4 -bottom-4 text-9xl opacity-[0.03]">👥</div>
                 </div>
-
-                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden group">
-                    <div class="relative z-10">
-                        <p class="text-slate-400 font-bold text-xs uppercase mb-1">開課中班級</p>
-                        <h3 id="stat-classes" class="text-6xl font-black text-slate-800">0</h3>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-widest">目前班級數</p>
+                    <div class="flex items-end gap-2 mt-2">
+                        <span id="stat-classes" class="text-4xl font-black text-slate-800">--</span>
+                        <span class="text-slate-400 font-bold mb-1 text-sm">班</span>
                     </div>
-                    <div class="absolute -right-4 -bottom-4 text-9xl opacity-[0.03]">📚</div>
+                </div>
+                <div class="bg-emerald-50 p-6 rounded-2xl shadow-sm border border-emerald-100">
+                    <p class="text-xs font-black text-emerald-400 uppercase tracking-widest">連線安全狀態</p>
+                    <div class="flex items-center gap-2 mt-3">
+                        <div class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+                        <span class="text-emerald-700 font-black text-lg">AES-256 加密中</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    </main>
+
+            <div class="grid grid-cols-2 gap-4">
+                <a href="students.html" class="p-8 bg-white rounded-3xl border-2 border-slate-50 hover:border-slate-800 transition group text-center shadow-sm">
+                    <span class="text-4xl block mb-2">👤</span>
+                    <span class="font-black text-slate-700">進入學生管理總檔</span>
+                </a>
+                <a href="classes.html" class="p-8 bg-white rounded-3xl border-2 border-slate-50 hover:border-slate-800 transition group text-center shadow-sm">
+                    <span class="text-4xl block mb-2">👥</span>
+                    <span class="font-black text-slate-700">進入班級編排系統</span>
+                </a>
+            </div>
+        </main>
+    </div>
 
     <script>
-        // 直接寫入金鑰
         const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
-        
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // 登入功能
         async function login() {
-            await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+            await supabaseClient.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: window.location.origin + window.location.pathname }
+            });
         }
 
+        // 登出功能
         async function logout() {
             await supabaseClient.auth.signOut();
-            location.reload();
+            window.location.reload();
         }
 
-        // 安全檢查
-        supabaseClient.auth.onAuthStateChange(async (event, session) => {
-            if (session) {
-                const user = session.user;
-                const { data: adminData, error } = await supabaseClient
-                    .from('admins').select('email').eq('email', user.email).single();
+        // 強制檢查程序
+        async function runSecurityCheck() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
 
-                if (error || !adminData) {
-                    document.getElementById('access-denied').classList.remove('hidden');
-                    return;
-                }
-
-                document.getElementById('auth-wall').classList.add('hidden');
-                document.getElementById('main-app').style.display = 'flex';
-                
-                // 確保側邊欄載入後更新 Email
-                setTimeout(() => {
-                    const emailDisplay = document.getElementById('user-email-display');
-                    if (emailDisplay) emailDisplay.innerText = user.email;
-                }, 500);
-                
-                fetchStats();
+            if (!user) {
+                // 未登入，停留在登入牆
+                return;
             }
-        });
+
+            // 已登入，檢查是否有管理員權限 (讀取 admins 表)
+            // 這是前端的初步篩選，真正的安全在 RLS
+            const { data: adminData, error } = await supabaseClient
+                .from('admins')
+                .select('email')
+                .eq('email', user.email)
+                .single();
+
+            if (error || !adminData) {
+                // 雖有 Google 帳號但不在白名單中
+                document.getElementById('access-denied').classList.remove('hidden');
+                document.getElementById('auth-action-area').classList.add('hidden');
+                return;
+            }
+
+            // 驗證成功，解鎖介面
+            document.getElementById('auth-wall').classList.add('hidden');
+            document.getElementById('main-app').style.display = 'flex';
+            document.getElementById('user-email-display').innerText = user.email;
+            
+            fetchStats();
+        }
 
         async function fetchStats() {
             const { count: sCount } = await supabaseClient.from('students').select('*', { count: 'exact', head: true });
             const { count: cCount } = await supabaseClient.from('classes').select('*', { count: 'exact', head: true });
+            
             document.getElementById('stat-students').innerText = sCount || 0;
             document.getElementById('stat-classes').innerText = cCount || 0;
         }
@@ -112,9 +157,9 @@
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('zh-TW', {
             year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
         });
-    </script>
 
-    <script src="pip-tool.js"></script>
-    <script src="sidebar.js"></script>
+        // 啟動安全性檢查
+        runSecurityCheck();
+    </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 async function startPiP() {
     if ('documentPictureInPicture' in window) {
-        // 設定更小的寬高：寬度 180, 高度 220 (比之前更窄更矮)
+        // 維持極致壓縮尺寸
         const pipWindow = await window.documentPictureInPicture.requestWindow({
             width: 180,
             height: 220,
@@ -11,19 +11,16 @@ async function startPiP() {
         pipWindow.document.head.appendChild(tailwind);
 
         const container = pipWindow.document.createElement('div');
-        // 使用 p-2 壓縮間距
         container.className = "p-2 bg-white min-h-screen flex flex-col font-sans";
         container.innerHTML = `
             <div class="flex justify-between items-center mb-1 px-1">
                 <span class="font-black text-slate-800 text-[10px]">浩元通訊</span>
                 <span id="p-status" class="text-[9px] font-bold text-blue-500">● 自動</span>
             </div>
-            
             <div class="bg-slate-50 p-2 rounded-xl border border-slate-100 mb-2 text-center">
                 <div id="p-time" class="text-2xl font-black text-slate-800 tracking-tighter leading-none">--:--</div>
                 <div id="p-date" class="text-[9px] font-bold text-slate-400 mt-1">----/--/--</div>
             </div>
-
             <div class="space-y-1.5">
                 <button id="p-arrive" class="w-full bg-slate-800 text-white py-2 rounded-lg font-bold text-[10px] shadow-sm transition-all active:scale-95">到班通知</button>
                 <button id="p-leave" class="w-full border border-slate-800 text-slate-800 py-2 rounded-lg font-bold text-[10px] transition-all active:scale-95">離班通知</button>
@@ -31,7 +28,6 @@ async function startPiP() {
                     <button id="p-copy" class="w-full bg-emerald-500 text-white py-2.5 rounded-lg font-black text-[10px] shadow-md transition-all active:scale-95">點擊複製訊息</button>
                 </div>
             </div>
-            <textarea id="temp-area" class="fixed -top-40 opacity-0"></textarea>
         `;
         pipWindow.document.body.appendChild(container);
 
@@ -69,17 +65,17 @@ async function startPiP() {
 
         pCopy.onclick = async () => {
             const time = pTime.innerText;
+            // 嚴格還原您的訊息內容
             const text = isArrive ? 
-                `【到班通知】☀️\n家長您好，\n同學已於🕐${time}安全抵達補習班！` :
-                `【離班通知】🌙\n家長您好，\n同學已於🕐${time}離班！`;
+                `【到班通知】\n家長您好，\n同學已於${time}到班！\n如上課期間有任何問題或狀況，\n我們都會即時反映給您` :
+                `【離班通知】\n家長您好，\n同學已於${time}離班！\n如有任何問題或狀況，\n再請家長留言給我們`;
             
             try {
                 await pipWindow.navigator.clipboard.writeText(text);
-                pCopy.innerText = "✅ 成功";
-                pCopy.className = "w-full bg-emerald-600 text-white py-2.5 rounded-lg font-black text-[10px] scale-95";
+                const originalText = pCopy.innerText;
+                pCopy.innerText = "✅ 複製成功";
                 setTimeout(() => {
-                    pCopy.innerText = "點擊複製訊息";
-                    pCopy.className = "w-full bg-emerald-500 text-white py-2.5 rounded-lg font-black text-[10px] shadow-md";
+                    pCopy.innerText = originalText;
                     isAuto = true;
                     pStatus.innerText = "● 自動";
                     updateTime();
@@ -87,6 +83,6 @@ async function startPiP() {
             } catch (err) { console.error(err); }
         };
     } else {
-        alert("不支援置頂視窗功能");
+        alert("不支援置頂視窗");
     }
 }

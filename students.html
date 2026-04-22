@@ -42,8 +42,8 @@
         <div class="flex-1 overflow-y-auto p-4 space-y-4">
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 max-w-7xl mx-auto">
                 <div class="flex justify-between items-center mb-3">
-                    <h3 class="font-black text-slate-700 text-xs">快速錄入新學生</h3>
-                    <button onclick="handleAddStudent()" class="bg-slate-800 text-white px-8 py-1.5 rounded-xl font-black hover:bg-slate-700">確認入庫</button>
+                    <h3 class="font-black text-slate-700 text-xs text-center">快速錄入新學生</h3>
+                    <button onclick="handleAddStudent()" class="bg-slate-800 text-white px-8 py-1.5 rounded-xl font-black hover:bg-slate-700 active:scale-95 transition">確認入庫</button>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
                     <input type="text" id="f-name" class="form-input" placeholder="姓名*">
@@ -51,8 +51,8 @@
                     <input type="text" id="f-telP" class="form-input" placeholder="爸爸電話">
                     <input type="text" id="f-telM" class="form-input" placeholder="媽媽電話">
                     <input type="text" id="f-school" class="form-input" placeholder="學校">
-                    <input type="text" id="f-addr" class="form-input" placeholder="地址">
-                    <input type="text" id="f-note" class="form-input font-normal italic col-span-2" placeholder="備註">
+                    <input type="text" id="f-addr" class="form-input" placeholder="通訊地址">
+                    <input type="text" id="f-note" class="form-input font-normal italic col-span-2" placeholder="備註...">
                 </div>
             </div>
 
@@ -82,10 +82,10 @@
         <div class="bg-white rounded-[32px] p-8 w-full max-w-2xl shadow-2xl relative">
             <div class="flex justify-between items-center mb-6 border-b pb-4">
                 <h3 class="text-2xl font-black text-slate-800">修改學生資訊</h3>
-                <button onclick="closeModal('detail-modal')" class="text-slate-300 hover:text-slate-800 text-2xl">✕</button>
+                <button onclick="closeModal('detail-modal')" class="text-slate-300 hover:text-slate-800 text-2xl transition">✕</button>
             </div>
             
-            <input type="hidden" id="edit-id-store">
+            <input type="hidden" id="edit-id">
             
             <div class="grid grid-cols-2 gap-x-8 gap-y-4">
                 <div class="space-y-4">
@@ -105,7 +105,7 @@
             </div>
             <div class="mt-8 flex gap-3">
                 <button onclick="closeModal('detail-modal')" class="flex-1 py-3 bg-slate-50 text-slate-500 rounded-xl font-black">取消</button>
-                <button id="save-edit-btn" onclick="saveStudentEdit()" class="flex-1 py-3 bg-slate-800 text-white rounded-xl font-black shadow-lg">儲存所有修改</button>
+                <button id="save-edit-btn" onclick="saveStudentEdit()" class="flex-1 py-3 bg-slate-800 text-white rounded-xl font-black shadow-lg hover:bg-slate-700 transition">儲存所有修改</button>
             </div>
         </div>
     </div>
@@ -114,7 +114,7 @@
         <div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl">
             <h3 class="text-xl font-black mb-1">分配班級</h3>
             <p id="target-stu-name" class="text-slate-400 font-bold mb-6 text-xs"></p>
-            <div id="class-options" class="space-y-2 max-h-64 overflow-y-auto mb-6"></div>
+            <div id="class-options" class="space-y-2 max-h-64 overflow-y-auto mb-6 pr-2"></div>
             <button onclick="closeModal('quick-class-modal')" class="w-full py-3 bg-slate-100 rounded-xl font-bold">返回</button>
         </div>
     </div>
@@ -157,7 +157,6 @@
             });
             body.innerHTML = filtered.map(s => {
                 const myCls = classes.filter(c => c.members && c.members.includes(s.name));
-                // 重要：確保 ID 作為字串傳遞
                 return `
                 <tr class="stu-row" onclick="openEditModal('${s.id}')">
                     <td class="font-black text-slate-800">${s.name}</td>
@@ -166,18 +165,18 @@
                     <td class="text-slate-400 text-xs">${s.tel_m || '-'}</td>
                     <td><div class="flex flex-wrap gap-1">${myCls.map(c => `<span class="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded font-bold">${c.name}</span>`).join('') || '<span class="text-slate-300">未入班</span>'}</div></td>
                     <td class="text-slate-500 font-bold truncate max-w-[100px]">${s.school || '-'}</td>
-                    <td class="text-center" onclick="event.stopPropagation()"><button onclick="openQuickClass('${s.name}')" class="text-base">➕</button></td>
-                    <td class="text-center" onclick="event.stopPropagation()"><button onclick="deleteStu('${s.id}')" class="text-slate-300">✕</button></td>
+                    <td class="text-center" onclick="event.stopPropagation()"><button onclick="openQuickClass('${s.name}')" class="text-base hover:scale-110">➕</button></td>
+                    <td class="text-center" onclick="event.stopPropagation()"><button onclick="deleteStu('${s.id}')" class="text-slate-300 hover:text-rose-500 transition">✕</button></td>
                 </tr>`;
             }).join('');
         }
 
         function openEditModal(id) {
-            // 統一轉換為字串比對，避免 UUID/數字型別問題
+            // UUID 必須作為 String 比對
             const s = students.find(x => String(x.id) === String(id));
             if (!s) return;
 
-            document.getElementById('edit-id-store').value = s.id;
+            document.getElementById('edit-id').value = s.id;
             document.getElementById('edit-name').value = s.name || '';
             document.getElementById('edit-telO').value = s.tel_o || '';
             document.getElementById('edit-telP').value = s.tel_p || '';
@@ -189,12 +188,12 @@
         }
 
         async function saveStudentEdit() {
-            const targetId = document.getElementById('edit-id-store').value;
+            const targetUuid = document.getElementById('edit-id').value;
             const btn = document.getElementById('save-edit-btn');
-            if (!targetId) return;
+            if (!targetUuid) return;
 
             btn.disabled = true;
-            btn.innerText = "正在儲存...";
+            btn.innerText = "儲存中...";
             updateStatus('syncing');
 
             const updates = {
@@ -208,33 +207,22 @@
             };
 
             try {
-                // 執行更新
+                // 直接使用 UUID 字串進行查詢
                 const { data, error } = await supabaseClient
                     .from('students')
                     .update(updates)
-                    .eq('id', targetId) // 這裡的 targetId 是當初 openEditModal 時存進去的原始值
+                    .eq('id', targetUuid)
                     .select();
 
                 if (error) throw error;
-
-                // 如果 data 為空，說明資料庫裡沒找到這個 ID
-                if (!data || data.length === 0) {
-                    throw new Error("找不到對應的 ID。這通常是型別不對，系統將嘗試強制轉型...");
-                }
+                if (!data || data.length === 0) throw new Error("UUID 比對失敗，未找到資料紀錄。");
 
                 closeModal('detail-modal');
                 await fetchData();
             } catch (err) {
-                // 這裡嘗試最後一招：強制轉型成數字再試一次 (針對資料庫 ID 為 int 的情況)
-                if(!isNaN(targetId)) {
-                    const retry = await supabaseClient.from('students').update(updates).eq('id', Number(targetId)).select();
-                    if (retry.data && retry.data.length > 0) {
-                        closeModal('detail-modal');
-                        await fetchData();
-                        return;
-                    }
-                }
+                console.error("Update Error:", err);
                 alert("修改失敗：" + err.message);
+                updateStatus('error');
             } finally {
                 btn.disabled = false;
                 btn.innerText = "儲存所有修改";

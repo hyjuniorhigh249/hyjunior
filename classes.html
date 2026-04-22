@@ -6,31 +6,18 @@
     <title>班級管理 - 浩元行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="pip-tool.js"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f4f7f9; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; }
         .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
         .accordion-open .accordion-content { max-height: 1000px; }
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
     </style>
 </head>
-<body class="min-h-screen flex">
+<body class="min-h-screen">
 
-    <nav class="w-40 bg-white border-r border-slate-200 p-3 flex flex-col gap-1 shrink-0">
-        <div class="font-black text-lg mb-4 text-slate-800 border-b pb-2 text-center italic">浩元行政</div>
-        <a href="index.html" class="px-3 py-2 rounded-lg font-bold text-slate-500 hover:bg-slate-50 text-sm">🏠 首頁概況</a>
-        <a href="students.html" class="px-3 py-2 rounded-lg font-bold text-slate-500 hover:bg-slate-50 text-sm">👤 學生總檔</a>
-        <a href="classes.html" class="px-3 py-2 rounded-lg font-bold bg-slate-800 text-white text-sm shadow-md">👥 班級管理</a>
-        
-        <div class="mt-4 pt-4 border-t border-slate-100">
-            <p class="text-[10px] font-black text-slate-400 uppercase mb-2 px-2">快捷工具</p>
-            <button onclick="startPiP()" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-blue-600 hover:bg-blue-50 text-xs transition text-left">
-                <span>📱</span> 迷你通訊窗
-            </button>
-        </div>
-    </nav>
-
-    <main class="flex-1 p-8 overflow-y-auto">
+    <main class="p-8">
         <header class="flex justify-between items-center mb-8">
             <div>
                 <h1 class="text-2xl font-black text-slate-800">班級組織管理</h1>
@@ -56,22 +43,12 @@
 
     <div id="class-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-[32px] p-8 w-full max-w-md shadow-2xl">
-            <h3 id="modal-title" class="text-xl font-black mb-6 flex items-center gap-2">
-                <span class="text-2xl">🏫</span> 設定班級資訊
-            </h3>
-            <input type="hidden" id="m-class-id"> <div class="space-y-4">
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1">班級名稱*</label>
-                    <input type="text" id="m-class-name" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold" placeholder="例如：國三甲班">
-                </div>
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1">任課老師</label>
-                    <input type="text" id="m-class-teacher" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold" placeholder="填寫老師姓名">
-                </div>
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1">備註說明</label>
-                    <textarea id="m-class-note" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 h-24 font-bold" placeholder="關於此班級的雜項記錄..."></textarea>
-                </div>
+            <h3 id="modal-title" class="text-xl font-black mb-6 flex items-center gap-2"><span class="text-2xl">🏫</span> 設定班級資訊</h3>
+            <input type="hidden" id="m-class-id">
+            <div class="space-y-4">
+                <div><label class="text-[10px] font-black text-slate-400 uppercase ml-1">班級名稱*</label><input type="text" id="m-class-name" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold" placeholder="例如：國三甲班"></div>
+                <div><label class="text-[10px] font-black text-slate-400 uppercase ml-1">任課老師</label><input type="text" id="m-class-teacher" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold" placeholder="填寫老師姓名"></div>
+                <div><label class="text-[10px] font-black text-slate-400 uppercase ml-1">備註說明</label><textarea id="m-class-note" class="w-full p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 h-24 font-bold" placeholder="關於此班級的雜項記錄..."></textarea></div>
             </div>
             <div class="flex gap-2 mt-8">
                 <button onclick="closeModal('class-modal')" class="flex-1 py-3 font-bold text-slate-400">取消</button>
@@ -100,23 +77,17 @@
         let activeClassIdForMembers = null;
         let allClassData = [];
 
-        async function init() {
-            const { data: { user } } = await supabaseClient.auth.getUser();
-            if (!user) { window.location.href = "index.html"; return; }
-            fetchClasses();
-        }
+        async function init() { fetchClasses(); }
 
         async function fetchClasses() {
             document.getElementById('status-text').innerText = "更新中...";
-            const { data, error } = await supabaseClient.from('classes').select('*').order('created_at', { ascending: false });
-            if (error) return;
-
-            allClassData = data;
+            const { data } = await supabaseClient.from('classes').select('*').order('created_at', { ascending: false });
+            allClassData = data || [];
             const activeList = document.getElementById('active-classes-list');
             const archiveList = document.getElementById('archived-classes-list');
             activeList.innerHTML = ""; archiveList.innerHTML = "";
 
-            data.forEach(cls => {
+            allClassData.forEach(cls => {
                 const html = `
                 <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm transition hover:shadow-md">
                     <div class="p-4 flex items-center justify-between cursor-pointer" onclick="this.parentElement.classList.toggle('accordion-open')">
@@ -128,9 +99,8 @@
                             </div>
                         </div>
                         <div class="flex gap-2" onclick="event.stopPropagation()">
-                            <button onclick="openEditModal('${cls.id}')" class="text-[10px] bg-slate-100 px-3 py-1.5 rounded-lg font-black text-slate-600 hover:bg-slate-200 transition">修改資訊</button>
-                            <button onclick="openMemberModal('${cls.id}', '${cls.name}')" class="text-[10px] bg-slate-800 px-3 py-1.5 rounded-lg font-black text-white hover:bg-slate-700 transition">管理成員</button>
-                            ${!cls.is_archived ? `<button onclick="toggleArchive('${cls.id}', true)" class="text-[10px] bg-amber-50 px-3 py-1.5 rounded-lg font-black text-amber-600 hover:bg-amber-100 transition">封存</button>` : `<button onclick="toggleArchive('${cls.id}', false)" class="text-[10px] bg-emerald-50 px-3 py-1.5 rounded-lg font-black text-emerald-600 hover:bg-emerald-100 transition">恢復</button>`}
+                            <button onclick="openEditModal('${cls.id}')" class="text-[10px] bg-slate-100 px-3 py-1.5 rounded-lg font-black text-slate-600 hover:bg-slate-200 transition">修改</button>
+                            <button onclick="openMemberModal('${cls.id}', '${cls.name}')" class="text-[10px] bg-slate-800 px-3 py-1.5 rounded-lg font-black text-white hover:bg-slate-700 transition">管理</button>
                             <button onclick="deleteClass('${cls.id}', ${cls.members ? cls.members.length : 0})" class="text-[10px] bg-rose-50 px-3 py-1.5 rounded-lg font-black text-rose-400 hover:bg-rose-100 transition">刪除</button>
                         </div>
                     </div>
@@ -144,10 +114,6 @@
                                     </div>
                                 `).join('') : '<p class="text-slate-300 italic text-xs">目前沒有學生</p>'}
                             </div>
-                            <div class="mt-6 pt-4 border-t border-dashed border-slate-200">
-                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">備註資訊</p>
-                                <p class="text-sm text-slate-600 font-bold">${cls.note || '無'}</p>
-                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -156,67 +122,28 @@
             document.getElementById('status-text').innerText = "最後同步：" + new Date().toLocaleTimeString();
         }
 
-        // 開啟新增模式
-        function openCreateModal() {
-            document.getElementById('modal-title').innerText = "🏫 建立新班級";
-            document.getElementById('m-class-id').value = "";
-            document.getElementById('m-class-name').value = "";
-            document.getElementById('m-class-teacher').value = "";
-            document.getElementById('m-class-note').value = "";
-            openModal('class-modal');
-        }
-
-        // 開啟編輯模式
-        function openEditModal(id) {
-            const cls = allClassData.find(x => x.id === id);
-            if (!cls) return;
-            document.getElementById('modal-title').innerText = "📝 修改班級資訊";
-            document.getElementById('m-class-id').value = cls.id;
-            document.getElementById('m-class-name').value = cls.name;
-            document.getElementById('m-class-teacher').value = cls.teacher || "";
-            document.getElementById('m-class-note').value = cls.note || "";
-            openModal('class-modal');
-        }
-
         async function saveClass() {
             const id = document.getElementById('m-class-id').value;
             const name = document.getElementById('m-class-name').value.trim();
             const teacher = document.getElementById('m-class-teacher').value.trim();
             const note = document.getElementById('m-class-note').value.trim();
-            const btn = document.getElementById('save-btn');
-
-            if(!name) return alert("請輸入班級名稱");
-
-            btn.disabled = true;
-            btn.innerText = "正在儲存...";
-
-            let result;
-            if (id) {
-                // 編輯模式
-                result = await supabaseClient.from('classes').update({ name, teacher, note }).eq('id', id);
-            } else {
-                // 新增模式
-                result = await supabaseClient.from('classes').insert([{ name, teacher, note, members: [] }]);
-            }
-
-            btn.disabled = false;
-            btn.innerText = "儲存資訊";
-
-            if(result.error) alert("操作失敗：" + result.error.message);
-            else {
-                closeModal('class-modal');
-                fetchClasses();
-            }
+            if(!name) return alert("請輸入名稱");
+            if(id) await supabaseClient.from('classes').update({ name, teacher, note }).eq('id', id);
+            else await supabaseClient.from('classes').insert([{ name, teacher, note, members: [] }]);
+            closeModal('class-modal'); fetchClasses();
         }
 
-        // 彈窗控制
+        function openCreateModal() { document.getElementById('m-class-id').value = ""; openModal('class-modal'); }
+        function openEditModal(id) { 
+            const cls = allClassData.find(x => x.id === id);
+            document.getElementById('m-class-id').value = cls.id;
+            document.getElementById('m-class-name').value = cls.name;
+            openModal('class-modal');
+        }
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-
-        // 其他功能 (封存、刪除、成員管理)
-        async function toggleArchive(id, status) { await supabaseClient.from('classes').update({ is_archived: status }).eq('id', id); fetchClasses(); }
-        async function deleteClass(id, count) { if(count > 0) return alert("請先清空成員再刪除班級"); if(confirm("確定刪除？")) { await supabaseClient.from('classes').delete().eq('id', id); fetchClasses(); } }
-        async function openMemberModal(id, name) { activeClassIdForMembers = id; document.getElementById('member-modal-title').innerText = `管理「${name}」成員`; openModal('member-modal'); searchStudentsForClass(); }
+        async function deleteClass(id, count) { if(count > 0) return alert("請先清空成員"); if(confirm("確定刪除？")) { await supabaseClient.from('classes').delete().eq('id', id); fetchClasses(); } }
+        async function openMemberModal(id, name) { activeClassIdForMembers = id; openModal('member-modal'); searchStudentsForClass(); }
         async function searchStudentsForClass() {
             const keyword = document.getElementById('stu-search').value;
             const { data: students } = await supabaseClient.from('students').select('name').ilike('name', `%${keyword}%`).limit(10);
@@ -224,7 +151,7 @@
             const results = document.getElementById('stu-search-results');
             results.innerHTML = students.map(s => {
                 const isMember = cls.members && cls.members.includes(s.name);
-                return `<div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl font-bold text-slate-700">${s.name} ${isMember ? '<span class="text-emerald-500">已加入</span>' : `<button onclick="addMember('${s.name}')" class="bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-black">加入</button>`}</div>`;
+                return `<div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl font-bold">${s.name} ${isMember ? '✅' : `<button onclick="addMember('${s.name}')" class="bg-slate-800 text-white px-3 py-1 rounded-lg">加入</button>`}</div>`;
             }).join('');
         }
         async function addMember(name) {
@@ -237,10 +164,7 @@
             await supabaseClient.from('classes').update({ members: data.members.filter(m => m !== name) }).eq('id', cid);
             fetchClasses();
         }
-
         window.onload = init;
     </script>
-    <script src="pip-tool.js"></script>
-    <script src="sidebar.js"></script>
 </body>
 </html>

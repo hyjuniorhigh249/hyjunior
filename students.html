@@ -217,37 +217,64 @@
             document.getElementById('detail-modal').classList.add('active');
         }
 
-        async function saveStudentEdit(e) {
-            const id = document.getElementById('edit-id').value;
-            const btn = document.getElementById('save-edit-btn');
-            
-            updateStatus('syncing');
-            btn.disabled = true;
-            btn.innerText = "正在儲存...";
+        async function saveStudentEdit() {
+    const id = document.getElementById('edit-id').value;
+    const btn = document.getElementById('save-edit-btn');
+    
+    // 檢查 ID 是否確實存在
+    if (!id) {
+        console.error("錯誤：遺失學生 ID");
+        alert("系統錯誤：無法定位該學生 ID，請嘗試重新載入頁面。");
+        return;
+    }
 
-            const updates = {
-                name: document.getElementById('edit-name').value.trim(),
-                tel_o: document.getElementById('edit-telO').value.trim(),
-                tel_p: document.getElementById('edit-telP').value.trim(),
-                tel_m: document.getElementById('edit-telM').value.trim(),
-                school: document.getElementById('edit-school').value.trim(),
-                addr: document.getElementById('edit-addr').value.trim(),
-                note: document.getElementById('edit-note').value.trim()
-            };
+    updateStatus('syncing');
+    btn.disabled = true;
+    const originalText = btn.innerText;
+    btn.innerText = "正在儲存...";
 
-            const { error } = await supabaseClient.from('students').update(updates).eq('id', id);
+    // 確保這裡的鍵值 (Key) 與你的 Supabase 資料表欄位名稱「完全一致」
+    const updates = {
+        name: document.getElementById('edit-name').value.trim(),
+        tel_o: document.getElementById('edit-telO').value.trim(),
+        tel_p: document.getElementById('edit-telP').value.trim(),
+        tel_m: document.getElementById('edit-telM').value.trim(),
+        school: document.getElementById('edit-school').value.trim(),
+        addr: document.getElementById('edit-addr').value.trim(),
+        note: document.getElementById('edit-note').value.trim()
+    };
 
-            btn.disabled = false;
-            btn.innerText = "儲存所有修改";
+    try {
+        const { data, error, status } = await supabaseClient
+            .from('students')
+            .update(updates)
+            .eq('id', id)
+            .select(); // 加上 select 讓我們能確認回傳結果
 
-            if (error) {
-                alert("修改失敗：" + error.message);
-                updateStatus('error');
-            } else {
-                closeModal('detail-modal');
-                await fetchData();
-            }
+        if (error) {
+            // 如果報錯，直接彈出 Supabase 給的詳細訊息
+            console.error("Supabase API Error:", error);
+            throw new Error(`[狀態碼 ${status}] ${error.message}`);
         }
+
+        if (data && data.length === 0) {
+            throw new Error("更新成功但受影響行數為 0，請確認該學生 ID 是否依然存在於資料庫。");
+        }
+
+        console.log("更新成功:", data);
+        closeModal('detail-modal');
+        await fetchData(); // 重新抓取資料
+        
+    } catch (err) {
+        console.error("修改程序出錯:", err);
+        // 這是為了讓我們看清楚到底發生什麼事
+        alert("修改失敗！詳細原因：\n" + err.message);
+        updateStatus('error');
+    } finally {
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
+}
 
         async function handleAddStudent() {
             const name = document.getElementById('f-name').value.trim();

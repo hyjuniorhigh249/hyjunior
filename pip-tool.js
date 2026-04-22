@@ -67,8 +67,8 @@ async function startPiP() {
             const time = pTime.innerText;
             // 嚴格還原您的訊息內容
             const text = isArrive ? 
-                `【到班通知】\n家長您好，\n同學已於${time}到班！\n如上課期間有任何問題或狀況，\n我們都會即時反映給您` :
-                `【離班通知】\n家長您好，\n同學已於${time}離班！\n如有任何問題或狀況，\n再請家長留言給我們`;
+                `【到班通知】💫\n家長您好，\n同學已於🕐${time}到班！\n如上課期間有任何問題或狀況，\n我們都會即時反映給您` :
+                `【離班通知】🌙\n家長您好，\n同學已於🕐${time}離班！\n如有任何問題或狀況，\n再請家長留言給我們`;
             
             try {
                 await pipWindow.navigator.clipboard.writeText(text);

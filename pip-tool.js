@@ -1,42 +1,43 @@
 async function startPiP() {
-    if (!('documentPictureInPicture' in window)) {
-        alert("請使用最新版 Chrome 瀏覽器");
-        return;
-    }
-
-    try {
-        // 設定極窄尺寸 130px
+    if ('documentPictureInPicture' in window) {
+        // 維持極致壓縮尺寸
         const pipWindow = await window.documentPictureInPicture.requestWindow({
-            width: 130,
-            height: 250,
+            width: 180,
+            height: 220,
         });
 
-        const pipDoc = pipWindow.document;
-        const tailwind = pipDoc.createElement('script');
+        const tailwind = document.createElement('script');
         tailwind.src = 'https://cdn.tailwindcss.com';
-        pipDoc.head.appendChild(tailwind);
+        pipWindow.document.head.appendChild(tailwind);
 
-        const container = pipDoc.createElement('div');
-        container.className = "p-2 bg-white min-h-screen flex flex-col font-sans select-none";
+        const container = pipWindow.document.createElement('div');
+        container.className = "p-2 bg-white min-h-screen flex flex-col font-sans";
         container.innerHTML = `
-            <div class="flex justify-between items-center mb-1 px-0.5">
+            <div class="flex justify-between items-center mb-1 px-1">
                 <span class="font-black text-slate-800 text-[10px]">浩元通訊</span>
-                <span id="p-status" class="text-[8px] font-bold text-emerald-500 italic">● LIVE</span>
+                <span id="p-status" class="text-[9px] font-bold text-blue-500">● 自動</span>
             </div>
-            <div id="time-box" class="bg-slate-50 p-2 rounded-xl border border-slate-100 mb-2 text-center cursor-pointer">
-                <div id="p-time" class="text-3xl font-black text-slate-800 tracking-tighter leading-none">--:--</div>
+            <div class="bg-slate-50 p-2 rounded-xl border border-slate-100 mb-2 text-center">
+                <div id="p-time" class="text-2xl font-black text-slate-800 tracking-tighter leading-none">--:--</div>
                 <div id="p-date" class="text-[9px] font-bold text-slate-400 mt-1">----/--/--</div>
             </div>
             <div class="space-y-1.5">
-                <button id="btn-arrive" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-xs shadow-md active:scale-95 transition-all">到班通知</button>
-                <button id="btn-leave" class="w-full border-2 border-slate-800 text-slate-800 py-4 rounded-xl font-bold text-xs active:scale-95 transition-all">離班通知</button>
+                <button id="p-arrive" class="w-full bg-slate-800 text-white py-2 rounded-lg font-bold text-[10px] shadow-sm transition-all active:scale-95">到班通知</button>
+                <button id="p-leave" class="w-full border border-slate-800 text-slate-800 py-2 rounded-lg font-bold text-[10px] transition-all active:scale-95">離班通知</button>
+                <div class="pt-1">
+                    <button id="p-copy" class="w-full bg-emerald-500 text-white py-2.5 rounded-lg font-black text-[10px] shadow-md transition-all active:scale-95">點擊複製訊息</button>
+                </div>
             </div>
         `;
-        pipDoc.body.appendChild(container);
+        pipWindow.document.body.appendChild(container);
 
+        let isArrive = true;
         let isAuto = true;
         const pTime = container.querySelector('#p-time');
         const pDate = container.querySelector('#p-date');
+        const pArrive = container.querySelector('#p-arrive');
+        const pLeave = container.querySelector('#p-leave');
+        const pCopy = container.querySelector('#p-copy');
         const pStatus = container.querySelector('#p-status');
 
         function updateTime() {
@@ -45,42 +46,43 @@ async function startPiP() {
             pTime.innerText = now.toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' });
             pDate.innerText = now.toLocaleDateString('zh-TW');
         }
-        const timer = setInterval(updateTime, 1000);
+        setInterval(updateTime, 1000);
         updateTime();
 
-        container.querySelector('#time-box').onclick = () => {
-            isAuto = !isAuto;
-            if (!isAuto) {
-                const m = prompt("修正時間:", pTime.innerText);
-                if (m) pTime.innerText = m;
-                pStatus.innerText = "● FIXED";
-                pStatus.className = "text-[8px] font-bold text-amber-500 italic";
-            } else {
-                pStatus.innerText = "● LIVE";
-                pStatus.className = "text-[8px] font-bold text-emerald-500 italic";
-                updateTime();
-            }
+        pArrive.onclick = () => {
+            isArrive = true; isAuto = false;
+            pStatus.innerText = "● 手動(到)";
+            pArrive.className = "w-full bg-slate-800 text-white py-2 rounded-lg font-bold text-[10px] shadow-inner scale-95";
+            pLeave.className = "w-full border border-slate-100 text-slate-300 py-2 rounded-lg font-bold text-[10px]";
         };
 
-        const copy = async (type) => {
+        pLeave.onclick = () => {
+            isArrive = false; isAuto = false;
+            pStatus.innerText = "● 手動(離)";
+            pLeave.className = "w-full bg-slate-800 text-white py-2 rounded-lg font-bold text-[10px] shadow-inner scale-95";
+            pArrive.className = "w-full border border-slate-100 text-slate-300 py-2 rounded-lg font-bold text-[10px]";
+        };
+
+        pCopy.onclick = async () => {
             const time = pTime.innerText;
-            const text = type === 'arrive' ? 
-                \`【到班通知】\\n家長您好，\\n同學已於\${time}到班！\\n如上課期間有任何問題或狀況，\\n我們都會即時反映給您\` :
-                \`【離班通知】\\n家長您好，\\n同學已於\${time}離班！\\n如有任何問題或狀況，\\n再請家長留言給我們\`;
+            // 嚴格還原您的訊息內容
+            const text = isArrive ? 
+                `【到班通知】💫\n家長您好，\n同學已於🕐${time}到班！\n如上課期間有任何問題或狀況，\n我們都會即時反映給您` :
+                `【離班通知】🌙\n家長您好，\n同學已於🕐${time}離班！\n如有任何問題或狀況，\n再請家長留言給我們`;
+            
             try {
                 await pipWindow.navigator.clipboard.writeText(text);
-                const btn = container.querySelector(\`#btn-\${type}\`);
-                const old = btn.innerText;
-                btn.innerText = "✅ 成功";
-                setTimeout(() => btn.innerText = old, 800);
-            } catch (e) { alert("複製失敗，請確保視窗處於焦點狀態"); }
+                const originalText = pCopy.innerText;
+                pCopy.innerText = "✅ 複製成功";
+                setTimeout(() => {
+                    pCopy.innerText = originalText;
+                    isAuto = true;
+                    pStatus.innerText = "● 自動";
+                    updateTime();
+                }, 800);
+            } catch (err) { console.error(err); }
         };
-
-        container.querySelector('#btn-arrive').onclick = () => copy('arrive');
-        container.querySelector('#btn-leave').onclick = () => copy('leave');
-        pipWindow.onunload = () => clearInterval(timer);
-
-    } catch (e) {
-        alert("開啟失敗！請檢查是否在 https 環境或 localhost 下執行。");
+    } else {
+        alert("不支援置頂視窗");
     }
 }

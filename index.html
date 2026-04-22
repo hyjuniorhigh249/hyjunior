@@ -9,24 +9,62 @@
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; }
         
-        /* 側邊欄按鈕基礎樣式 */
+        /* 側邊欄按鈕基礎樣式 - 取代 @apply */
         .nav-link { 
-            @apply flex items-center px-3 py-2 rounded-lg font-bold text-slate-600 
-                   hover:bg-slate-50 transition-all text-sm gap-2 w-full text-left; 
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0.75rem; /* px-3 py-2 */
+            border-radius: 0.5rem; /* rounded-lg */
+            font-weight: 700; /* font-bold */
+            color: #475569; /* text-slate-600 */
+            transition: all 0.2s;
+            font-size: 0.875rem; /* text-sm */
+            gap: 0.5rem; /* gap-2 */
+            width: 100%;
+            text-align: left;
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-link:hover {
+            background-color: #f8fafc; /* hover:bg-slate-50 */
         }
 
         /* 選取狀態：深色背景 */
         .nav-link.active { 
-            @apply bg-[#1e293b] text-white shadow-sm; 
+            background-color: #1e293b; /* bg-[#1e293b] */
+            color: #ffffff; /* text-white */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
         }
 
         /* 標題樣式 */
         .sidebar-header { 
-            @apply font-black text-lg mb-4 text-slate-800 border-b pb-2 text-center italic cursor-pointer; 
+            font-weight: 900; /* font-black */
+            font-size: 1.125rem; /* text-lg */
+            margin-bottom: 1rem; /* mb-4 */
+            color: #1e293b; /* text-slate-800 */
+            border-bottom: 1px solid #e2e8f0; /* border-b border-slate-200 */
+            padding-bottom: 0.5rem; /* pb-2 */
+            text-align: center;
+            font-style: italic;
+            cursor: pointer;
         }
         
         .section-label { 
-            @apply text-[10px] font-bold text-slate-400 uppercase mb-2 px-2 tracking-wider; 
+            font-size: 10px;
+            font-weight: 700;
+            color: #94a3b8; /* text-slate-400 */
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        .text-blue-link {
+            color: #2563eb; /* text-blue-600 */
+        }
+        .text-blue-link:hover {
+            background-color: #eff6ff; /* hover:bg-blue-50 */
         }
     </style>
 </head>
@@ -37,9 +75,9 @@
             浩元行政
         </div>
 
-        <div class="flex flex-col gap-1">
+        <div class="flex flex-col">
             <button id="nav-dash" onclick="changePage('dashboard.html', this)" class="nav-link">
-                <span>🏠</span> 數據概況
+                <span>🏠</span> 系統首頁
             </button>
             <button id="nav-students" onclick="changePage('students.html', this)" class="nav-link active">
                 <span>👥</span> 學生總檔
@@ -51,7 +89,7 @@
         
         <div class="mt-4 pt-4 border-t border-slate-100">
             <p class="section-label">快捷工具</p>
-            <button onclick="startPiP()" class="nav-link text-blue-600 hover:bg-blue-50">
+            <button onclick="startPiP()" class="nav-link text-blue-link">
                 <span>📱</span> 迷你通訊窗
             </button>
         </div>
@@ -74,7 +112,6 @@
                 iframe.src = url;
             }
 
-            // 更新按鈕選取狀態
             if (btn) {
                 document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
@@ -82,9 +119,9 @@
         }
 
         function logout() {
-            // 可以在此加入登出邏輯
-            console.log("正在登出...");
-            window.location.href = 'login.html';
+            if(confirm("確定要登出系統嗎？")) {
+                window.location.href = 'login.html';
+            }
         }
     </script>
 </body>

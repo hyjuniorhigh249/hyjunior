@@ -82,38 +82,56 @@
 
     <div id="detail-modal" class="modal fixed inset-0 z-[60] items-center justify-center p-4">
         <div class="bg-white rounded-[32px] p-8 w-full max-w-2xl shadow-2xl relative">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-2xl font-black text-slate-800">修改學生資訊</h3>
-                <button onclick="closeModal('detail-modal')" class="text-slate-300 hover:text-slate-800 text-2xl">✕</button>
+            <div class="flex justify-between items-center mb-8 border-b pb-4">
+                <div>
+                    <h3 class="text-2xl font-black text-slate-800">修改學生資訊</h3>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">浩元行政系統 - 檔案編輯</p>
+                </div>
+                <button onclick="closeModal('detail-modal')" class="text-slate-300 hover:text-slate-800 text-2xl transition">✕</button>
             </div>
             
             <input type="hidden" id="edit-id">
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="detail-label">學生姓名*</label>
-                    <input type="text" id="edit-name" class="form-input mb-4">
-                    <label class="detail-label">本人手機</label>
-                    <input type="text" id="edit-telO" class="form-input mb-4 text-emerald-600">
-                    <label class="detail-label">就讀學校</label>
-                    <input type="text" id="edit-school" class="form-input mb-4">
+            
+            <div class="grid grid-cols-2 gap-x-8 gap-y-4">
+                <div class="space-y-4">
+                    <div>
+                        <label class="detail-label block">學生姓名*</label>
+                        <input type="text" id="edit-name" class="form-input w-full" placeholder="請輸入姓名">
+                    </div>
+                    <div>
+                        <label class="detail-label block">本人手機</label>
+                        <input type="text" id="edit-telO" class="form-input w-full text-emerald-600" placeholder="本人手機號碼">
+                    </div>
+                    <div>
+                        <label class="detail-label block">就讀學校</label>
+                        <input type="text" id="edit-school" class="form-input w-full" placeholder="目前就讀學校">
+                    </div>
                 </div>
-                <div>
-                    <label class="detail-label">爸爸電話</label>
-                    <input type="text" id="edit-telP" class="form-input mb-4">
-                    <label class="detail-label">媽媽電話</label>
-                    <input type="text" id="edit-telM" class="form-input mb-4">
-                    <label class="detail-label">通訊地址</label>
-                    <input type="text" id="edit-addr" class="form-input mb-4">
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="detail-label block">爸爸電話</label>
+                        <input type="text" id="edit-telP" class="form-input w-full" placeholder="父親聯繫電話">
+                    </div>
+                    <div>
+                        <label class="detail-label block">媽媽電話</label>
+                        <input type="text" id="edit-telM" class="form-input w-full" placeholder="母親聯繫電話">
+                    </div>
+                    <div>
+                        <label class="detail-label block">通訊地址</label>
+                        <input type="text" id="edit-addr" class="form-input w-full" placeholder="寄送講義地址">
+                    </div>
                 </div>
-            </div>
-            <div class="mt-2">
-                <label class="detail-label">備註資訊</label>
-                <textarea id="edit-note" class="form-input h-20 font-normal italic"></textarea>
+
+                <div class="col-span-2 mt-2">
+                    <label class="detail-label block">備註資訊</label>
+                    <textarea id="edit-note" class="form-input w-full h-24 font-normal italic leading-relaxed" placeholder="輸入其他特殊狀況備註..."></textarea>
+                </div>
             </div>
 
             <div class="mt-8 flex gap-3">
-                <button onclick="closeModal('detail-modal')" class="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-black">取消</button>
-                <button onclick="saveStudentEdit()" class="flex-1 py-3 bg-slate-800 text-white rounded-xl font-black shadow-lg hover:bg-slate-700 transition">儲存修改</button>
+                <button onclick="closeModal('detail-modal')" class="flex-1 py-3 bg-slate-50 text-slate-500 rounded-xl font-black hover:bg-slate-100 transition">取消返回</button>
+                <button onclick="saveStudentEdit()" class="flex-1 py-3 bg-slate-800 text-white rounded-xl font-black shadow-lg hover:bg-slate-700 transition active:scale-95">儲存所有修改</button>
             </div>
         </div>
     </div>

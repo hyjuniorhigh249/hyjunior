@@ -7,63 +7,45 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="pip-tool.js"></script>
     <style>
-        /* 使用更現代的字體組合，增加閱讀舒適度 */
-        body { 
-            font-family: "Inter", "PingFang TC", "Microsoft JhengHei", sans-serif; 
-            background-color: #fcfcfc;
-        }
-        
-        /* 導覽按鈕優化：增加垂直間隔、字距與內距 */
-        .nav-btn { 
-            @apply flex items-center w-full px-5 py-3.5 rounded-xl font-bold text-slate-500 
-                   hover:bg-slate-50 hover:text-slate-800 transition-all mb-3 text-left;
-            letter-spacing: 0.025em;
-        }
-        
-        /* 啟用狀態的按鈕 */
-        .nav-btn.active { 
-            @apply bg-white text-slate-900 border border-slate-200 shadow-sm;
-        }
-
-        .nav-icon { @apply mr-3 text-lg opacity-80; }
+        body { font-family: "Microsoft JhengHei", sans-serif; }
+        /* 側邊欄按鈕基礎樣式 */
+        .nav-link { @apply px-3 py-2 rounded-lg font-bold text-slate-600 hover:bg-slate-50 transition text-sm text-left flex items-center gap-1; }
+        /* 啟用狀態樣式 */
+        .nav-link.active { @apply bg-slate-100 text-slate-900; }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden">
+<body class="flex h-screen bg-white overflow-hidden">
 
-    <aside class="w-56 bg-white border-r border-slate-200 p-6 flex flex-col shrink-0">
+    <nav class="w-40 bg-white border-r border-slate-200 p-3 flex flex-col gap-1 shrink-0 h-screen sticky top-0">
+        <div onclick="changePage('dashboard.html', this)" class="cursor-pointer font-black text-lg mb-4 text-slate-800 border-b pb-2 text-center italic">
+            浩元行政
+        </div>
+
+        <button onclick="changePage('dashboard.html', this)" class="nav-link">
+            🏠 數據概況
+        </button>
+        <button onclick="changePage('students.html', this)" class="nav-link active">
+            👥 學生總檔
+        </button>
+        <button onclick="changePage('classes.html', this)" class="nav-link">
+            📚 班級管理
+        </button>
         
-        <div onclick="changePage('dashboard.html', document.getElementById('btn-dash'))" class="cursor-pointer mb-10 group">
-            <h1 class="text-2xl font-black text-slate-800 italic tracking-tighter group-hover:text-emerald-600 transition-colors">
-                浩元行政
-            </h1>
-            <div class="h-1 w-8 bg-emerald-500 mt-1 rounded-full group-hover:w-12 transition-all"></div>
-        </div>
-
-        <nav class="flex-1">
-            <button id="btn-dash" onclick="changePage('dashboard.html', this)" class="nav-btn">
-                <span class="nav-icon">📊</span>
-                <span>數據概況</span>
-            </button>
-
-            <button id="btn-students" onclick="changePage('students.html', this)" class="nav-btn active">
-                <span class="nav-icon">👤</span>
-                <span>學生總檔</span>
-            </button>
-
-            <button id="btn-classes" onclick="changePage('classes.html', this)" class="nav-btn">
-                <span class="nav-icon">👥</span>
-                <span>班級管理</span>
-            </button>
-        </nav>
-
-        <div class="mt-auto pt-6 border-t border-slate-100">
-            <button onclick="startPiP()" class="w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
-                <span>💬</span> 開啟通訊窗
+        <div class="mt-4 pt-4 border-t border-slate-100">
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-2 px-2">快捷工具</p>
+            <button onclick="startPiP()" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-blue-600 hover:bg-blue-50 text-sm transition text-left">
+                <span>📱</span> 迷你通訊窗
             </button>
         </div>
-    </aside>
 
-    <main class="flex-1 bg-slate-50 relative">
+        <div class="mt-auto pt-4 border-t border-slate-100 px-2">
+            <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">管理員</p>
+            <p id="user-email-display" class="text-[10px] font-medium text-slate-500 truncate mb-2">admin@hyjunior.app</p>
+            <button class="w-full text-left text-[10px] font-bold text-red-400 hover:text-red-600 transition">登出系統</button>
+        </div>
+    </nav>
+
+    <main class="flex-1 bg-white relative">
         <iframe id="main-content" src="students.html" class="w-full h-full border-none"></iframe>
     </main>
 
@@ -72,9 +54,11 @@
             const iframe = document.getElementById('main-content');
             iframe.src = url;
 
-            // 更新按鈕高亮狀態
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            if(btn) btn.classList.add('active');
+            // 更新按鈕高亮狀態 (排除標題點擊)
+            if (btn && btn.tagName === 'BUTTON') {
+                document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
         }
     </script>
 </body>

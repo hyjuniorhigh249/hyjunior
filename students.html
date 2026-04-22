@@ -8,9 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f4f7f9; font-size: 13px; }
-        .form-input { 
-            @apply w-full px-4 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-800 focus:border-transparent outline-none transition-all font-bold text-slate-700;
-        }
+        .form-input { @apply w-full px-4 py-2 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all font-bold text-slate-700; }
         .detail-label { @apply text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1; }
         .stu-table th { position: sticky; top: 0; background: #fff; z-index: 10; padding: 10px; border-bottom: 2px solid #edf2f7; }
         .stu-table td { padding: 6px 10px; border-bottom: 1px solid #f1f5f9; }
@@ -45,7 +43,7 @@
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 max-w-7xl mx-auto">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="font-black text-slate-700 text-xs">快速錄入新學生</h3>
-                    <button onclick="handleAddStudent()" class="bg-slate-800 text-white px-8 py-1.5 rounded-xl font-black hover:bg-slate-700 transition">確認入庫</button>
+                    <button onclick="handleAddStudent()" class="bg-slate-800 text-white px-8 py-1.5 rounded-xl font-black hover:bg-slate-700">確認入庫</button>
                 </div>
                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
                     <input type="text" id="f-name" class="form-input" placeholder="姓名*">
@@ -87,7 +85,8 @@
                 <button onclick="closeModal('detail-modal')" class="text-slate-300 hover:text-slate-800 text-2xl">✕</button>
             </div>
             
-            <input type="hidden" id="edit-id">
+            <input type="hidden" id="edit-id-store">
+            
             <div class="grid grid-cols-2 gap-x-8 gap-y-4">
                 <div class="space-y-4">
                     <div><label class="detail-label block">學生姓名*</label><input type="text" id="edit-name" class="form-input"></div>
@@ -158,6 +157,7 @@
             });
             body.innerHTML = filtered.map(s => {
                 const myCls = classes.filter(c => c.members && c.members.includes(s.name));
+                // 重要：確保 ID 作為字串傳遞
                 return `
                 <tr class="stu-row" onclick="openEditModal('${s.id}')">
                     <td class="font-black text-slate-800">${s.name}</td>
@@ -173,9 +173,11 @@
         }
 
         function openEditModal(id) {
+            // 統一轉換為字串比對，避免 UUID/數字型別問題
             const s = students.find(x => String(x.id) === String(id));
             if (!s) return;
-            document.getElementById('edit-id').value = s.id;
+
+            document.getElementById('edit-id-store').value = s.id;
             document.getElementById('edit-name').value = s.name || '';
             document.getElementById('edit-telO').value = s.tel_o || '';
             document.getElementById('edit-telP').value = s.tel_p || '';
@@ -187,12 +189,12 @@
         }
 
         async function saveStudentEdit() {
-            const rawId = document.getElementById('edit-id').value;
+            const targetId = document.getElementById('edit-id-store').value;
             const btn = document.getElementById('save-edit-btn');
-            if (!rawId) return;
+            if (!targetId) return;
 
             btn.disabled = true;
-            btn.innerText = "儲存中...";
+            btn.innerText = "正在儲存...";
             updateStatus('syncing');
 
             const updates = {
@@ -206,21 +208,32 @@
             };
 
             try {
-                // 嘗試一：作為數字更新
-                let { data, error } = await supabaseClient.from('students').update(updates).eq('id', isNaN(rawId) ? rawId : Number(rawId)).select();
-                
-                // 嘗試二：如果沒影響到任何行，作為字串更新一次
-                if (!error && (!data || data.length === 0)) {
-                    const retry = await supabaseClient.from('students').update(updates).eq('id', String(rawId)).select();
-                    data = retry.data; error = retry.error;
-                }
+                // 執行更新
+                const { data, error } = await supabaseClient
+                    .from('students')
+                    .update(updates)
+                    .eq('id', targetId) // 這裡的 targetId 是當初 openEditModal 時存進去的原始值
+                    .select();
 
                 if (error) throw error;
-                if (!data || data.length === 0) throw new Error("找不到該學生 ID，請重整頁面後再試。");
+
+                // 如果 data 為空，說明資料庫裡沒找到這個 ID
+                if (!data || data.length === 0) {
+                    throw new Error("找不到對應的 ID。這通常是型別不對，系統將嘗試強制轉型...");
+                }
 
                 closeModal('detail-modal');
                 await fetchData();
             } catch (err) {
+                // 這裡嘗試最後一招：強制轉型成數字再試一次 (針對資料庫 ID 為 int 的情況)
+                if(!isNaN(targetId)) {
+                    const retry = await supabaseClient.from('students').update(updates).eq('id', Number(targetId)).select();
+                    if (retry.data && retry.data.length > 0) {
+                        closeModal('detail-modal');
+                        await fetchData();
+                        return;
+                    }
+                }
                 alert("修改失敗：" + err.message);
             } finally {
                 btn.disabled = false;
@@ -238,7 +251,7 @@
                 note: document.getElementById('f-note').value
             }]);
             if (!error) { 
-                document.querySelectorAll('.form-input').forEach(i => i.id.startsWith('f-') && (i.value = ''));
+                ['f-name','f-telO','f-telP','f-telM','f-school','f-addr','f-note'].forEach(id => document.getElementById(id).value = '');
                 fetchData(); 
             }
         }

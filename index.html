@@ -15,7 +15,7 @@
 
     <div id="auth-wall" class="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center p-6 text-white">
         <div class="w-full max-w-sm text-center">
-            <h1 class="text-3xl font-black mb-2 italic text-white">浩元行政系統</h1>
+            <h1 class="text-3xl font-black mb-2 italic">浩元行政系統</h1>
             <p class="text-slate-400 mb-8 font-bold">請先驗證您的 Google 管理員帳號</p>
             
             <div id="auth-action-area">
@@ -25,62 +25,93 @@
                 </button>
             </div>
 
-            <div id="access-denied" class="hidden mt-6 p-4 bg-red-500/10 border border-red-500/50 rounded-2xl text-red-400 text-sm font-bold">
-                ⚠️ 您的帳號不在管理員白名單中，請聯繫系統管理員。
+            <div id="access-denied" class="hidden mt-6 p-4 bg-rose-500/20 border border-rose-500/50 rounded-xl text-rose-200 text-sm font-bold">
+                ⚠️ 您的帳號不在白名單中，請聯繫系統管理員。
             </div>
         </div>
     </div>
 
-    <main id="main-app" class="min-h-screen flex" style="display: none;">
-        <div id="sidebar-container"></div>
-
-        <div class="flex-1 p-8">
-            <header class="mb-10">
-                <h2 id="current-date" class="text-slate-400 font-bold text-sm mb-1 uppercase tracking-widest">---</h2>
-                <h1 class="text-4xl font-black text-slate-800">營運數據概覽</h1>
-            </header>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden group">
-                    <div class="relative z-10">
-                        <p class="text-slate-400 font-bold text-xs uppercase mb-1">目前學生總數</p>
-                        <h3 id="stat-students" class="text-6xl font-black text-slate-800">0</h3>
-                    </div>
-                    <div class="absolute -right-4 -bottom-4 text-9xl opacity-[0.03] group-hover:opacity-[0.08] transition-all">👥</div>
-                </div>
-
-                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 relative overflow-hidden group">
-                    <div class="relative z-10">
-                        <p class="text-slate-400 font-bold text-xs uppercase mb-1">開課中班級</p>
-                        <h3 id="stat-classes" class="text-6xl font-black text-slate-800">0</h3>
-                    </div>
-                    <div class="absolute -right-4 -bottom-4 text-9xl opacity-[0.03] group-hover:opacity-[0.08] transition-all">📚</div>
-                </div>
+    <div id="main-app" class="dashboard-content min-h-screen flex">
+        
+        <nav class="w-44 bg-white border-r border-slate-200 p-4 flex flex-col gap-1 shrink-0 h-screen sticky top-0">
+            <div class="font-black text-xl mb-6 text-slate-800 border-b pb-4 text-center italic tracking-tighter">浩元行政</div>
+            
+            <div class="space-y-1">
+                <a href="index.html" class="flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold text-slate-800 bg-slate-100 transition text-sm">🏠 系統首頁</a>
+                <a href="students.html" class="flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition text-sm">👥 學生總檔</a>
+                <a href="classes.html" class="flex items-center gap-2 px-3 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-50 transition text-sm">📚 班級管理</a>
             </div>
 
-            <div class="mt-12 p-6 bg-blue-600 rounded-3xl text-white shadow-xl shadow-blue-200 flex items-center justify-between">
-                <div>
-                    <h4 class="text-xl font-black mb-1">今日行政提醒</h4>
-                    <p class="opacity-80 font-medium">請確認所有學生到離班狀態均已透過通訊窗發送通知。</p>
-                </div>
-                <button onclick="startPiP()" class="bg-white text-blue-600 px-6 py-3 rounded-2xl font-black hover:bg-blue-50 transition active:scale-95">
-                    立即開啟工具
+            <div class="mt-6 pt-6 border-t border-slate-100">
+                <p class="text-[10px] font-black text-slate-400 uppercase mb-3 px-2 tracking-widest">快捷工具</p>
+                <button onclick="startPiP()" class="w-full flex items-center gap-2 px-3 py-3 rounded-xl font-black text-blue-600 bg-blue-50 hover:bg-blue-100 transition text-sm shadow-sm">
+                    <span>📱</span> 迷你通訊窗
                 </button>
             </div>
-        </div>
-    </main>
+
+            <div class="mt-auto pt-4 border-t border-slate-100 px-1">
+                <p class="text-[10px] font-black text-slate-400 uppercase mb-1">管理員</p>
+                <p id="user-email-display" class="text-[10px] font-bold text-slate-500 truncate mb-3">載入中...</p>
+                <button onclick="logout()" class="w-full text-left text-[10px] font-black text-rose-400 hover:text-rose-600 transition">登出系統</button>
+            </div>
+        </nav>
+
+        <main class="flex-1 p-10 overflow-y-auto">
+            <header class="flex justify-between items-end mb-10">
+                <div>
+                    <h2 id="current-date" class="text-slate-400 font-black text-xs mb-1 uppercase tracking-[0.2em]">---</h2>
+                    <h1 class="text-4xl font-black text-slate-800 tracking-tight">營運數據概覽</h1>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                <div class="bg-white p-10 rounded-[40px] shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500">
+                    <p class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">目前學生總數</p>
+                    <div class="flex items-end gap-2">
+                        <span id="stat-students" class="text-7xl font-black text-slate-800 tracking-tighter">--</span>
+                        <span class="text-slate-400 font-black mb-3">人</span>
+                    </div>
+                    <div class="absolute -right-6 -bottom-6 text-[120px] opacity-[0.03] group-hover:opacity-[0.07] group-hover:-rotate-12 transition-all duration-700">👥</div>
+                </div>
+
+                <div class="bg-white p-10 rounded-[40px] shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500">
+                    <p class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2">開課中班級</p>
+                    <div class="flex items-end gap-2">
+                        <span id="stat-classes" class="text-7xl font-black text-slate-800 tracking-tighter">--</span>
+                        <span class="text-slate-400 font-black mb-3">班</span>
+                    </div>
+                    <div class="absolute -right-6 -bottom-6 text-[120px] opacity-[0.03] group-hover:opacity-[0.07] group-hover:rotate-12 transition-all duration-700">📚</div>
+                </div>
+            </div>
+
+            <div class="p-8 bg-slate-900 rounded-[40px] text-white shadow-2xl flex items-center justify-between">
+                <div>
+                    <h4 class="text-xl font-black mb-1 tracking-tight">快速開始行政作業</h4>
+                    <p class="text-slate-400 font-bold text-sm">點選左側「迷你通訊窗」即可開啟置頂通知工具。</p>
+                </div>
+                <div class="flex gap-4">
+                    <a href="students.html" class="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-black transition">查看名錄</a>
+                </div>
+            </div>
+        </main>
+    </div>
 
     <script src="pip-tool.js"></script>
-    <script src="sidebar.js"></script>
-    
     <script>
-        // Supabase 初始化 (請更換為您的金鑰)
-        const supabaseUrl = 'YOUR_SUPABASE_URL';
-        const supabaseKey = 'YOUR_SUPABASE_KEY';
-        const supabaseClient = supabasejs.createClient(supabaseUrl, supabaseKey);
+        // 1. 直接配置 Supabase (解決 config.js 讀取失敗問題)
+        const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
+        
+        // 初始化客戶端
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        // 2. 登入/登出邏輯
         async function login() {
-            await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+            const { error } = await supabaseClient.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo: window.location.origin + window.location.pathname }
+            });
+            if (error) console.error("Login Error:", error.message);
         }
 
         async function logout() {
@@ -88,10 +119,12 @@
             location.reload();
         }
 
-        // 安全性檢查與數據讀取
-        supabaseClient.auth.onAuthStateChange(async (event, session) => {
-            if (session) {
-                const user = session.user;
+        // 3. 安全檢查與介面解鎖
+        async function runSecurityCheck() {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            
+            if (user) {
+                // 檢查是否在 admins 白名單
                 const { data: adminData, error } = await supabaseClient
                     .from('admins')
                     .select('email')
@@ -104,24 +137,34 @@
                     return;
                 }
 
-                document.getElementById('auth-wall').classList.add('hidden');
+                // 成功登入：隱藏登入牆，顯示主程式
+                document.getElementById('auth-wall').style.display = 'none';
                 document.getElementById('main-app').style.display = 'flex';
                 document.getElementById('user-email-display').innerText = user.email;
                 
                 fetchStats();
             }
-        });
-
-        async function fetchStats() {
-            const { count: sCount } = await supabaseClient.from('students').select('*', { count: 'exact', head: true });
-            const { count: cCount } = await supabaseClient.from('classes').select('*', { count: 'exact', head: true });
-            document.getElementById('stat-students').innerText = sCount || 0;
-            document.getElementById('stat-classes').innerText = cCount || 0;
         }
 
+        // 4. 抓取統計數據
+        async function fetchStats() {
+            try {
+                const { count: sCount } = await supabaseClient.from('students').select('*', { count: 'exact', head: true });
+                const { count: cCount } = await supabaseClient.from('classes').select('*', { count: 'exact', head: true });
+                document.getElementById('stat-students').innerText = sCount || 0;
+                document.getElementById('stat-classes').innerText = cCount || 0;
+            } catch (e) {
+                console.error("Fetch Stats Error:", e);
+            }
+        }
+
+        // 初始化日期
         document.getElementById('current-date').innerText = new Date().toLocaleDateString('zh-TW', {
             year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
         });
+
+        // 執行
+        runSecurityCheck();
     </script>
 </body>
 </html>

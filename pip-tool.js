@@ -1,44 +1,34 @@
-// 將變數宣告在全域，防止重新宣告錯誤
-var pipWindow = null;
-var pipTimer = null;
-
 async function startPiP() {
-    // 如果視窗已經存在且沒被關閉，就不重複開啟
-    if (window.pipWindow && !window.pipWindow.closed) {
-        window.pipWindow.focus();
-        return;
-    }
-
+    // 檢查瀏覽器支援
     if (!('documentPictureInPicture' in window)) {
-        alert("瀏覽器不支援置頂視窗");
+        alert("瀏覽器不支援置頂視窗，請使用 Chrome 並確保在 HTTPS 環境下執行。");
         return;
     }
 
     try {
-        // 極窄化寬度 140px，減少螢幕佔用
-        window.pipWindow = await window.documentPictureInPicture.requestWindow({
-            width: 140,
-            height: 260,
+        // 1. 請求開啟視窗：寬度縮減至 130 (極窄)，高度 280
+        const pipWindow = await window.documentPictureInPicture.requestWindow({
+            width: 130,
+            height: 280,
         });
 
-        const pipDoc = window.pipWindow.document;
-
-        // 注入 Tailwind
-        const tailwind = pipDoc.createElement('script');
+        // 2. 注入 Tailwind 樣式
+        const tailwind = document.createElement('script');
         tailwind.src = 'https://cdn.tailwindcss.com';
-        pipDoc.head.appendChild(tailwind);
+        pipWindow.document.head.appendChild(tailwind);
 
-        const container = pipDoc.createElement('div');
+        // 3. 建立內容容器
+        const container = pipWindow.document.createElement('div');
         container.className = "p-2 bg-white min-h-screen flex flex-col font-sans select-none";
         container.innerHTML = `
             <div class="flex justify-between items-center mb-1 px-0.5">
                 <span class="font-black text-slate-800 text-[10px]">浩元通訊</span>
-                <span id="p-status" class="text-[8px] font-bold text-emerald-500">● ON</span>
+                <span id="p-status" class="text-[8px] font-bold text-emerald-500 uppercase tracking-tighter">● Auto</span>
             </div>
             
             <div id="time-box" class="bg-slate-50 p-2 rounded-xl border border-slate-100 mb-3 text-center cursor-pointer hover:bg-slate-200 transition-colors">
                 <div id="p-time" class="text-3xl font-black text-slate-800 tracking-tighter leading-none">--:--</div>
-                <div id="p-date" class="text-[9px] font-bold text-slate-400 mt-1">----/--/--</div>
+                <div id="p-date" class="text-[10px] font-bold text-slate-400 mt-1">----/--/--</div>
                 <div id="manual-hint" class="text-[8px] text-amber-600 font-bold mt-1 hidden">手動中-點此恢復</div>
             </div>
 
@@ -47,8 +37,9 @@ async function startPiP() {
                 <button id="btn-leave" class="w-full border-2 border-slate-800 text-slate-800 py-4 rounded-xl font-bold text-xs active:scale-95 transition-all">離班通知</button>
             </div>
         `;
-        pipDoc.body.appendChild(container);
+        pipWindow.document.body.appendChild(container);
 
+        // 4. 定義邏輯
         let isAuto = true;
         const pTime = container.querySelector('#p-time');
         const pDate = container.querySelector('#p-date');
@@ -63,43 +54,49 @@ async function startPiP() {
             pDate.innerText = now.toLocaleDateString('zh-TW');
         }
         
-        window.pipTimer = setInterval(updateTime, 1000);
+        const timer = setInterval(updateTime, 1000);
         updateTime();
 
-        // 點擊切換模式
+        // 點擊時間區塊進入手動調整
         timeBox.onclick = () => {
             isAuto = !isAuto;
             if (!isAuto) {
-                const m = prompt("修正時間:", pTime.innerText);
-                if (m) pTime.innerText = m;
-                pStatus.innerText = "● OFF";
-                pStatus.className = "text-[8px] font-bold text-amber-500";
+                const manualTime = prompt("修正時間 (例如 18:30):", pTime.innerText);
+                if (manualTime) pTime.innerText = manualTime;
+                pStatus.innerText = "● Manual";
+                pStatus.className = "text-[8px] font-bold text-amber-500 uppercase tracking-tighter";
                 manualHint.classList.remove('hidden');
             } else {
-                pStatus.innerText = "● ON";
-                pStatus.className = "text-[8px] font-bold text-emerald-500";
+                pStatus.innerText = "● Auto";
+                pStatus.className = "text-[8px] font-bold text-emerald-500 uppercase tracking-tighter";
                 manualHint.classList.add('hidden');
                 updateTime();
             }
         };
 
-        const copy = async (type) => {
+        // 複製訊息功能
+        const copyMessage = async (type) => {
             const time = pTime.innerText;
             const text = type === 'arrive' ? 
                 \`【到班通知】\\n家長您好，\\n同學已於\${time}到班！\\n如上課期間有任何問題或狀況，\\n我們都會即時反映給您\` :
                 \`【離班通知】\\n家長您好，\\n同學已於\${time}離班！\\n如有任何問題或狀況，\\n再請家長留言給我們\`;
             
             try {
-                await window.pipWindow.navigator.clipboard.writeText(text);
+                await pipWindow.navigator.clipboard.writeText(text);
                 const btn = container.querySelector(\`#btn-\${type}\`);
-                const old = btn.innerText;
+                const oldText = btn.innerText;
                 btn.innerText = "✅ 已複製";
-                setTimeout(() => btn.innerText = old, 800);
-            } catch (e) { console.error(e); }
+                setTimeout(() => btn.innerText = oldText, 800);
+            } catch (err) { console.error("複製失敗", err); }
         };
 
-        container.querySelector('#btn-arrive').onclick = () => copy('arrive');
-        container.querySelector('#btn-leave').onclick = () => copy('leave');
+        container.querySelector('#btn-arrive').onclick = () => copyMessage('arrive');
+        container.querySelector('#btn-leave').onclick = () => copyMessage('leave');
 
-    } catch (e) { console.error(e); }
+        // 視窗關閉時清除計時器
+        pipWindow.addEventListener("pagehide", () => clearInterval(timer));
+
+    } catch (error) {
+        console.error("PiP 啟動失敗:", error);
+    }
 }

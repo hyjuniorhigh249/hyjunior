@@ -17,12 +17,14 @@
         <div class="w-full max-w-sm text-center">
             <h1 class="text-3xl font-black mb-2 italic">浩元行政系統</h1>
             <p class="text-slate-400 mb-8 font-bold">請先驗證您的 Google 管理員帳號</p>
+            
             <div id="auth-action-area">
                 <button onclick="login()" class="w-full bg-white text-slate-900 py-4 rounded-2xl font-black shadow-2xl hover:bg-slate-100 transition active:scale-95 flex items-center justify-center gap-3">
                     <img src="https://www.google.com/favicon.ico" class="w-5 h-5">
                     使用 Google 帳號登入
                 </button>
             </div>
+
             <div id="access-denied" class="hidden mt-6 p-4 bg-red-500/10 border border-red-500/50 rounded-2xl text-red-400 text-sm font-bold">
                 ⚠️ 您的帳號不在管理員白名單中，請聯繫管理員。
             </div>
@@ -60,11 +62,10 @@
     </main>
 
     <script>
-        // 從 Vercel 環境變數讀取
-        const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co"; 
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // 建議此處仍由 config.js 或 Vercel 注入
-
-        // 初始化
+        // 直接寫入金鑰
+        const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
+        
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         async function login() {
@@ -76,6 +77,7 @@
             location.reload();
         }
 
+        // 安全檢查
         supabaseClient.auth.onAuthStateChange(async (event, session) => {
             if (session) {
                 const user = session.user;
@@ -89,7 +91,8 @@
 
                 document.getElementById('auth-wall').classList.add('hidden');
                 document.getElementById('main-app').style.display = 'flex';
-                // 更新 sidebar 的 email
+                
+                // 確保側邊欄載入後更新 Email
                 setTimeout(() => {
                     const emailDisplay = document.getElementById('user-email-display');
                     if (emailDisplay) emailDisplay.innerText = user.email;

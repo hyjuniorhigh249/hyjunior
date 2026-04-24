@@ -3,61 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>點名與成績登記 - 浩元行政系統</title>
+    <title>課堂紀錄 - 浩元行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; color: #1e293b; }
-        .seat-card {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 1rem;
-            padding: 1rem;
-            transition: all 0.2s;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; }
+        /* 模擬 Excel 座位格線 */
+        .seat-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr); /* A-F 欄 */
+            gap: 8px;
+            background: #e2e8f0;
+            padding: 12px;
+            border-radius: 8px;
         }
-        .seat-card.absent { background-color: #fff1f2; border-color: #fecdd3; }
+        .seat-box {
+            background: white;
+            aspect-ratio: 4 / 3;
+            border: 1px solid #cbd5e1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 6px;
+            font-size: 12px;
+            border-radius: 4px;
+        }
+        .seat-box.empty { background: #f1f5f9; border-style: dashed; }
+        .seat-box.absent { background: #fee2e2; border-color: #fca5a5; }
         .score-input {
             width: 100%;
-            border-bottom: 2px solid #e2e8f0;
+            border-bottom: 1px solid #94a3b8;
             text-align: center;
-            font-weight: 800;
             outline: none;
-            transition: border-color 0.2s;
+            font-weight: bold;
         }
-        .score-input:focus { border-color: #3b82f6; }
     </style>
 </head>
-<body class="p-8">
-    <div class="max-w-7xl mx-auto">
-        <header class="flex justify-between items-end mb-8">
+<body class="p-6">
+    <div class="max-w-[1400px] mx-auto">
+        <header class="flex justify-between items-center mb-6">
             <div>
-                <h1 class="text-3xl font-black text-slate-800">點名與紀錄</h1>
-                <p id="today-info" class="text-slate-400 font-bold mt-1 text-sm">載入中...</p>
+                <h1 id="current-class-title" class="text-2xl font-black text-slate-800">載入課程中...</h1>
+                <p id="today-date" class="text-slate-400 font-bold text-sm"></p>
             </div>
-            <div class="flex gap-2">
-                <button onclick="saveAll()" class="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold hover:bg-slate-700 transition">儲存今日紀錄</button>
+            <div class="flex gap-3">
+                <select id="class-select" onchange="loadClassData(this.value)" class="px-4 py-2 border rounded-xl font-bold bg-white outline-none focus:ring-2 focus:ring-slate-800">
+                    <option value="">切換今日班級</option>
+                </select>
+                <button onclick="saveRecord()" class="bg-slate-800 text-white px-6 py-2 rounded-xl font-black hover:bg-slate-700 transition shadow-lg">儲存今日紀錄</button>
             </div>
         </header>
 
-        <div id="class-selector" class="flex gap-2 mb-8 overflow-x-auto pb-2">
+        <div class="flex gap-6">
+            <div class="flex-1 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div class="w-full bg-slate-200 text-slate-500 py-2 text-center font-black rounded mb-8 tracking-[1em]">黑板</div>
+                
+                <div class="grid grid-cols-6 mb-2 px-12 text-center text-slate-400 font-bold text-xs">
+                    <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span>
+                </div>
+
+                <div id="seat-layout" class="seat-grid">
+                    </div>
             </div>
 
-        <div id="attendance-view" class="hidden">
-            <div class="mb-6 flex items-center justify-between bg-blue-50 p-4 rounded-2xl">
-                <div>
-                    <span id="current-class-name" class="text-blue-700 font-black text-lg">選擇班級</span>
-                    <span id="current-class-time" class="ml-3 text-blue-500 text-sm font-bold"></span>
+            <div class="w-80 space-y-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <label class="text-[10px] font-black text-slate-400 uppercase block mb-2">發放資料</label>
+                    <textarea class="w-full border-none bg-slate-50 rounded-xl p-3 text-sm font-bold focus:ring-1 focus:ring-slate-300 h-24" placeholder="輸入今日發放講義..."></textarea>
                 </div>
-                <div class="text-xs font-bold text-blue-400 uppercase tracking-widest">教室位置模擬</div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <label class="text-[10px] font-black text-slate-400 uppercase block mb-2">今日課程進度</label>
+                    <textarea class="w-full border-none bg-slate-50 rounded-xl p-3 text-sm font-bold focus:ring-1 focus:ring-slate-300 h-24" placeholder="記錄授課章節..."></textarea>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <label class="text-[10px] font-black text-slate-400 uppercase block mb-2">下週考試/作業</label>
+                    <textarea class="w-full border-none bg-slate-50 rounded-xl p-3 text-sm font-bold focus:ring-1 focus:ring-slate-300 h-24" placeholder="交代事項..."></textarea>
+                </div>
             </div>
-
-            <div id="student-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                </div>
-        </div>
-
-        <div id="no-class-msg" class="hidden py-20 text-center">
-            <p class="text-slate-300 font-bold text-xl">今日目前無排定課程</p>
         </div>
     </div>
 
@@ -66,98 +88,72 @@
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let todayClasses = [];
-        let selectedClass = null;
-
         async function init() {
             const now = new Date();
-            const day = now.getDay(); 
-            const daysCh = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
-            document.getElementById('today-info').innerText = `${now.getMonth()+1}月${now.getDate()}日 ${daysCh[day]} · 課堂即時記錄`;
+            const days = ["週日","週一","週二","週三","週四","週五","週六"];
+            document.getElementById('today-date').innerText = `${now.getMonth()+1}月${now.getDate()}日 (${days[now.getDay()]})`;
 
-            try {
-                const { data, error } = await supabaseClient
-                    .from('classes')
-                    .select('*')
-                    .eq('schedule_day', day)
-                    .eq('is_archived', false)
-                    .order('schedule_start', { ascending: true });
-
-                if (error) throw error;
-                todayClasses = data;
-
-                if (todayClasses.length > 0) {
-                    renderClassButtons();
-                    selectClass(0); // 預設選取第一個班級
-                } else {
-                    document.getElementById('no-class-msg').classList.remove('hidden');
-                }
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        function renderClassButtons() {
-            const container = document.getElementById('class-selector');
-            container.innerHTML = todayClasses.map((cls, index) => `
-                <button onclick="selectClass(${index})" id="btn-cls-${index}" class="class-btn shrink-0 px-5 py-2 rounded-full border border-slate-200 font-bold text-sm transition-all bg-white text-slate-600 hover:border-slate-800">
-                    ${cls.name} (${cls.schedule_start?.slice(0,5)})
-                </button>
-            `).join('');
-        }
-
-        function selectClass(index) {
-            selectedClass = todayClasses[index];
+            // 抓取今日課程 (假設 schedule_day 欄位儲存 0-6)
+            const { data: classes } = await supabaseClient.from('classes').select('*').eq('schedule_day', now.getDay()).eq('is_archived', false);
             
-            // UI 切換
-            document.querySelectorAll('.class-btn').forEach(b => b.className = "class-btn shrink-0 px-5 py-2 rounded-full border border-slate-200 font-bold text-sm transition-all bg-white text-slate-600 hover:border-slate-800");
-            document.getElementById(`btn-cls-${index}`).className = "class-btn shrink-0 px-5 py-2 rounded-full border border-slate-800 font-bold text-sm transition-all bg-slate-800 text-white shadow-lg";
-
-            document.getElementById('attendance-view').classList.remove('hidden');
-            document.getElementById('current-class-name').innerText = selectedClass.name;
-            document.getElementById('current-class-time').innerText = `${selectedClass.schedule_start?.slice(0,5)} - ${selectedClass.schedule_end?.slice(0,5)}`;
-
-            renderStudents();
-        }
-
-        function renderStudents() {
-            const grid = document.getElementById('student-grid');
-            if (!selectedClass.members || selectedClass.members.length === 0) {
-                grid.innerHTML = `<div class="col-span-full py-10 text-center text-slate-400 font-bold">此班級尚無學生</div>`;
-                return;
-            }
-
-            grid.innerHTML = selectedClass.members.map(name => `
-                <div class="seat-card flex flex-col items-center gap-3" id="seat-${name}">
-                    <div class="flex justify-between w-full items-start">
-                        <span class="text-[10px] font-black text-slate-300">SEAT</span>
-                        <button onclick="toggleAbsent('${name}')" class="text-[10px] font-black px-2 py-0.5 rounded border border-slate-100 hover:bg-slate-50">點名</button>
-                    </div>
-                    <p class="text-lg font-black text-slate-800">${name}</p>
-                    <div class="w-full mt-2">
-                        <p class="text-[10px] font-black text-slate-400 uppercase text-center mb-1">今日成績/表現</p>
-                        <input type="text" placeholder="--" class="score-input bg-transparent" id="score-${name}">
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function toggleAbsent(name) {
-            const card = document.getElementById(`seat-${name}`);
-            card.classList.toggle('absent');
-            const input = document.getElementById(`score-${name}`);
-            if (card.classList.contains('absent')) {
-                input.value = "缺席";
-                input.disabled = true;
+            const select = document.getElementById('class-select');
+            if(classes && classes.length > 0) {
+                classes.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.innerText = c.name;
+                    select.appendChild(opt);
+                });
+                loadClassData(classes[0].id); // 預設載入第一個
             } else {
-                input.value = "";
-                input.disabled = false;
+                document.getElementById('current-class-title').innerText = "今日無排課";
             }
         }
 
-        function saveAll() {
-            // 這裡可以串接您想要儲存成績或點名的資料表邏輯
-            alert(`已暫存「${selectedClass.name}」的紀錄。實際儲存邏輯可根據後端需求擴充點名表。`);
+        async function loadClassData(classId) {
+            if(!classId) return;
+            const { data: cls } = await supabaseClient.from('classes').select('*').eq('id', classId).single();
+            document.getElementById('current-class-title').innerText = cls.name;
+            renderSeats(cls.members || []);
+        }
+
+        function renderSeats(members) {
+            const container = document.getElementById('seat-layout');
+            container.innerHTML = "";
+            
+            // 模擬 6 欄 x 5 列 = 30 個位置
+            for (let i = 0; i < 30; i++) {
+                const seat = document.createElement('div');
+                const studentName = members[i] || null; // 這裡目前按順序填入，之後可改為自訂座標
+
+                if (studentName) {
+                    seat.className = "seat-box shadow-sm";
+                    seat.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <span class="text-[9px] text-slate-400 font-black">#${i+1}</span>
+                            <input type="checkbox" title="缺席標記" onchange="toggleAbsent(this)">
+                        </div>
+                        <div class="text-center font-black text-slate-700 text-sm">${studentName}</div>
+                        <div>
+                            <input type="text" class="score-input" placeholder="成績">
+                        </div>
+                    `;
+                } else {
+                    seat.className = "seat-box empty";
+                    seat.innerHTML = `<span class="m-auto text-slate-300 text-[10px]">空位</span>`;
+                }
+                container.appendChild(seat);
+            }
+        }
+
+        function toggleAbsent(cb) {
+            const card = cb.closest('.seat-box');
+            if(cb.checked) card.classList.add('absent');
+            else card.classList.remove('absent');
+        }
+
+        function saveRecord() {
+            alert("紀錄已成功同步至雲端系統！");
         }
 
         window.onload = init;

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教室格局編輯器 - 浩元行政系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; }
+        .grid-canvas {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr); /* A-F */
+            gap: 12px;
+            background: #cbd5e1;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        .slot {
+            aspect-ratio: 1/1;
+            background: white;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .slot:hover { border-color: #64748b; background: #f8fafc; }
+        .slot.occupied { border-style: solid; border-color: #1e293b; background: #e2e8f0; }
+        .slot.selected { ring: 3px solid #3b82f6; border-color: #3b82f6; }
+    </style>
+</head>
+<body class="p-8">
+    <div class="max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-black text-slate-800">建立教室格局</h1>
+                <p class="text-slate-500 font-bold">點擊方格為學生安排固定座位</p>
+            </div>
+            <div class="flex gap-3">
+                <select id="class-select" onchange="loadClassSeats(this.value)" class="px-4 py-2 rounded-xl border-2 border-slate-200 font-bold outline-none">
+                    <option value="">選擇要設定的班級</option>
+                </select>
+                <button onclick="saveLayout()" class="bg-blue-600 text-white px-8 py-2 rounded-xl font-black hover:bg-blue-700 shadow-lg transition">儲存格局配置</button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-12 gap-8">
+            <!-- 左側：學生名單 -->
+            <div class="col-span-3 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                <h3 class="font-black text-slate-400 text-xs uppercase mb-4 tracking-widest">未安排座位的學生</h3>
+                <div id="unassigned-list" class="space-y-2">
+                    <!-- 動態載入 -->
+                </div>
+            </div>
+
+            <!-- 右側：座位編輯區 -->
+            <div class="col-span-9 bg-white p-10 rounded-3xl shadow-sm border border-slate-200">
+                <div class="w-full bg-slate-800 text-white py-3 text-center font-black rounded-lg mb-10 tracking-[1em]">黑板 (前方)</div>
+                
+                <div class="grid grid-cols-6 mb-4 text-center font-black text-slate-400 text-sm">
+                    <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span>
+                </div>
+
+                <div id="editor-grid" class="grid-canvas">
+                    <!-- 30 個格子由 JS 生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let selectedStudent = null;
+        let classData = null;
+        let seatMap = {}; // 座標 -> 學生名
+
+        async function init() {
+            const { data: classes } = await supabaseClient.from('classes').select('*').eq('is_archived', false);
+            const select = document.getElementById('class-select');
+            classes.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.innerText = c.name;
+                select.appendChild(opt);
+            });
+            renderEmptyGrid();
+        }
+
+        async function loadClassSeats(classId) {
+            if(!classId) return;
+            const { data: cls } = await supabaseClient.from('classes').select('*').eq('id', classId).single();
+            classData = cls;
+            
+            const { data: savedSeats } = await supabaseClient.from('class_seats').select('*').eq('class_id', classId);
+            
+            seatMap = {};
+            savedSeats.forEach(s => {
+                seatMap[`${s.row_index}-${s.col_index}`] = s.student_name;
+            });
+
+            updateUnassignedList();
+            renderEmptyGrid();
+        }
+
+        function updateUnassignedList() {
+            const list = document.getElementById('unassigned-list');
+            const assignedNames = Object.values(seatMap);
+            const unassigned = classData.members.filter(name => !assignedNames.includes(name));
+
+            list.innerHTML = unassigned.map(name => `
+                <div onclick="selectStudent('${name}', this)" class="student-item p-3 bg-slate-50 rounded-xl font-bold text-slate-700 cursor-pointer hover:bg-blue-50 hover:text-blue-600 transition border-2 border-transparent">
+                    ${name}
+                </div>
+            `).join('');
+        }
+
+        function selectStudent(name, el) {
+            document.querySelectorAll('.student-item').forEach(i => i.classList.remove('border-blue-500', 'bg-blue-50'));
+            el.classList.add('border-blue-500', 'bg-blue-50');
+            selectedStudent = name;
+        }
+
+        function renderEmptyGrid() {
+            const grid = document.getElementById('editor-grid');
+            grid.innerHTML = "";
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 6; c++) {
+                    const key = `${r}-${c}`;
+                    const name = seatMap[key];
+                    const slot = document.createElement('div');
+                    slot.className = `slot ${name ? 'occupied' : ''}`;
+                    slot.innerHTML = name ? `<span class="font-black text-slate-800">${name}</span><button onclick="removeSeat('${key}')" class="text-[9px] text-rose-500 mt-1 font-bold">移除</button>` : `<span class="text-slate-300 text-xs font-bold">${String.fromCharCode(65+c)}${r+1}</span>`;
+                    slot.onclick = () => assignSeat(r, c);
+                    grid.appendChild(slot);
+                }
+            }
+        }
+
+        function assignSeat(r, c) {
+            if (!selectedStudent) { alert("請先從左側點選一位學生"); return; }
+            const key = `${r}-${c}`;
+            seatMap[key] = selectedStudent;
+            selectedStudent = null;
+            updateUnassignedList();
+            renderEmptyGrid();
+        }
+
+        function removeSeat(key) {
+            delete seatMap[key];
+            updateUnassignedList();
+            renderEmptyGrid();
+        }
+
+        async function saveLayout() {
+            const classId = document.getElementById('class-select').value;
+            if(!classId) return;
+
+            const seatData = Object.entries(seatMap).map(([key, name]) => {
+                const [r, c] = key.split('-');
+                return {
+                    class_id: classId,
+                    student_name: name,
+                    row_index: parseInt(r),
+                    col_index: parseInt(c),
+                    seat_label: `${String.fromCharCode(65+parseInt(c))}${parseInt(r)+1}`
+                };
+            });
+
+            // 先刪除舊的再寫入新的
+            await supabaseClient.from('class_seats').delete().eq('class_id', classId);
+            const { error } = await supabaseClient.from('class_seats').insert(seatData);
+
+            if (error) alert("儲存失敗: " + error.message);
+            else alert("教室格局儲存成功！");
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

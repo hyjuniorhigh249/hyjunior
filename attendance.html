@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>實時點名系統 - 浩元行政</title>
+    <title>智慧點名與聯絡本 - 浩元行政</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; color: #334155; }
         .canvas-container {
             background: white; border-radius: 2.5rem; border: 1px solid #e2e8f0;
-            padding: 3rem; min-height: 750px; display: flex; flex-direction: column; align-items: center;
+            padding: 3rem; min-height: 850px; display: flex; flex-direction: column; align-items: center;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); position: relative;
         }
         .grid-canvas { display: grid; gap: 12px; background: #f8fafc; padding: 25px; border-radius: 1.5rem; border: 2px solid #cbd5e1; }
@@ -20,70 +20,108 @@
             cursor: pointer; position: relative; transition: all 0.2s ease;
         }
         .is-hallway { background: #e2e8f0; cursor: default; opacity: 0.5; }
-        .status-pending { background: white; border: 2px solid #e2e8f0; color: #64748b; }
+        .status-pending { background: white; border: 2px solid #e2e8f0; color: #94a3b8; }
         .status-present { background: #10b981; color: white; transform: scale(1.05); z-index: 10; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4); }
         .status-absent { background: #ef4444; color: white; }
         .status-late { background: #f59e0b; color: white; }
         
-        /* 儲存中狀態動畫 */
-        #sync-indicator { transition: opacity 0.3s; opacity: 0; }
-        .is-syncing #sync-indicator { opacity: 1; }
+        /* 聯絡本輸入框樣式 */
+        .contact-input {
+            width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 6px 10px; font-size: 13px; font-weight: bold; outline: none; transition: all 0.2s;
+        }
+        .contact-input:focus { border-color: #3b82f6; background: white; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .input-label { font-size: 11px; font-weight: 900; color: #64748b; margin-bottom: 4px; display: block; }
 
         .tooltip {
             visibility: hidden; position: absolute; bottom: 115%; left: 50%; transform: translateX(-50%);
             background: #1e293b; color: white; padding: 10px; border-radius: 10px;
-            z-index: 100; width: 150px; font-size: 11px; opacity: 0; transition: opacity 0.2s; pointer-events: none;
+            z-index: 100; width: 160px; font-size: 11px; opacity: 0; pointer-events: none;
         }
         .slot:hover .tooltip { visibility: visible; opacity: 1; }
+        
+        #sync-indicator { opacity: 0; transition: opacity 0.3s; }
+        .is-syncing #sync-indicator { opacity: 1; }
     </style>
 </head>
 <body class="p-8">
-    <div class="max-w-[1500px] mx-auto">
+    <div class="max-w-[1600px] mx-auto">
         <header class="flex justify-between items-end mb-8">
             <div>
                 <div class="flex items-center gap-3 mb-2">
-                    <span class="px-3 py-1 bg-blue-600 text-white text-xs font-black rounded-full">LIVE 同步中</span>
-                    <span id="sync-indicator" class="text-xs font-bold text-slate-400">● 正在儲存變更...</span>
+                    <span class="px-3 py-1 bg-blue-600 text-white text-[10px] font-black rounded-full uppercase tracking-widest">Live Sync</span>
+                    <span id="sync-indicator" class="text-xs font-bold text-blue-500">● 雲端資料同步中...</span>
                 </div>
-                <h1 id="current-class-title" class="text-4xl font-black text-slate-800 tracking-tighter">偵測課程中...</h1>
-                <div class="mt-4 flex items-center bg-white rounded-2xl border-2 border-blue-100 px-4 py-3 shadow-sm w-[450px] focus-within:border-blue-500 transition-colors">
-                    <span class="text-slate-400 mr-3">快速點名</span>
-                    <input type="text" id="quick-check-in" placeholder="輸入姓名..." class="w-full outline-none font-bold text-slate-700 bg-transparent">
+                <h1 id="current-class-title" class="text-4xl font-black text-slate-800 tracking-tighter">讀取課程...</h1>
+                <div class="mt-4 flex items-center bg-white rounded-2xl border-2 border-slate-200 px-4 py-3 shadow-sm w-[450px] focus-within:border-blue-500 transition-all">
+                    <span class="text-slate-400 mr-3">🔍</span>
+                    <input type="text" id="quick-check-in" placeholder="輸入姓名快速點名..." class="w-full outline-none font-bold text-slate-700 bg-transparent">
                 </div>
             </div>
-
-            <!-- 自動隱藏了不需要的欄位，僅保留切換（萬一今天有多堂課） -->
-            <div id="class-switcher" class="hidden flex flex-col items-end gap-2">
-                <label class="text-[10px] font-black text-slate-400 uppercase">今日其他課程</label>
-                <select id="class-select" onchange="loadAttendanceData(this.value)" class="bg-white border border-slate-200 rounded-xl px-4 py-2 font-black text-slate-600 outline-none shadow-sm"></select>
+            <div id="class-switcher" class="hidden">
+                <select id="class-select" onchange="loadAttendanceData(this.value)" class="bg-white border-2 border-slate-200 rounded-xl px-4 py-2 font-black text-slate-600 outline-none"></select>
             </div>
         </header>
 
-        <div class="flex gap-10">
-            <!-- 左側統計 -->
-            <div class="w-80 shrink-0">
-                <div class="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm sticky top-8">
-                    <div class="mb-8">
-                        <h3 class="text-xs font-black text-slate-400 tracking-widest uppercase mb-4">出席概況</h3>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="bg-emerald-50 p-4 rounded-2xl text-center">
-                                <span class="block text-emerald-600 font-black text-3xl" id="count-present">0</span>
-                                <span class="text-[10px] font-bold text-emerald-800">已到</span>
-                            </div>
-                            <div class="bg-rose-50 p-4 rounded-2xl text-center">
-                                <span class="block text-rose-600 font-black text-3xl" id="count-absent">0</span>
-                                <span class="text-[10px] font-bold text-rose-800">未到</span>
-                            </div>
+        <div class="flex gap-8">
+            <!-- 左側工作面板 -->
+            <div class="w-96 shrink-0 flex flex-col gap-6">
+                <!-- 1. 統計與名單 -->
+                <div class="bg-white rounded-[2rem] p-6 border border-slate-200 shadow-sm">
+                    <div class="grid grid-cols-2 gap-3 mb-6">
+                        <div class="bg-emerald-50 p-4 rounded-2xl text-center">
+                            <span class="block text-emerald-600 font-black text-3xl" id="count-present">0</span>
+                            <span class="text-[10px] font-bold text-emerald-800 uppercase">出席</span>
+                        </div>
+                        <div class="bg-rose-50 p-4 rounded-2xl text-center">
+                            <span class="block text-rose-600 font-black text-3xl" id="count-absent">0</span>
+                            <span class="text-[10px] font-bold text-rose-800 uppercase">缺席</span>
                         </div>
                     </div>
-                    <div id="student-list" class="space-y-2 max-h-[450px] overflow-y-auto pr-2"></div>
+                    <div id="student-list" class="space-y-1 max-h-[250px] overflow-y-auto pr-2 mb-2"></div>
+                </div>
+
+                <!-- 2. 聯絡本填寫區域 (自動儲存) -->
+                <div class="bg-slate-800 rounded-[2rem] p-7 text-white shadow-xl">
+                    <h3 class="text-sm font-black mb-5 flex items-center gap-2">
+                        <span class="text-blue-400 text-lg">📝</span> 每日教學聯絡本
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="input-label text-slate-400">發放資料</label>
+                            <input type="text" class="contact-input text-slate-800" data-field="materials" placeholder="如：講義第三回...">
+                        </div>
+                        <div>
+                            <label class="input-label text-slate-400">上課進度</label>
+                            <input type="text" class="contact-input text-slate-800" data-field="progress" placeholder="如：第 2 章 2-1 節...">
+                        </div>
+                        <div>
+                            <label class="input-label text-slate-400">回家作業</label>
+                            <input type="text" class="contact-input text-slate-800" data-field="homework" placeholder="如：習題 p.45-50...">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="input-label text-slate-400">本週考試</label>
+                                <input type="text" class="contact-input text-slate-800" data-field="test_this_week" placeholder="單元測驗">
+                            </div>
+                            <div>
+                                <label class="input-label text-slate-400">下週考試</label>
+                                <input type="text" class="contact-input text-slate-800" data-field="test_next_week" placeholder="大會考">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="input-label text-slate-400">本次班級平均成績</label>
+                            <input type="text" class="contact-input text-slate-800" data-field="avg_score" placeholder="輸入分數">
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-4 text-center font-bold italic">※ 內容更動將會自動實時儲存</p>
                 </div>
             </div>
 
             <!-- 右側畫布 -->
             <div class="flex-1 canvas-container">
-                <div id="room-name-display" class="absolute top-6 right-10 text-xs font-black text-slate-300"></div>
-                <div class="w-full max-w-xl bg-slate-100 text-slate-400 py-2 font-black rounded-full mb-12 tracking-[3em] text-center text-[10px]">SCREEN / BLACKBOARD</div>
+                <div id="room-name-display" class="absolute top-8 right-10 text-[10px] font-black text-slate-300 tracking-widest"></div>
+                <div class="w-full max-w-xl bg-slate-100 text-slate-400 py-2 font-black rounded-full mb-16 tracking-[3em] text-center text-[10px]">BLACKBOARD / FRONT</div>
                 <div id="attendance-grid" class="grid-canvas"></div>
             </div>
         </div>
@@ -96,36 +134,34 @@
 
         let state = {
             currentClassId: null,
-            attendance: {}, 
+            attendance: {},
             studentsDetails: {}
         };
 
         async function init() {
-            // 1. 取得今天是星期幾 (0-6)
             const dayOfWeek = new Date().getDay();
+            const { data: todayClasses } = await supabaseClient.from('classes').select('*, rooms(*)').eq('is_archived', false);
             
-            // 2. 自動抓取今天的課程
-            const { data: todayClasses } = await supabaseClient
-                .from('classes')
-                .select('*, rooms(name, grid_size, layout_config)')
-                .eq('is_archived', false)
-                .contains('schedule', [{ day: dayOfWeek }]); // 假設 schedule 是 jsonb 陣列
+            // 簡化過濾逻辑：找到今天 schedule 包含今日星期幾的班級
+            const filtered = todayClasses.filter(c => c.schedule?.some(s => s.day === dayOfWeek));
 
-            if (todayClasses && todayClasses.length > 0) {
+            if (filtered.length > 0) {
                 const switcher = document.getElementById('class-select');
-                todayClasses.forEach(c => switcher.add(new Option(c.name, c.id)));
-                
-                if (todayClasses.length > 1) document.getElementById('class-switcher').classList.remove('hidden');
-                
-                // 預設載入第一堂
-                loadAttendanceData(todayClasses[0].id);
-            } else {
-                document.getElementById('current-class-title').innerText = "今日無預定課程";
+                filtered.forEach(c => switcher.add(new Option(c.name, c.id)));
+                if (filtered.length > 1) document.getElementById('class-switcher').classList.remove('hidden');
+                loadAttendanceData(filtered[0].id);
             }
 
+            // 聯絡本實時儲存監聽
+            document.querySelectorAll('.contact-input').forEach(input => {
+                input.addEventListener('change', (e) => saveContactData(e.target.dataset.field, e.target.value));
+            });
+
+            // 快速點名 Enter
             document.getElementById('quick-check-in').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
-                    handleQuickCheckIn(e.target.value);
+                    const name = e.target.value.trim();
+                    if (state.attendance[name]) updateStatus(name, 'present');
                     e.target.value = '';
                 }
             });
@@ -133,36 +169,37 @@
 
         async function loadAttendanceData(classId) {
             state.currentClassId = classId;
-            
-            // 取得班級、座位與學生電話
+            const todayStr = new Date().toISOString().split('T')[0];
+
             const { data: cls } = await supabaseClient.from('classes').select('*, rooms(*)').eq('id', classId).single();
             const { data: seats } = await supabaseClient.from('class_seats').select('*').eq('class_id', classId);
-            
-            // 抓取點名紀錄（當日）
-            const todayStr = new Date().toISOString().split('T')[0];
-            const { data: logs } = await supabaseClient.from('attendance_logs')
-                .select('*')
-                .eq('class_id', classId)
-                .eq('date', todayStr);
+            const { data: logs } = await supabaseClient.from('attendance_logs').select('*').eq('class_id', classId).eq('date', todayStr);
+            const { data: contact } = await supabaseClient.from('class_diaries').select('*').eq('class_id', classId).eq('date', todayStr).single();
+
+            // 載入聯絡本現有資料
+            if(contact) {
+                document.querySelectorAll('.contact-input').forEach(input => {
+                    input.value = contact[input.dataset.field] || '';
+                });
+            }
 
             document.getElementById('current-class-title').innerText = cls.name;
             document.getElementById('room-name-display').innerText = `LAYOUT: ${cls.rooms.name}`;
             
-            // 初始化狀態
             state.attendance = {};
             cls.members.forEach(name => {
                 const log = logs?.find(l => l.student_name === name);
                 state.attendance[name] = log ? log.status : 'pending';
             });
 
-            render(cls.rooms, seats);
+            renderGrid(cls.rooms, seats);
+            updateStats();
         }
 
-        function render(room, seats) {
+        function renderGrid(room, seats) {
             const grid = document.getElementById('attendance-grid');
             grid.innerHTML = "";
             grid.style.gridTemplateColumns = `repeat(${room.grid_size.cols}, 1fr)`;
-
             const seatMap = {};
             seats.forEach(s => seatMap[`${s.row_index}-${s.col_index}`] = s);
 
@@ -176,67 +213,63 @@
                         slot.className = 'slot is-hallway';
                     } else if (seat?.student_name) {
                         const name = seat.student_name;
-                        const status = state.attendance[name];
-                        slot.className = `slot status-${status}`;
+                        slot.id = `seat-${name}`;
+                        slot.className = `slot status-${state.attendance[name]}`;
                         slot.innerHTML = `
                             <span class="text-[9px] font-black opacity-40 mb-1">${seat.seat_label}</span>
-                            <span class="font-black text-base">${name}</span>
-                            <div class="tooltip">載入電話中...</div>
+                            <span class="font-black text-sm">${name}</span>
+                            <div class="tooltip">📱 09xx-xxx-xxx<br>🏠 02-xxxx-xxxx</div>
                         `;
-                        slot.onclick = () => updateStatus(name, getNextStatus(status));
+                        slot.onclick = () => {
+                            const next = {'pending':'present', 'present':'absent', 'absent':'late', 'late':'present'}[state.attendance[name]];
+                            updateStatus(name, next);
+                        };
                     } else {
                         slot.className = 'slot border-2 border-dashed border-slate-100 opacity-20';
                     }
                     grid.appendChild(slot);
                 }
             }
-            updateStats();
-        }
-
-        function getNextStatus(current) {
-            const map = { 'pending': 'present', 'present': 'absent', 'absent': 'late', 'late': 'present' };
-            return map[current] || 'present';
         }
 
         async function updateStatus(name, newStatus) {
-            // 1. 即時 UI 反饋
             state.attendance[name] = newStatus;
             document.body.classList.add('is-syncing');
-            renderFromState(); // 重新渲染 local UI
-
-            // 2. 實時同步至資料庫
-            const todayStr = new Date().toISOString().split('T')[0];
-            const { error } = await supabaseClient
-                .from('attendance_logs')
-                .upsert({ 
-                    class_id: state.currentClassId, 
-                    student_name: name, 
-                    date: todayStr, 
-                    status: newStatus,
-                    updated_at: new Date()
-                }, { onConflict: 'class_id, student_name, date' });
-
-            if(!error) {
-                setTimeout(() => document.body.classList.remove('is-syncing'), 500);
-            }
-        }
-
-        function handleQuickCheckIn(name) {
-            const target = name.trim();
-            if (state.attendance[target]) updateStatus(target, 'present');
-        }
-
-        // 為了效能，實時更新時不重新撈資料，僅重繪
-        function renderFromState() {
-            // ... 簡化版 render 邏輯 ...
+            
+            // 更新實體 DOM 樣式 (不重繪整個 Grid)
+            const el = document.getElementById(`seat-${name}`);
+            if(el) el.className = `slot status-${newStatus}`;
             updateStats();
-            // 在實際應用中，可以直接操作 DOM 元素 class 而不需全重繪
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            await supabaseClient.from('attendance_logs').upsert({
+                class_id: state.currentClassId, student_name: name, date: todayStr, status: newStatus
+            }, { onConflict: 'class_id, student_name, date' });
+
+            setTimeout(() => document.body.classList.remove('is-syncing'), 400);
+        }
+
+        async function saveContactData(field, value) {
+            document.body.classList.add('is-syncing');
+            const todayStr = new Date().toISOString().split('T')[0];
+            
+            const updateData = { class_id: state.currentClassId, date: todayStr };
+            updateData[field] = value;
+
+            await supabaseClient.from('class_diaries').upsert(updateData, { onConflict: 'class_id, date' });
+            setTimeout(() => document.body.classList.remove('is-syncing'), 400);
         }
 
         function updateStats() {
             const vals = Object.values(state.attendance);
             document.getElementById('count-present').innerText = vals.filter(v => v === 'present' || v === 'late').length;
             document.getElementById('count-absent').innerText = vals.filter(v => v === 'absent').length;
+            
+            const list = document.getElementById('student-list');
+            list.innerHTML = Object.entries(state.attendance).map(([name, status]) => {
+                const color = { 'present': 'bg-emerald-500', 'absent': 'bg-rose-500', 'late': 'bg-amber-500' }[status] || 'bg-slate-200';
+                return `<div class="flex items-center justify-between text-[11px] font-bold p-1 px-2 bg-slate-50 rounded"><span>${name}</span><div class="w-2 h-2 rounded-full ${color}"></div></div>`;
+            }).join('');
         }
 
         window.onload = init;

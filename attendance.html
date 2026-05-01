@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>浩元行政系統 - 介面修復版</title>
+    <title>浩元行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -10,17 +10,18 @@
         .main-grid { display: grid; grid-template-columns: 280px 1fr 320px; height: 100vh; gap: 1px; background: #cbd5e1; }
         .pane { background: white; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* 視覺強化 */
-        .canvas-area { background-color: #94a3b8; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+        /* 教室視覺區塊 - 確保橫向展開 */
+        .canvas-area { background-color: #94a3b8; overflow: auto; display: flex; flex-direction: column; align-items: center; }
         .grid-container { 
             background: #f8fafc; border: 2px solid #475569; border-radius: 20px; 
             padding: 40px; margin: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            min-width: fit-content;
+            display: grid; /* 使用 Grid 佈局 */
+            gap: 12px;
+            width: fit-content; /* 關鍵：根據內容寬度自動撐開，不縮成一列 */
         }
         
-        /* 座位樣式 */
         .slot {
-            width: 80px; height: 80px; border-radius: 12px; font-weight: 800; font-size: 14px;
+            width: 85px; height: 85px; border-radius: 12px; font-weight: 800; font-size: 14px;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             cursor: pointer; border: 1px solid #e2e8f0; transition: all 0.1s; background: white;
         }
@@ -28,17 +29,15 @@
         .slot.is-hallway::after { content: "走廊"; color: #64748b; font-size: 10px; font-weight: 900; }
         .status-present { background: #10b981 !important; color: white !important; border-color: #059669; }
         
-        /* 左側學生清單修復 (參考 image_661927.png 縮小高度) */
+        /* 左側學生清單緊湊化 */
         .stu-item { transition: background 0.1s; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
         .stu-item:hover { background: #f8fafc; }
-        .stu-item.active { background: #f1f5f9; }
-        
         .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; background: #f8fafc; }
         .stu-item.active .accordion-content { max-height: 100px; padding: 6px 16px 10px 16px; border-top: 1px solid #edf2f7; }
 
         .blackboard { 
             background: #1e293b; color: #f8fafc; border-radius: 6px; 
-            width: 380px; padding: 10px 0; text-align: center;
+            width: 400px; padding: 10px 0; text-align: center;
             font-weight: 900; letter-spacing: 2em; text-indent: 2em;
             margin-top: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
@@ -54,67 +53,69 @@
             <div class="grid grid-cols-2 gap-2">
                 <div class="bg-emerald-50 p-2 rounded-xl border border-emerald-100 text-center">
                     <span id="stat-all-present" class="block font-black text-xl text-emerald-600">0</span>
-                    <span class="text-[9px] font-bold text-emerald-700">已到</span>
+                    <span class="text-[10px] font-bold text-emerald-700">已到</span>
                 </div>
                 <div class="bg-slate-50 p-2 rounded-xl border border-slate-200 text-center">
                     <span id="stat-all-pending" class="block font-black text-xl text-slate-400">0</span>
-                    <span class="text-[9px] font-bold text-slate-500">待點</span>
+                    <span class="text-[10px] font-bold text-slate-500">待點</span>
                 </div>
             </div>
         </div>
         <div id="all-student-list" class="flex-1 overflow-y-auto"></div>
     </div>
 
-    <!-- 中欄：點名區 -->
+    <!-- 中欄：點名教室 -->
     <div class="pane canvas-area">
         <div class="w-full bg-white/95 backdrop-blur sticky top-0 z-20 px-4 py-3 border-b flex justify-between items-center">
             <div class="relative w-80">
                 <input type="text" id="global-search" placeholder="全域點名 (輸入姓名)..." 
-                       class="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full font-bold text-sm outline-none focus:ring-2 ring-emerald-500 transition-all">
+                       class="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full font-bold text-sm outline-none focus:ring-2 ring-emerald-500">
                 <span class="absolute left-3.5 top-2">🔍</span>
             </div>
             <div class="flex items-center gap-2">
-                <span class="text-[10px] font-black text-slate-400">切換教室：</span>
-                <select id="class-switcher" onchange="switchClass(this.value)" class="bg-slate-800 text-white font-black text-xs px-4 py-2 rounded-lg shadow-lg outline-none cursor-pointer hover:bg-slate-700 transition-all"></select>
+                <span class="text-[11px] font-black text-slate-400">切換教室：</span>
+                <select id="class-switcher" onchange="switchClass(this.value)" class="bg-slate-800 text-white font-black text-xs px-4 py-2 rounded-lg shadow-lg outline-none cursor-pointer"></select>
             </div>
         </div>
 
         <div class="blackboard text-xs">黑板方向</div>
 
-        <div id="seat-grid" class="grid-container"></div>
+        <div id="seat-grid" class="grid-container">
+            <!-- 座位會在此依欄數橫向排列 -->
+        </div>
     </div>
 
-    <!-- 右欄：CLASS LOGS -->
+    <!-- 右欄：聯絡簿 (純中文) -->
     <div class="pane border-l">
-        <div class="p-4 bg-slate-800 text-white font-black text-xs tracking-widest flex justify-between items-center">
-            <span>📝 CLASS LOGS</span>
-            <span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">LIVE</span>
+        <div class="p-4 bg-slate-800 text-white font-black text-sm tracking-widest flex justify-between items-center">
+            <span>📝 教學日誌</span>
+            <span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">自動儲存中</span>
         </div>
-        <div class="p-5 space-y-4 overflow-y-auto flex-1">
+        <div class="p-5 space-y-5 overflow-y-auto flex-1">
             <div>
-                <label class="text-[10px] font-black text-slate-400">上課進度 (PROGRESS)</label>
-                <textarea data-field="progress" rows="3" class="w-full mt-1.5 bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-bold outline-none focus:border-emerald-500"></textarea>
+                <label class="text-[11px] font-black text-slate-400 mb-1.5 block">上課進度</label>
+                <textarea data-field="progress" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-bold outline-none focus:border-emerald-500" placeholder="請輸入今日授課內容..."></textarea>
             </div>
             <div>
-                <label class="text-[10px] font-black text-slate-400">發放講義 (HANDOUTS)</label>
-                <input type="text" data-field="handouts" class="w-full mt-1.5 bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-bold outline-none">
+                <label class="text-[11px] font-black text-slate-400 mb-1.5 block">發放講義</label>
+                <input type="text" data-field="handouts" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-bold outline-none" placeholder="例如：單元三講義">
             </div>
             <div>
-                <label class="text-[10px] font-black text-slate-400">回家作業 (HOMEWORK)</label>
-                <textarea data-field="homework" rows="2" class="w-full mt-1.5 bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-bold outline-none"></textarea>
+                <label class="text-[11px] font-black text-slate-400 mb-1.5 block">回家作業</label>
+                <textarea data-field="homework" rows="2" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-bold outline-none" placeholder="請輸入作業範圍..."></textarea>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="text-[10px] font-black text-slate-400">本週考試</label>
-                    <input type="text" data-field="this_week_exam" class="w-full mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold outline-none">
+                    <label class="text-[11px] font-black text-slate-400 mb-1.5 block">本週考試</label>
+                    <input type="text" data-field="this_week_exam" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-bold outline-none">
                 </div>
                 <div>
-                    <label class="text-[10px] font-black text-slate-400">下週考試</label>
-                    <input type="text" data-field="next_exam" class="w-full mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold outline-none">
+                    <label class="text-[11px] font-black text-slate-400 mb-1.5 block">下週考試</label>
+                    <input type="text" data-field="next_exam" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-bold outline-none">
                 </div>
             </div>
             <div class="pt-4 border-t border-slate-100">
-                <label class="text-[10px] font-black text-slate-500 mb-2 block text-center">本次測驗平均成績</label>
+                <label class="text-[11px] font-black text-slate-500 mb-2.5 block text-center">本次測驗平均成績</label>
                 <div class="relative">
                     <input type="number" data-field="avg_score" class="w-full bg-emerald-50 border-2 border-emerald-100 rounded-2xl p-4 text-3xl font-black text-emerald-700 outline-none text-center">
                     <span class="absolute right-6 top-6 text-emerald-300 font-bold">分</span>
@@ -125,6 +126,7 @@
 </div>
 
 <script>
+    // Supabase 配置
     const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -135,11 +137,12 @@
         const todayDay = new Date().getDay();
         const todayStr = new Date().toISOString().split('T')[0];
 
+        // 讀取班級
         const { data: todayClasses } = await supabaseClient.from('classes').select('*, rooms(*)').eq('schedule_day', todayDay);
         if (!todayClasses || todayClasses.length === 0) return;
-        
         db.allClasses = todayClasses;
 
+        // 讀取學生與點名狀態
         const allMemberNames = [...new Set(todayClasses.flatMap(c => c.members || []))];
         const [stRes, logRes] = await Promise.all([
             supabaseClient.from('students').select('*').in('name', allMemberNames),
@@ -152,9 +155,11 @@
             db.attendance[name] = isPresent ? 'present' : 'pending';
         });
 
+        // 初始化班級切換器
         const switcher = document.getElementById('class-switcher');
         todayClasses.forEach(c => switcher.add(new Option(c.name, c.id)));
         
+        // 全域快速點名
         document.getElementById('global-search').addEventListener('keypress', e => {
             if (e.key === 'Enter') {
                 const name = e.target.value.trim();
@@ -163,6 +168,7 @@
             }
         });
 
+        // 自動儲存聯絡簿
         document.querySelectorAll('[data-field]').forEach(el => {
             el.addEventListener('change', e => saveClassLog(e.target.dataset.field, e.target.value));
         });
@@ -174,6 +180,7 @@
         db.activeClassId = id;
         const cls = db.allClasses.find(c => c.id === id);
         const today = new Date().toISOString().split('T')[0];
+
         const { data: diary } = await supabaseClient.from('class_logs').select('*').eq('class_id', id).eq('log_date', today).maybeSingle();
         document.querySelectorAll('[data-field]').forEach(el => el.value = diary ? (diary[el.dataset.field] || '') : '');
 
@@ -186,7 +193,9 @@
         const container = document.getElementById('seat-grid');
         const { data: seats } = await supabaseClient.from('class_seats').select('*').eq('class_id', cls.id);
         const room = cls.rooms;
-        container.style.gridTemplateColumns = `repeat(${room.grid_size.cols}, 80px)`;
+        
+        // 修正：明確設定 Grid 欄數，確保橫向展開
+        container.style.gridTemplateColumns = `repeat(${room.grid_size.cols}, 85px)`;
         container.innerHTML = "";
 
         const seatMap = Object.fromEntries(seats?.map(s => [`${s.row_index}-${s.col_index}`, s]) || []);
@@ -205,7 +214,7 @@
                     const status = db.attendance[name];
                     div.className = `slot status-${status}`;
                     const label = seat.seat_label && seat.seat_label !== "null" ? seat.seat_label : "";
-                    div.innerHTML = `<span class="text-[8px] opacity-40 mb-0.5 font-black">${label}</span><span class="leading-none">${name}</span>`;
+                    div.innerHTML = `<span class="text-[9px] opacity-40 mb-1 font-black">${label}</span><span class="leading-none">${name}</span>`;
                     div.onclick = () => updateAttendance(name, status === 'present' ? 'pending' : 'present');
                 } else {
                     div.className = "slot border-dashed opacity-10 bg-slate-50";

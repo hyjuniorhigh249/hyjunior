@@ -2,125 +2,123 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>浩元行政系統 - 全域點名管理</title>
+    <title>浩元行政系統 - 修正版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: "Inter", "Microsoft JhengHei", sans-serif; background: #f1f5f9; overflow: hidden; }
-        .main-grid { display: grid; grid-template-columns: 300px 1fr 340px; height: 100vh; gap: 1px; background: #e2e8f0; }
+        .main-grid { display: grid; grid-template-columns: 300px 1fr 340px; height: 100vh; gap: 1px; background: #cbd5e1; }
         .pane { background: white; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* 座位區背景增強 */
-        .canvas-area { background-color: #cbd5e1; position: relative; overflow-y: auto; }
-        .grid-container { background: #f8fafc; border: 2px solid #94a3b8; border-radius: 20px; padding: 40px; margin: 40px auto; min-width: fit-content; }
+        /* 中間教室區域視覺強化 */
+        .canvas-area { background-color: #94a3b8; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+        .grid-container { 
+            background: #f8fafc; border: 3px solid #475569; border-radius: 24px; 
+            padding: 50px; margin: 40px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            min-width: fit-content;
+        }
         
         .slot {
-            width: 85px; height: 85px; border-radius: 12px; font-weight: 800; font-size: 14px;
+            width: 85px; height: 85px; border-radius: 14px; font-weight: 800; font-size: 14px;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            cursor: pointer; border: 1px solid #cbd5e1; transition: all 0.1s; background: white;
+            cursor: pointer; border: 1px solid #e2e8f0; transition: all 0.1s; background: white; color: #1e293b;
         }
-        .slot.is-hallway { background: #94a3b8; border: none; cursor: default; opacity: 0.4; }
-        .slot.is-hallway::after { content: "走廊"; color: white; font-size: 10px; }
+        /* 走廊標示 */
+        .slot.is-hallway { background: #cbd5e1 !important; border: none !important; cursor: default; }
+        .slot.is-hallway::after { content: "走廊"; color: #64748b; font-size: 10px; font-weight: 900; }
         
-        .status-present { background: #10b981 !important; color: white !important; border-color: #059669; }
-        .status-pending { color: #64748b; }
+        .status-present { background: #10b981 !important; color: white !important; border-color: #059669; transform: scale(1.05); }
+        .status-pending { color: #94a3b8; }
 
-        /* 手風琴樣式 */
+        /* 左側手風琴 */
         .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s; background: #f8fafc; }
-        .stu-item.active .accordion-content { max-height: 120px; padding: 10px 15px; border-top: 1px solid #edf2f7; }
+        .stu-item.active .accordion-content { max-height: 120px; padding: 12px 20px; border-top: 1px solid #edf2f7; }
 
-        .blackboard { background: #1e293b; color: #94a3b8; border-radius: 4px; letter-spacing: 2em; text-indent: 2em; }
+        /* 黑板視覺 */
+        .blackboard { 
+            background: #1e293b; color: #f8fafc; border-radius: 8px; 
+            width: 400px; padding: 12px 0; text-align: center;
+            font-weight: 900; letter-spacing: 2em; text-indent: 2em;
+            margin-top: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
 
 <div class="main-grid">
-    <!-- 左欄：全日學生總名單 -->
-    <div class="pane border-r">
-        <div class="p-5 bg-white border-b shadow-sm">
-            <h2 class="font-black text-slate-800 text-lg mb-4 italic">今日全天名單</h2>
-            <div class="grid grid-cols-2 gap-2">
-                <div class="bg-emerald-50 border border-emerald-100 p-2 rounded-xl text-center">
-                    <span id="stat-all-present" class="block font-black text-xl text-emerald-600">0</span>
-                    <span class="text-[9px] font-bold text-emerald-800">總出席</span>
+    <!-- 左欄：全日名單 -->
+    <div class="pane">
+        <div class="p-6 border-b bg-white">
+            <h2 class="font-black text-slate-800 text-xl tracking-tighter mb-4">今日全天名單</h2>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-emerald-50 p-3 rounded-2xl border border-emerald-100 text-center">
+                    <span id="stat-all-present" class="block font-black text-2xl text-emerald-600">0</span>
+                    <span class="text-[10px] font-black text-emerald-700">總出席</span>
                 </div>
-                <div class="bg-slate-50 border border-slate-200 p-2 rounded-xl text-center">
-                    <span id="stat-all-pending" class="block font-black text-xl text-slate-400">0</span>
-                    <span class="text-[9px] font-bold text-slate-500">待點名</span>
+                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
+                    <span id="stat-all-pending" class="block font-black text-2xl text-slate-400">0</span>
+                    <span class="text-[10px] font-black text-slate-500">待點名</span>
                 </div>
             </div>
         </div>
-        <div id="all-student-list" class="flex-1 overflow-y-auto">
-            <!-- 動態插入全天候學生 -->
-        </div>
+        <div id="all-student-list" class="flex-1 overflow-y-auto bg-white"></div>
     </div>
 
-    <!-- 中欄：課程教室切換與座位 -->
+    <!-- 中欄：核心點名區 -->
     <div class="pane canvas-area">
-        <!-- 頂部搜尋列 -->
-        <div class="sticky top-0 z-10 bg-white/90 backdrop-blur p-4 border-b flex items-center justify-between">
-            <div class="relative w-80">
-                <input type="text" id="global-search" placeholder="全域點名 (不限課程)..." 
-                       class="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full font-bold text-sm outline-none focus:ring-2 ring-blue-500">
-                <span class="absolute left-3 top-2.5">🔍</span>
+        <div class="w-full bg-white/90 backdrop-blur sticky top-0 z-20 p-4 border-b flex justify-between items-center shadow-sm">
+            <div class="relative w-96">
+                <input type="text" id="global-search" placeholder="輸入姓名快速點名 (全域)..." 
+                       class="w-full pl-12 pr-4 py-3 bg-slate-100 rounded-2xl font-bold text-sm outline-none focus:ring-2 ring-emerald-500">
+                <span class="absolute left-4 top-3.5 text-lg">🔍</span>
             </div>
-            
-            <!-- 班級切換器 -->
             <div class="flex items-center gap-3">
-                <span class="text-xs font-black text-slate-400">當前教室：</span>
-                <select id="class-switcher" onchange="switchClass(this.value)" class="bg-slate-800 text-white font-black px-4 py-2 rounded-xl outline-none shadow-lg cursor-pointer">
-                    <!-- 自動載入今天的所有班級 -->
-                </select>
+                <span class="text-xs font-black text-slate-400">切換教室：</span>
+                <select id="class-switcher" onchange="switchClass(this.value)" class="bg-slate-800 text-white font-black px-5 py-2.5 rounded-xl shadow-xl outline-none"></select>
             </div>
         </div>
 
-        <div class="flex flex-col items-center">
-            <!-- 黑板標示 -->
-            <div class="blackboard w-96 py-2 text-center text-xs font-bold mt-10 shadow-2xl">
-                黑板方向
-            </div>
+        <div class="blackboard">黑板方向</div>
 
-            <!-- 座位網格 -->
-            <div id="seat-grid" class="grid-container shadow-2xl">
-                <!-- 教室格子 -->
-            </div>
+        <div id="seat-grid" class="grid-container">
+            <!-- 座位與走廊 -->
         </div>
     </div>
 
-    <!-- 右欄：Class Logs -->
+    <!-- 右欄：CLASS LOGS -->
     <div class="pane border-l">
-        <div class="p-5 bg-slate-800 text-white font-black text-sm tracking-widest flex justify-between">
+        <div class="p-5 bg-slate-800 text-white font-black text-sm tracking-widest flex justify-between items-center">
             <span>📝 CLASS LOGS</span>
-            <span id="sync-led" class="text-[10px] text-emerald-400">● LIVE</span>
+            <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded">AUTO SAVE</span>
         </div>
-        <div class="p-6 space-y-5 overflow-y-auto flex-1">
+        <div class="p-6 space-y-6 overflow-y-auto flex-1">
             <div>
-                <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">上課進度 (PROGRESS)</label>
-                <textarea data-field="progress" rows="3" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:border-blue-500"></textarea>
+                <label class="text-[11px] font-black text-slate-400 uppercase">上課進度 (PROGRESS)</label>
+                <textarea data-field="progress" rows="3" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold outline-none focus:border-emerald-500"></textarea>
             </div>
             <div>
-                <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">發放講義 (HANDOUTS)</label>
-                <input type="text" data-field="handouts" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none">
+                <label class="text-[11px] font-black text-slate-400 uppercase">發放講義 (HANDOUTS)</label>
+                <input type="text" data-field="handouts" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold outline-none">
             </div>
             <div>
-                <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">回家作業 (HOMEWORK)</label>
-                <textarea data-field="homework" rows="2" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none"></textarea>
+                <label class="text-[11px] font-black text-slate-400 uppercase">回家作業 (HOMEWORK)</label>
+                <textarea data-field="homework" rows="2" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-bold outline-none"></textarea>
             </div>
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">本週考試</label>
-                    <input type="text" data-field="this_week_exam" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold outline-none">
+                    <label class="text-[11px] font-black text-slate-400 uppercase">本週考試</label>
+                    <input type="text" data-field="this_week_exam" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs font-bold outline-none">
                 </div>
                 <div>
-                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-widest">下週考試</label>
-                    <input type="text" data-field="next_exam" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold outline-none">
+                    <label class="text-[11px] font-black text-slate-400 uppercase">下週考試</label>
+                    <input type="text" data-field="next_exam" class="w-full mt-2 bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs font-bold outline-none">
                 </div>
             </div>
             <div class="pt-6 border-t border-slate-100">
-                <label class="text-xs font-black text-slate-500 mb-3 block">本次測驗平均成績</label>
+                <label class="text-xs font-black text-slate-500 mb-4 block text-center uppercase tracking-tighter">本次測驗平均成績</label>
                 <div class="relative">
-                    <input type="number" data-field="avg_score" class="w-full bg-emerald-50 border-2 border-emerald-100 rounded-2xl p-4 text-3xl font-black text-emerald-700 outline-none text-center">
-                    <span class="absolute right-6 top-6 text-emerald-300 font-bold">分</span>
+                    <input type="number" data-field="avg_score" class="w-full bg-emerald-50 border-2 border-emerald-100 rounded-3xl p-6 text-4xl font-black text-emerald-700 outline-none text-center">
+                    <span class="absolute right-8 top-8 text-emerald-300 font-bold">分</span>
                 </div>
             </div>
         </div>
@@ -129,46 +127,47 @@
 
 <script>
     const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3V1VIdTqMr5iqnM";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let db = {
-        allClasses: [],
-        activeClassId: null,
-        attendance: {}, // { "學生名": "present/pending" }
-        studentDetails: {}
-    };
+    let db = { allClasses: [], activeClassId: null, attendance: {}, studentDetails: {} };
 
     async function init() {
         const todayDay = new Date().getDay();
         const todayStr = new Date().toISOString().split('T')[0];
 
-        // 1. 抓取今天「所有」課程
-        const { data: todayClasses } = await supabaseClient.from('classes').select('*, rooms(*)').eq('schedule_day', todayDay);
+        // 1. 抓取今日所有課程 (修正為不使用 .single())
+        const { data: todayClasses, error: clsErr } = await supabaseClient
+            .from('classes')
+            .select('*, rooms(*)')
+            .eq('schedule_day', todayDay);
+
+        if (clsErr || !todayClasses || todayClasses.length === 0) {
+            console.error("No classes found today");
+            return;
+        }
+        
         db.allClasses = todayClasses;
 
-        // 2. 彙整今日所有學生名單 (聯集)
-        const allMemberNames = [...new Set(todayClasses.flatMap(c => c.members))];
-        
-        // 3. 抓取學生詳細資料與點名紀錄
+        // 2. 彙整今日學生與點名狀態
+        const allMemberNames = [...new Set(todayClasses.flatMap(c => c.members || []))];
         const [stRes, logRes] = await Promise.all([
             supabaseClient.from('students').select('*').in('name', allMemberNames),
             supabaseClient.from('attendance_logs').select('*').in('class_id', todayClasses.map(c => c.id)).eq('date', todayStr)
         ]);
 
-        stRes.data.forEach(s => db.studentDetails[s.name] = s);
+        stRes.data?.forEach(s => db.studentDetails[s.name] = s);
         allMemberNames.forEach(name => {
-            const hasPresent = logRes.data?.some(l => l.student_name === name && l.status === 'present');
-            db.attendance[name] = hasPresent ? 'present' : 'pending';
+            const isPresent = logRes.data?.some(l => l.student_name === name && l.status === 'present');
+            db.attendance[name] = isPresent ? 'present' : 'pending';
         });
 
-        // 4. 初始化切換器
+        // 3. 渲染切換器
         const switcher = document.getElementById('class-switcher');
+        switcher.innerHTML = "";
         todayClasses.forEach(c => switcher.add(new Option(c.name, c.id)));
         
-        if (todayClasses.length > 0) switchClass(todayClasses[0].id);
-
-        // 全域快速點名
+        // 4. 事件監聽
         document.getElementById('global-search').addEventListener('keypress', e => {
             if (e.key === 'Enter') {
                 const name = e.target.value.trim();
@@ -177,10 +176,12 @@
             }
         });
 
-        // 監聽日誌填寫
         document.querySelectorAll('[data-field]').forEach(el => {
             el.addEventListener('change', e => saveClassLog(e.target.dataset.field, e.target.value));
         });
+
+        // 預設切換到第一個班級
+        switchClass(todayClasses[0].id);
     }
 
     async function switchClass(id) {
@@ -188,7 +189,7 @@
         const cls = db.allClasses.find(c => c.id === id);
         const today = new Date().toISOString().split('T')[0];
 
-        // 載入該班今日日誌
+        // 載入日誌
         const { data: diary } = await supabaseClient.from('class_logs').select('*').eq('class_id', id).eq('log_date', today).maybeSingle();
         document.querySelectorAll('[data-field]').forEach(el => el.value = diary ? (diary[el.dataset.field] || '') : '');
 
@@ -197,44 +198,44 @@
         updateStats();
     }
 
-    function renderSeats(cls) {
+    async function renderSeats(cls) {
         const container = document.getElementById('seat-grid');
+        const { data: seats } = await supabaseClient.from('class_seats').select('*').eq('class_id', cls.id);
+        
         const room = cls.rooms;
         container.style.gridTemplateColumns = `repeat(${room.grid_size.cols}, 85px)`;
         container.innerHTML = "";
 
-        // 獲取該班級的特定座位表
-        supabaseClient.from('class_seats').select('*').eq('class_id', cls.id).then(({data: seats}) => {
-            const seatMap = Object.fromEntries(seats.map(s => [`${s.row_index}-${s.col_index}`, s]));
-            const layout = room.layout_config || {};
+        const seatMap = Object.fromEntries(seats?.map(s => [`${s.row_index}-${s.col_index}`, s]) || []);
+        const layout = room.layout_config || {};
 
-            for (let r = 0; r < room.grid_size.rows; r++) {
-                for (let c = 0; c < room.grid_size.cols; c++) {
-                    const key = `${r}-${c}`;
-                    const div = document.createElement('div');
-                    const seat = seatMap[key];
+        for (let r = 0; r < room.grid_size.rows; r++) {
+            for (let c = 0; c < room.grid_size.cols; c++) {
+                const key = `${r}-${c}`;
+                const div = document.createElement('div');
+                const seat = seatMap[key];
 
-                    if (layout[key] === 'hallway') {
-                        div.className = "slot is-hallway";
-                    } else if (seat && seat.student_name) {
-                        const name = seat.student_name;
-                        div.className = `slot status-${db.attendance[name]}`;
-                        div.innerHTML = `<span class="text-[9px] opacity-40 mb-1">${seat.seat_label || ""}</span><span>${name}</span>`;
-                        div.onclick = () => updateAttendance(name, db.attendance[name] === 'present' ? 'pending' : 'present');
-                    } else {
-                        div.className = "slot opacity-10 border-dashed";
-                    }
-                    container.appendChild(div);
+                if (layout[key] === 'hallway') {
+                    div.className = "slot is-hallway";
+                } else if (seat && seat.student_name) {
+                    const name = seat.student_name;
+                    const status = db.attendance[name];
+                    div.className = `slot status-${status}`;
+                    const label = seat.seat_label && seat.seat_label !== "null" ? seat.seat_label : "";
+                    div.innerHTML = `<span class="text-[9px] opacity-40 mb-1 font-black">${label}</span><span>${name}</span>`;
+                    div.onclick = () => updateAttendance(name, status === 'present' ? 'pending' : 'present');
+                } else {
+                    div.className = "slot border-dashed opacity-10 bg-slate-50";
                 }
+                container.appendChild(div);
             }
-        });
+        }
     }
 
     function renderFullList() {
-        const listContainer = document.getElementById('all-student-list');
-        listContainer.innerHTML = "";
+        const list = document.getElementById('all-student-list');
+        list.innerHTML = "";
 
-        // 排序：待點名優先，其次按姓名
         const sorted = Object.keys(db.attendance).sort((a,b) => {
             if (db.attendance[a] === 'pending' && db.attendance[b] !== 'pending') return -1;
             if (db.attendance[a] !== 'pending' && db.attendance[b] === 'pending') return 1;
@@ -245,22 +246,22 @@
             const info = db.studentDetails[name] || {};
             const status = db.attendance[name];
             const div = document.createElement('div');
-            div.className = `stu-item border-b cursor-pointer hover:bg-slate-50 ${status === 'present' ? 'opacity-60' : ''}`;
+            div.className = `stu-item border-b cursor-pointer hover:bg-slate-50 ${status === 'present' ? 'opacity-50' : ''}`;
             div.innerHTML = `
                 <div class="flex justify-between items-center p-4 font-bold text-sm">
-                    <span>${name}</span>
-                    <span class="text-[10px] uppercase font-black ${status === 'present' ? 'text-emerald-500' : 'text-slate-300'}">
+                    <span class="text-slate-700">${name}</span>
+                    <span class="text-[10px] font-black px-2 py-1 rounded-full ${status === 'present' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}">
                         ${status === 'present' ? '已到' : '待點'}
                     </span>
                 </div>
-                <div class="accordion-content text-[11px] font-bold text-slate-500 space-y-1">
+                <div class="accordion-content text-[12px] font-bold text-slate-500 space-y-1.5">
                     <div>父：${info.tel_p || '--'}</div>
                     <div>母：${info.tel_m || '--'}</div>
                     <div>本：${info.tel_o || '--'}</div>
                 </div>
             `;
             div.onclick = () => div.classList.toggle('active');
-            listContainer.appendChild(div);
+            list.appendChild(div);
         });
     }
 
@@ -268,20 +269,19 @@
         db.attendance[name] = status;
         const today = new Date().toISOString().split('T')[0];
         
-        // 渲染更新
-        renderFullList();
-        const activeCls = db.allClasses.find(c => c.id === db.activeClassId);
-        renderSeats(activeCls);
         updateStats();
+        renderFullList();
+        const currentCls = db.allClasses.find(c => c.id === db.activeClassId);
+        renderSeats(currentCls);
 
-        // 為了確保萬無一失，對該學生今天的所有班級都更新狀態
-        const targetClassIds = db.allClasses.filter(c => c.members.includes(name)).map(c => c.id);
-        const updates = targetClassIds.map(cid => 
+        // 更新該生今天所有班級的點名紀錄
+        const targetCids = db.allClasses.filter(c => c.members?.includes(name)).map(c => c.id);
+        const tasks = targetCids.map(cid => 
             supabaseClient.from('attendance_logs').upsert({
                 class_id: cid, student_name: name, date: today, status
             }, { onConflict: 'class_id, student_name, date' })
         );
-        await Promise.all(updates);
+        await Promise.all(tasks);
     }
 
     async function saveClassLog(field, value) {

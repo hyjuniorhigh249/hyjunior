@@ -3,108 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>班級座次管理 - 浩元行政系統</title>
+    <title>浩元行政系統 - 班級座次管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; }
-        .canvas-area {
-            background: white; border-radius: 2rem; border: 1px solid #e2e8f0;
-            padding: 3rem; position: relative; min-height: 600px;
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; }
+        .canvas-container {
+            background: white; border-radius: 2.5rem; border: 1px solid #e2e8f0;
+            padding: 4rem; position: relative; min-height: 700px;
             display: flex; flex-direction: column; align-items: center;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
         }
         .grid-canvas {
-            display: grid; gap: 12px; background: #f1f5f9;
-            padding: 24px; border-radius: 1rem; border: 1px solid #cbd5e1;
+            display: grid; gap: 10px; background: #f8fafc;
+            padding: 20px; border-radius: 1.5rem; border: 2px solid #cbd5e1;
         }
         .slot {
-            aspect-ratio: 1/1; width: 85px; background: white;
-            border: 1px solid #cbd5e1; border-radius: 0.75rem;
+            aspect-ratio: 1/1; width: 80px; background: white;
+            border: 1px solid #e2e8f0; border-radius: 0.75rem;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             cursor: pointer; position: relative; transition: all 0.2s;
         }
-        /* 走廊：硬體固定，不可排座 */
-        .slot.is-hallway { background: #cbd5e1; border: none; opacity: 0.5; cursor: not-allowed; }
-        .slot.is-hallway::after { content: "走 廊"; font-size: 11px; font-weight: 800; color: #64748b; }
+        .slot:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1); }
+        
+        /* 走廊硬體樣式 */
+        .slot.is-hallway { background: #e2e8f0; border: none; cursor: not-allowed; opacity: 0.6; }
+        .slot.is-hallway::after { content: "走 廊"; font-size: 10px; font-weight: 800; color: #94a3b8; }
         
         .control-group { position: absolute; display: flex; gap: 8px; background: white; padding: 6px; border-radius: 99px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
         .side-controls { right: -50px; top: 50%; transform: translateY(-50%); flex-direction: column; }
         .bottom-controls { bottom: -50px; left: 50%; transform: translateX(-50%); flex-direction: row; }
-        .btn-round { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; }
         
-        .label-badge { position: absolute; top: 6px; left: 8px; font-size: 10px; font-weight: 900; color: #94a3b8; }
-        .student-name { font-weight: 900; color: #1e293b; font-size: 15px; }
-        .active-mode { background-color: #1e293b !important; color: white !important; }
-        
-        /* 編輯模式下的特殊視覺 */
-        .mode-layout .slot.is-hallway { cursor: pointer; opacity: 1; border: 2px solid #94a3b8; }
+        .active-btn { background-color: #1e293b !important; color: white !important; }
+        .mode-layout .slot.is-hallway { cursor: pointer; opacity: 1; border: 2px dashed #94a3b8; }
     </style>
 </head>
 <body class="p-8">
-    <div class="max-w-[1400px] mx-auto">
-        <header class="flex justify-between items-center mb-8">
-            <div class="flex items-center gap-6">
-                <div>
-                    <h1 class="text-3xl font-black text-slate-800">班級座次管理</h1>
-                    <div class="flex gap-2 mt-2">
-                        <button id="btn-mode-assign" onclick="switchMode('assign')" class="active-mode px-4 py-1.5 rounded-lg font-bold text-xs">學生排座模式</button>
-                        <button id="btn-mode-layout" onclick="switchMode('layout')" class="bg-white text-slate-500 border border-slate-200 px-4 py-1.5 rounded-lg font-bold text-xs">空間規劃 (硬體)</button>
-                    </div>
+    <div class="max-w-[1500px] mx-auto">
+        <!-- 頂部管理導航 -->
+        <header class="flex justify-between items-end mb-8">
+            <div>
+                <h1 class="text-4xl font-black text-slate-800 tracking-tighter">座次配置系統</h1>
+                <div class="flex gap-2 mt-4">
+                    <button id="mode-assign" onclick="setMode('assign')" class="active-btn px-6 py-2 rounded-xl font-bold text-sm shadow-sm transition">學生排座</button>
+                    <button id="mode-layout" onclick="setMode('layout')" class="bg-white text-slate-500 px-6 py-2 rounded-xl font-bold text-sm border border-slate-200 hover:bg-slate-50 transition">教室格局</button>
                 </div>
             </div>
 
-            <div class="flex gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
-                <div class="flex flex-col px-2">
-                    <span class="text-[10px] font-black text-blue-600 mb-1">STEP 1. 選擇班級</span>
-                    <select id="class-select" onchange="handleClassChange(this.value)" class="font-bold outline-none bg-transparent">
-                        <option value="">載入中...</option>
+            <div class="flex items-center gap-4 bg-white p-3 rounded-3xl shadow-xl border border-slate-100">
+                <div class="px-4 border-r border-slate-100">
+                    <label class="block text-[10px] font-black text-blue-600 uppercase mb-1">班級課程</label>
+                    <select id="class-select" onchange="loadClassData(this.value)" class="font-black text-slate-700 outline-none bg-transparent cursor-pointer">
+                        <option value="">請選取班級...</option>
                     </select>
                 </div>
-                <div class="w-[1px] bg-slate-100 mx-2"></div>
-                <div class="flex flex-col px-2">
-                    <span class="text-[10px] font-black text-slate-400 mb-1">STEP 2. 選擇教室</span>
-                    <select id="room-select" onchange="handleRoomChange(this.value)" class="font-bold outline-none bg-transparent">
-                        <option value="">請先選班級</option>
+                <div class="px-4">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">授課教室</label>
+                    <select id="room-select" onchange="loadRoomLayout(this.value)" class="font-black text-slate-700 outline-none bg-transparent cursor-pointer">
+                        <option value="">請選取教室...</option>
                     </select>
                 </div>
-                <button onclick="saveAll()" class="ml-4 bg-blue-600 text-white px-8 py-2 rounded-xl font-black hover:bg-blue-700 shadow-lg transition active:scale-95">儲存配置</button>
+                <button onclick="saveAll()" class="bg-blue-600 text-white px-10 py-3 rounded-2xl font-black hover:bg-blue-700 shadow-[0_10px_20px_-5px_rgba(37,99,235,0.4)] transition active:scale-95">儲存配置</button>
             </div>
         </header>
 
-        <div class="flex gap-8">
-            <!-- 左側名單 -->
-            <div class="w-72 shrink-0">
-                <div id="side-panel" class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm sticky top-8">
-                    <div id="assign-tools">
-                        <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">待排座學生</p>
-                        <div id="unassigned-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-2"></div>
-                    </div>
-                    
-                    <div id="layout-tools" class="hidden">
-                        <p class="text-[11px] font-black text-rose-500 mb-4">硬體格局編輯中</p>
-                        <div class="space-y-2">
-                            <button onclick="setBrush('seat')" class="w-full p-3 border-2 border-slate-800 rounded-xl font-bold text-sm">設為座位</button>
-                            <button onclick="setBrush('hallway')" class="w-full p-3 bg-slate-100 rounded-xl font-bold text-sm text-slate-500">設為走廊</button>
+        <div class="flex gap-10">
+            <!-- 左側操作面板 -->
+            <div class="w-80 shrink-0">
+                <div class="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm sticky top-8">
+                    <!-- 排座模式面板 -->
+                    <div id="panel-assign">
+                        <h3 class="text-xs font-black text-slate-400 tracking-widest uppercase mb-6">未排座學生名單</h3>
+                        <div id="unassigned-list" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                            <div class="text-center py-10 text-slate-300 font-bold">請先選擇班級</div>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-4 leading-relaxed">※ 修改走廊將影響所有在此教室上課的班級格局。</p>
+                    </div>
+
+                    <!-- 格局模式面板 -->
+                    <div id="panel-layout" class="hidden">
+                        <h3 class="text-xs font-black text-rose-500 tracking-widest uppercase mb-6">硬體格局編輯</h3>
+                        <div class="space-y-3">
+                            <button onclick="setBrush('seat')" class="w-full py-4 rounded-2xl border-2 border-slate-800 font-black text-slate-800 hover:bg-slate-50 transition">一般座位</button>
+                            <button onclick="setBrush('hallway')" class="w-full py-4 rounded-2xl bg-slate-100 font-black text-slate-500 hover:bg-slate-200 transition">設置走廊</button>
+                        </div>
+                        <p class="mt-6 text-[11px] text-slate-400 font-bold leading-relaxed">提示：此模式下點擊格子可切換走廊/座位。這會影響該教室所有班級的預設格局。</p>
                     </div>
                 </div>
             </div>
 
-            <!-- 右側畫布 -->
-            <div id="canvas-wrapper" class="flex-1 canvas-area">
-                <div class="w-full max-w-2xl bg-slate-50 text-slate-400 py-2 font-black rounded-2xl mb-12 tracking-[2.5em] text-center text-xs">黑 板</div>
+            <!-- 右側教室畫布 -->
+            <div id="canvas-wrapper" class="flex-1 canvas-container">
+                <div class="w-full max-w-xl bg-slate-100 text-slate-400 py-3 font-black rounded-2xl mb-16 tracking-[3em] text-center text-xs border border-slate-200">黑 板</div>
                 
-                <div class="grid-container">
-                    <!-- 只有管理模式才顯示增減按鈕 -->
-                    <div id="grid-controls" class="hidden">
+                <div class="relative">
+                    <!-- 格局調整按鈕 (僅在格局模式顯示) -->
+                    <div id="grid-extender" class="hidden">
                         <div class="control-group side-controls">
-                            <button class="btn-round bg-blue-600 text-white" onclick="adjustGrid('col', 1)">+</button>
-                            <button class="btn-round bg-slate-100 text-slate-400" onclick="adjustGrid('col', -1)">-</button>
+                            <button class="w-8 h-8 rounded-full bg-slate-800 text-white font-bold" onclick="changeGrid('col', 1)">+</button>
+                            <button class="w-8 h-8 rounded-full bg-slate-200 text-slate-500 font-bold" onclick="changeGrid('col', -1)">-</button>
                         </div>
                         <div class="control-group bottom-controls">
-                            <button class="btn-round bg-blue-600 text-white" onclick="adjustGrid('row', 1)">+</button>
-                            <button class="btn-round bg-slate-100 text-slate-400" onclick="adjustGrid('row', -1)">-</button>
+                            <button class="w-8 h-8 rounded-full bg-slate-800 text-white font-bold" onclick="changeGrid('row', 1)">+</button>
+                            <button class="w-8 h-8 rounded-full bg-slate-200 text-slate-500 font-bold" onclick="changeGrid('row', -1)">-</button>
                         </div>
                     </div>
 
@@ -119,101 +119,111 @@
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let currentMode = 'assign'; 
-        let gridRows = 5, gridCols = 7;
-        let roomLayout = {}; // 存硬體：哪裡是走廊
-        let studentSeating = {}; // 存軟體：哪個格子坐誰
-        let currentBrush = 'seat';
-        let selectedStudent = null;
-        let currentClassId = null, currentRoomId = null;
-        let classMembers = [];
+        let config = {
+            mode: 'assign',
+            brush: 'seat',
+            rows: 6,
+            cols: 8,
+            currentClassId: null,
+            currentRoomId: null,
+            roomLayout: {}, // 存走廊: {"0-2": "hallway"}
+            studentSeating: {}, // 存學生: {"0-1": "張小明"}
+            classMembers: [],
+            selectedStudent: null
+        };
 
         async function init() {
             const { data: classes } = await supabaseClient.from('classes').select('*').eq('is_archived', false).order('name');
             const { data: rooms } = await supabaseClient.from('rooms').select('*').order('name');
             
-            const classSelect = document.getElementById('class-select');
-            classSelect.innerHTML = '<option value="">選擇班級</option>';
-            classes?.forEach(c => classSelect.add(new Option(c.name, c.id)));
+            const cSelect = document.getElementById('class-select');
+            classes?.forEach(c => cSelect.add(new Option(c.name, c.id)));
 
-            const roomSelect = document.getElementById('room-select');
-            roomSelect.innerHTML = '<option value="">選擇教室</option>';
-            rooms?.forEach(r => roomSelect.add(new Option(r.name, r.id)));
+            const rSelect = document.getElementById('room-select');
+            rooms?.forEach(r => rSelect.add(new Option(r.name, r.id)));
             
-            renderGrid();
+            render();
         }
 
-        function switchMode(mode) {
-            currentMode = mode;
-            document.getElementById('btn-mode-assign').className = (mode === 'assign' ? 'active-mode' : 'bg-white text-slate-500 border border-slate-200') + ' px-4 py-1.5 rounded-lg font-bold text-xs';
-            document.getElementById('btn-mode-layout').className = (mode === 'layout' ? 'active-mode' : 'bg-white text-slate-500 border border-slate-200') + ' px-4 py-1.5 rounded-lg font-bold text-xs';
-            document.getElementById('assign-tools').classList.toggle('hidden', mode !== 'assign');
-            document.getElementById('layout-tools').classList.toggle('hidden', mode !== 'layout');
-            document.getElementById('grid-controls').classList.toggle('hidden', mode !== 'layout');
-            document.getElementById('canvas-wrapper').classList.toggle('mode-layout', mode === 'layout');
-            renderGrid();
+        function setMode(m) {
+            config.mode = m;
+            document.getElementById('mode-assign').className = (m === 'assign' ? 'active-btn' : 'bg-white text-slate-500 border border-slate-200') + ' px-6 py-2 rounded-xl font-bold text-sm';
+            document.getElementById('mode-layout').className = (m === 'layout' ? 'active-btn' : 'bg-white text-slate-500 border border-slate-200') + ' px-6 py-2 rounded-xl font-bold text-sm';
+            document.getElementById('panel-assign').classList.toggle('hidden', m !== 'assign');
+            document.getElementById('panel-layout').classList.toggle('hidden', m !== 'layout');
+            document.getElementById('grid-extender').classList.toggle('hidden', m !== 'layout');
+            document.getElementById('canvas-wrapper').classList.toggle('mode-layout', m === 'layout');
+            render();
         }
 
-        async function handleClassChange(id) {
-            currentClassId = id;
-            const { data: cls } = await supabaseClient.from('classes').select('*').eq('id', id).single();
-            classMembers = cls.members || [];
-            if(cls.room_id) {
-                document.getElementById('room-select').value = cls.room_id;
-                handleRoomChange(cls.room_id);
+        async function loadClassData(id) {
+            if(!id) return;
+            config.currentClassId = id;
+            const { data } = await supabaseClient.from('classes').select('*').eq('id', id).single();
+            config.classMembers = data.members || [];
+            
+            if(data.room_id) {
+                document.getElementById('room-select').value = data.room_id;
+                loadRoomLayout(data.room_id);
             } else {
-                studentSeating = {};
-                updateUnassignedList();
-                renderGrid();
+                config.studentSeating = {};
+                updateSidebar();
+                render();
             }
         }
 
-        async function handleRoomChange(id) {
-            currentRoomId = id;
-            // 1. 先抓教室硬體格局
-            const { data: roomData } = await supabaseClient.from('rooms').select('layout_config, grid_size').eq('id', id).single();
-            roomLayout = roomData.layout_config || {}; // 格式如 {"0-2": "hallway"}
-            if(roomData.grid_size) {
-                gridRows = roomData.grid_size.rows;
-                gridCols = roomData.grid_size.cols;
+        async function loadRoomLayout(roomId) {
+            if(!roomId) return;
+            config.currentRoomId = roomId;
+
+            // 1. 抓取教室硬體設定 (rooms 表)
+            const { data: room } = await supabaseClient.from('rooms').select('layout_config, grid_size').eq('id', roomId).single();
+            config.roomLayout = room.layout_config || {};
+            if(room.grid_size) {
+                config.rows = room.grid_size.rows;
+                config.cols = room.grid_size.cols;
             }
 
-            // 2. 再抓該班級在該教室的排座
-            if(currentClassId) {
-                const { data: seats } = await supabaseClient.from('class_seats').select('*').eq('class_id', currentClassId).eq('room_id', id);
-                studentSeating = {};
+            // 2. 抓取目前班級在該教室的排座 (class_seats 表)
+            if(config.currentClassId) {
+                const { data: seats } = await supabaseClient.from('class_seats')
+                    .select('*')
+                    .eq('class_id', config.currentClassId)
+                    .eq('room_id', roomId);
+                
+                config.studentSeating = {};
                 seats?.forEach(s => {
-                    if(s.student_name !== 'HALLWAY') studentSeating[`${s.row_index}-${s.col_index}`] = s.student_name;
+                    if(s.student_name !== 'HALLWAY') config.studentSeating[`${s.row_index}-${s.col_index}`] = s.student_name;
                 });
             }
-            updateUnassignedList();
-            renderGrid();
+            updateSidebar();
+            render();
         }
 
-        function renderGrid() {
+        function render() {
             const grid = document.getElementById('editor-grid');
             grid.innerHTML = "";
-            grid.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`;
+            grid.style.gridTemplateColumns = `repeat(${config.cols}, 1fr)`;
 
-            for (let r = 0; r < gridRows; r++) {
-                let seatLetterOffset = 0;
-                for (let c = 0; c < gridCols; c++) {
+            for (let r = 0; r < config.rows; r++) {
+                let letterOffset = 0;
+                for (let c = 0; c < config.cols; c++) {
                     const key = `${r}-${c}`;
-                    const isHallway = roomLayout[key] === 'hallway';
+                    const isHallway = config.roomLayout[key] === 'hallway';
                     const slot = document.createElement('div');
                     
                     if (isHallway) {
                         slot.className = 'slot is-hallway';
-                        seatLetterOffset++;
+                        letterOffset++;
                     } else {
                         slot.className = 'slot';
-                        const colLetter = String.fromCharCode(65 + (c - seatLetterOffset));
-                        slot.innerHTML = `<span class="label-badge">${colLetter}${r+1}</span>`;
+                        const label = `${String.fromCharCode(65 + (c - letterOffset))}${r + 1}`;
+                        slot.innerHTML = `<span class="label-badge text-[9px] font-black text-slate-300 absolute top-2 left-2">${label}</span>`;
                         
-                        const student = studentSeating[key];
-                        if (student) {
-                            slot.innerHTML += `<span class="student-name">${student}</span>
-                                              <button onclick="removeStudent('${key}', event)" class="text-[9px] text-rose-500 font-black mt-2">移除</button>`;
+                        const stu = config.studentSeating[key];
+                        if (stu) {
+                            slot.innerHTML += `<span class="font-black text-slate-800">${stu}</span>
+                                              <button onclick="removeStudent('${key}', event)" class="text-[10px] text-rose-400 mt-1 hover:text-rose-600 font-bold">移除</button>`;
                         }
                     }
                     slot.onclick = () => handleCellClick(r, c);
@@ -224,87 +234,87 @@
 
         function handleCellClick(r, c) {
             const key = `${r}-${c}`;
-            if (currentMode === 'layout') {
-                if(roomLayout[key] === 'hallway') delete roomLayout[key];
-                else roomLayout[key] = currentBrush === 'hallway' ? 'hallway' : 'seat';
+            if (config.mode === 'layout') {
+                if(config.roomLayout[key] === 'hallway') delete config.roomLayout[key];
+                else config.roomLayout[key] = config.brush === 'hallway' ? 'hallway' : 'seat';
             } else {
-                if (roomLayout[key] === 'hallway') return; // 走廊不能坐人
-                if (selectedStudent) {
-                    studentSeating[key] = selectedStudent;
-                    selectedStudent = null;
-                    updateUnassignedList();
+                if (config.roomLayout[key] === 'hallway') return;
+                if (config.selectedStudent) {
+                    config.studentSeating[key] = config.selectedStudent;
+                    config.selectedStudent = null;
+                    updateSidebar();
                 }
             }
-            renderGrid();
+            render();
         }
 
-        function updateUnassignedList() {
-            const assigned = Object.values(studentSeating);
-            const unassigned = classMembers.filter(n => !assigned.includes(n));
+        function updateSidebar() {
+            const assigned = Object.values(config.studentSeating);
+            const unassigned = config.classMembers.filter(n => !assigned.includes(n));
             const list = document.getElementById('unassigned-list');
             list.innerHTML = unassigned.map(name => `
-                <div onclick="selectStudent('${name}', this)" class="p-4 bg-slate-50 rounded-2xl font-black text-slate-700 cursor-pointer hover:bg-blue-50 border-2 border-transparent transition active:scale-95">
+                <div onclick="selectStudent('${name}', this)" class="p-4 bg-slate-50 rounded-2xl font-black text-slate-700 cursor-pointer hover:bg-blue-50 border-2 border-transparent transition active:scale-95 shadow-sm">
                     ${name}
                 </div>
-            `).join('');
+            `).join('') || '<p class="text-center py-10 text-slate-300 font-bold">全員皆已入座</p>';
         }
 
         function selectStudent(name, el) {
-            document.querySelectorAll('#unassigned-list div').forEach(i => i.classList.remove('border-blue-600', 'bg-blue-50'));
-            el.classList.add('border-blue-600', 'bg-blue-50');
-            selectedStudent = name;
+            document.querySelectorAll('#unassigned-list div').forEach(i => i.classList.remove('border-blue-500', 'bg-blue-50'));
+            el.classList.add('border-blue-500', 'bg-blue-50');
+            config.selectedStudent = name;
         }
 
         function removeStudent(key, e) {
             e.stopPropagation();
-            delete studentSeating[key];
-            renderGrid();
-            updateUnassignedList();
+            delete config.studentSeating[key];
+            updateSidebar();
+            render();
         }
-
-        function adjustGrid(type, val) {
-            if (type === 'row') gridRows = Math.max(1, gridRows + val);
-            else gridCols = Math.max(1, gridCols + val);
-            renderGrid();
-        }
-
-        function setBrush(type) { currentBrush = type; }
 
         async function saveAll() {
-            if(!currentRoomId) return alert("請選取教室");
+            if(!config.currentRoomId) return alert("請先選取教室");
 
-            // 1. 儲存教室格局 (硬體)
+            // 1. 儲存硬體格局 (rooms 表)
             await supabaseClient.from('rooms').update({
-                layout_config: roomLayout,
-                grid_size: { rows: gridRows, cols: gridCols }
-            }).eq('id', currentRoomId);
+                layout_config: config.roomLayout,
+                grid_size: { rows: config.rows, cols: config.cols }
+            }).eq('id', config.currentRoomId);
 
-            // 2. 儲存班級座次 (軟體)
-            if(currentClassId) {
-                const seatData = [];
-                for(let r=0; r<gridRows; r++) {
+            // 2. 儲存軟體座次 (class_seats 表)
+            if(config.currentClassId) {
+                const batch = [];
+                for(let r=0; r<config.rows; r++) {
                     let offset = 0;
-                    for(let c=0; c<gridCols; c++) {
+                    for(let c=0; c<config.cols; c++) {
                         const key = `${r}-${c}`;
-                        const isHallway = roomLayout[key] === 'hallway';
-                        let label = isHallway ? "" : `${String.fromCharCode(65 + (c - offset))}${r+1}`;
-                        if(isHallway) offset++;
+                        const isH = config.roomLayout[key] === 'hallway';
+                        let lbl = isH ? "" : `${String.fromCharCode(65 + (c - offset))}${r+1}`;
+                        if(isH) offset++;
 
-                        seatData.push({
-                            class_id: currentClassId,
-                            room_id: currentRoomId,
-                            student_name: isHallway ? 'HALLWAY' : (studentSeating[key] || null),
+                        batch.push({
+                            class_id: config.currentClassId,
+                            room_id: config.currentRoomId,
+                            student_name: isH ? 'HALLWAY' : (config.studentSeating[key] || null),
                             row_index: r, col_index: c,
-                            seat_label: label
+                            seat_label: lbl
                         });
                     }
                 }
-                await supabaseClient.from('class_seats').delete().eq('class_id', currentClassId).eq('room_id', currentRoomId);
-                await supabaseClient.from('class_seats').insert(seatData);
-                await supabaseClient.from('classes').update({ room_id: currentRoomId }).eq('id', currentClassId);
+                await supabaseClient.from('class_seats').delete().eq('class_id', config.currentClassId).eq('room_id', config.currentRoomId);
+                await supabaseClient.from('class_seats').insert(batch);
+                await supabaseClient.from('classes').update({ room_id: config.currentRoomId }).eq('id', config.currentClassId);
             }
-            alert("硬體與座次皆已儲存！");
+            alert("雲端同步成功！");
         }
+
+        function changeGrid(type, val) {
+            if (type === 'row') config.rows = Math.max(1, config.rows + val);
+            else config.cols = Math.max(1, config.cols + val);
+            render();
+        }
+
+        function setBrush(b) { config.brush = b; }
 
         window.onload = init;
     </script>

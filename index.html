@@ -5,11 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>浩元行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="pip-tool.js"></script>
+    
+    <script>
+        // Supabase 配置
+        const supabaseUrl = 'https://hlelxeiwamvrntsxnram.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM';
+        const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+        // 頁面載入時立即檢查登入狀態
+        async function checkAuth() {
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
+            
+            if (!session) {
+                // 偵測到未登入，直接觸發 Google OAuth 跳轉
+                await supabaseClient.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        // 登入成功後導回目前的網址
+                        redirectTo: window.location.origin + window.location.pathname 
+                    }
+                });
+            } else {
+                // 已登入，顯示使用者帳號
+                const emailElement = document.getElementById('admin-email');
+                if (emailElement) emailElement.innerText = session.user.email;
+            }
+        }
+        
+        checkAuth();
+
+        // 監聽驗證狀態，處理登出情況
+        supabaseClient.auth.onAuthStateChange((event) => {
+            if (event === 'SIGNED_OUT') {
+                // 登出後重新載入，會再次觸發 checkAuth 並跳轉至 Google
+                window.location.reload();
+            }
+        });
+    </script>
+
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; }
         
-        /* 側邊欄按鈕基礎樣式 */
         .nav-link { 
             display: flex;
             align-items: center;
@@ -25,18 +63,14 @@
             margin-bottom: 0.25rem;
         }
 
-        .nav-link:hover {
-            background-color: #f8fafc; 
-        }
+        .nav-link:hover { background-color: #f8fafc; }
 
-        /* 選取狀態：深色背景 */
         .nav-link.active { 
             background-color: #1e293b; 
             color: #ffffff; 
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); 
         }
 
-        /* 標題樣式 */
         .sidebar-header { 
             font-weight: 900; 
             font-size: 1.125rem; 
@@ -60,12 +94,8 @@
             letter-spacing: 0.05em;
         }
 
-        .text-blue-link {
-            color: #2563eb; 
-        }
-        .text-blue-link:hover {
-            background-color: #eff6ff; 
-        }
+        .text-blue-link { color: #2563eb; }
+        .text-blue-link:hover { background-color: #eff6ff; }
     </style>
 </head>
 <body class="flex h-screen bg-white overflow-hidden">
@@ -102,7 +132,7 @@
 
         <div class="mt-auto pt-4 border-t border-slate-100 px-2">
             <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">管理員</p>
-            <p class="text-[10px] font-medium text-slate-500 truncate mb-2">admin@hyjunior.app</p>
+            <p id="admin-email" class="text-[10px] font-medium text-slate-500 truncate mb-2">驗證中...</p>
             <button onclick="logout()" class="w-full text-left text-[10px] font-bold text-red-400 hover:text-red-600 transition">登出系統</button>
         </div>
     </nav>
@@ -124,9 +154,10 @@
             }
         }
 
-        function logout() {
+        // 登出函式
+        async function logout() {
             if(confirm("確定要登出系統嗎？")) {
-                window.location.href = 'login.html';
+                await supabaseClient.auth.signOut();
             }
         }
     </script>

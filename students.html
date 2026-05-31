@@ -39,32 +39,41 @@
                     <h3 class="font-black text-slate-700 text-xs text-center">快速錄入新學生</h3>
                     <button onclick="handleAddStudent()" class="bg-slate-800 text-white px-8 py-1.5 rounded-xl font-black hover:bg-slate-700 active:scale-95 transition">確認入庫</button>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2">
-                    <input type="text" id="f-name" class="form-input" placeholder="姓名*">
-                    <input type="text" id="f-telO" class="form-input text-emerald-600" placeholder="本人電話">
-                    <input type="text" id="f-telP" class="form-input" placeholder="爸爸電話">
-                    <input type="text" id="f-telM" class="form-input" placeholder="媽媽電話">
-                    <input type="text" id="f-school" class="form-input" placeholder="學校">
-                    <input type="text" id="f-addr" class="form-input" placeholder="通訊地址">
-                    <input type="text" id="f-note" class="form-input font-normal italic col-span-2" placeholder="備註...">
-                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-2">
+    <input type="text" id="f-name" class="form-input" placeholder="姓名*">
+    <select id="f-grade" class="form-input text-slate-500">
+        <option value="">年級</option>
+        <option value="7">國一 (7)</option><option value="8">國二 (8)</option><option value="9">國三 (9)</option>
+        <option value="10">高一 (10)</option><option value="11">高二 (11)</option><option value="12">高三 (12)</option>
+    </select>
+    <input type="text" id="f-line" class="form-input" placeholder="線別">
+    <input type="text" id="f-prospect" class="form-input" placeholder="展望課程">
+    <input type="text" id="f-telO" class="form-input text-emerald-600" placeholder="本人電話">
+    <input type="text" id="f-telP" class="form-input" placeholder="爸爸電話">
+    <input type="text" id="f-telM" class="form-input" placeholder="媽媽電話">
+    <input type="text" id="f-school" class="form-input" placeholder="學校">
+</div>
+<div class="grid grid-cols-1">
+    <input type="text" id="f-note" class="form-input font-normal italic" placeholder="備註...">
+</div>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden max-w-7xl mx-auto">
                 <div class="overflow-x-auto min-h-[400px]">
                     <table class="stu-table w-full text-left border-collapse">
                         <thead class="text-[10px] font-black text-slate-400 uppercase bg-slate-50">
-                            <tr>
-                                <th class="w-20">姓名</th>
-                                <th class="w-28 text-emerald-600">本人電話</th>
-                                <th class="w-28">爸爸電話</th>
-                                <th class="w-28">媽媽電話</th>
-                                <th class="w-36">所屬班級</th>
-                                <th class="w-24">就讀學校</th>
-                                <th class="w-12 text-center">加班</th>
-                                <th class="w-12 text-center">刪除</th>
-                            </tr>
-                        </thead>
+    <tr>
+        <th class="w-16">姓名</th>
+        <th class="w-12 text-blue-600">年級</th>
+        <th class="w-16">線別</th>
+        <th class="w-24">展望課程</th>
+        <th class="w-24 text-emerald-600">本人電話</th>
+        <th class="w-28">所屬班級</th>
+        <th class="w-20">就讀學校</th>
+        <th class="w-12 text-center">加班</th>
+        <th class="w-12 text-center">刪除</th>
+    </tr>
+</thead>
                         <tbody id="stu-table-body" class="text-slate-600"></tbody>
                     </table>
                 </div>
@@ -79,22 +88,38 @@
                 <button onclick="closeModal('detail-modal')" class="text-slate-300 hover:text-slate-800 text-2xl transition">✕</button>
             </div>
             <input type="hidden" id="edit-id">
-            <div class="grid grid-cols-2 gap-x-8 gap-y-4">
-                <div class="space-y-4">
-                    <div><label class="detail-label block">學生姓名*</label><input type="text" id="edit-name" class="form-input"></div>
-                    <div><label class="detail-label block">本人手機</label><input type="text" id="edit-telO" class="form-input text-emerald-600"></div>
-                    <div><label class="detail-label block">就讀學校</label><input type="text" id="edit-school" class="form-input"></div>
-                </div>
-                <div class="space-y-4">
-                    <div><label class="detail-label block">爸爸電話</label><input type="text" id="edit-telP" class="form-input"></div>
-                    <div><label class="detail-label block">媽媽電話</label><input type="text" id="edit-telM" class="form-input"></div>
-                    <div><label class="detail-label block">通訊地址</label><input type="text" id="edit-addr" class="form-input"></div>
-                </div>
-                <div class="col-span-2 mt-2">
-                    <label class="detail-label block">備註資訊</label>
-                    <textarea id="edit-note" class="form-input h-24 font-normal italic"></textarea>
-                </div>
-            </div>
+           <div class="grid grid-cols-2 gap-x-8 gap-y-4">
+    <div class="space-y-4">
+        <div><label class="detail-label block">學生姓名*</label><input type="text" id="edit-name" class="form-input"></div>
+        <div>
+            <label class="detail-label block">目前年級 (7/1自動+1)</label>
+            <select id="edit-grade" class="form-input">
+                <option value="">未設定</option>
+                <option value="1">小一 (1)</option><option value="2">小二 (2)</option><option value="3">小三 (3)</option>
+                <option value="4">小四 (4)</option><option value="5">小五 (5)</option><option value="6">小六 (6)</option>
+                <option value="7">國一 (7)</option><option value="8">國二 (8)</option><option value="9">國三 (9)</option>
+                <option value="10">高一 (10)</option><option value="11">高二 (11)</option><option value="12">高三 (12)</option>
+            </select>
+        </div>
+        <div><label class="detail-label block">線別</label><input type="text" id="edit-line" class="form-input"></div>
+        <div><label class="detail-label block">展望課程</label><input type="text" id="edit-prospect" class="form-input"></div>
+        <div><label class="detail-label block">本人手機</label><input type="text" id="edit-telO" class="form-input text-emerald-600"></div>
+        <div><label class="detail-label block">就讀學校</label><input type="text" id="edit-school" class="form-input"></div>
+    </div>
+    <div class="space-y-4">
+        <div><label class="detail-label block">爸爸電話</label><input type="text" id="edit-telP" class="form-input"></div>
+        <div><label class="detail-label block">媽媽電話</label><input type="text" id="edit-telM" class="form-input"></div>
+        <div><label class="detail-label block">通訊地址 (輔助)</label><input type="text" id="edit-addr" class="form-input"></div>
+        <div class="h-full">
+            <label class="detail-label block">電訪紀錄</label>
+            <textarea id="edit-call-record" class="form-input h-32 font-normal"></textarea>
+        </div>
+    </div>
+    <div class="col-span-2 mt-2">
+        <label class="detail-label block">備註資訊</label>
+        <textarea id="edit-note" class="form-input h-16 font-normal italic"></textarea>
+    </div>
+</div>
             <div class="mt-8 flex gap-3">
                 <button onclick="closeModal('detail-modal')" class="flex-1 py-3 bg-slate-50 text-slate-500 rounded-xl font-black">取消</button>
                 <button id="save-edit-btn" onclick="saveStudentEdit()" class="flex-1 py-3 bg-slate-800 text-white rounded-xl font-black shadow-lg hover:bg-slate-700 transition">儲存所有修改</button>
@@ -112,126 +137,159 @@
     </div>
 
     <script>
-        const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let students = [], classes = [], selectedName = "";
+    let students = [], classes = [], selectedName = "";
 
-        async function init() { fetchData(); }
+    // --- 新增：年級自動計算邏輯 ---
+    function getAcademicYear() {
+        const d = new Date();
+        return (d.getMonth() + 1) >= 7 ? d.getFullYear() : d.getFullYear() - 1;
+    }
+    function calculateBaseYear(gradeStr) {
+        if (!gradeStr) return null;
+        return getAcademicYear() - parseInt(gradeStr) + 1;
+    }
+    function calculateDisplayGrade(baseYear) {
+        if (!baseYear) return '-';
+        const grade = getAcademicYear() - baseYear + 1;
+        if (grade > 12) return '已畢業';
+        return grade;
+    }
 
-        async function updateStatus(state) {
-            const dot = document.getElementById('status-dot'), text = document.getElementById('status-text');
-            if (state === 'syncing') { dot.className = "w-2 h-2 bg-amber-500 rounded-full animate-pulse"; text.innerText = "同步中..."; }
-            else { dot.className = "w-2 h-2 bg-emerald-500 rounded-full"; text.innerText = "連線正常"; }
+    async function init() { fetchData(); }
+
+    async function updateStatus(state) {
+        const dot = document.getElementById('status-dot'), text = document.getElementById('status-text');
+        if (state === 'syncing') { dot.className = "w-2 h-2 bg-amber-500 rounded-full animate-pulse"; text.innerText = "同步中..."; }
+        else { dot.className = "w-2 h-2 bg-emerald-500 rounded-full"; text.innerText = "連線正常"; }
+    }
+
+    async function fetchData() {
+        updateStatus('syncing');
+        const keyword = document.getElementById('global-search').value.toLowerCase().trim();
+        const { data: classData } = await supabaseClient.from('classes').select('*');
+        const { data: stuData } = await supabaseClient.from('students').select('*').order('created_at', { ascending: false });
+        classes = classData || [];
+        students = stuData || [];
+        renderTable(keyword);
+        updateStatus('ready');
+    }
+
+    function renderTable(keyword) {
+        const body = document.getElementById('stu-table-body');
+        const filtered = students.filter(s => {
+            const myClsNames = classes.filter(c => c.members && c.members.includes(s.name)).map(c => c.name).join(' ');
+            return `${s.name} ${s.tel_o} ${s.school} ${myClsNames} ${s.line_type || ''} ${s.prospect_course || ''}`.toLowerCase().includes(keyword);
+        });
+        body.innerHTML = filtered.map(s => {
+            const myCls = classes.filter(c => c.members && c.members.includes(s.name));
+            const displayGrade = calculateDisplayGrade(s.grade_base_year);
+            return `
+            <tr class="stu-row" onclick="openEditModal('${s.id}')">
+                <td class="font-black text-slate-800">${s.name}</td>
+                <td class="font-bold text-blue-600">${displayGrade}</td>
+                <td class="text-slate-600 text-xs">${s.line_type || '-'}</td>
+                <td class="text-slate-600 text-xs">${s.prospect_course || '-'}</td>
+                <td class="font-bold text-emerald-600">${s.tel_o || '-'}</td>
+                <td><div class="flex flex-wrap gap-1">${myCls.map(c => `<span class="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded font-bold">${c.name}</span>`).join('') || '<span class="text-slate-300">未入班</span>'}</div></td>
+                <td class="text-slate-500 font-bold truncate max-w-[100px]">${s.school || '-'}</td>
+                <td class="text-center" onclick="event.stopPropagation()"><button onclick="openQuickClass('${s.name}')" class="text-base hover:scale-110">➕</button></td>
+                <td class="text-center" onclick="event.stopPropagation()"><button onclick="deleteStu('${s.id}')" class="text-slate-300 hover:text-rose-500 transition">✕</button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    function openEditModal(id) {
+        const s = students.find(x => String(x.id) === String(id));
+        if (!s) return;
+        document.getElementById('edit-id').value = s.id;
+        document.getElementById('edit-name').value = s.name || '';
+        
+        const currentGrade = calculateDisplayGrade(s.grade_base_year);
+        document.getElementById('edit-grade').value = (currentGrade !== '-' && currentGrade !== '已畢業') ? currentGrade : '';
+        document.getElementById('edit-line').value = s.line_type || '';
+        document.getElementById('edit-prospect').value = s.prospect_course || '';
+        document.getElementById('edit-telO').value = s.tel_o || '';
+        document.getElementById('edit-telP').value = s.tel_p || '';
+        document.getElementById('edit-telM').value = s.tel_m || '';
+        document.getElementById('edit-school').value = s.school || '';
+        document.getElementById('edit-addr').value = s.addr || '';
+        document.getElementById('edit-call-record').value = s.call_record || '';
+        document.getElementById('edit-note').value = s.note || '';
+        document.getElementById('detail-modal').classList.add('active');
+    }
+
+    async function saveStudentEdit() {
+        const targetUuid = document.getElementById('edit-id').value;
+        const btn = document.getElementById('save-edit-btn');
+        if (!targetUuid) return;
+        btn.disabled = true; btn.innerText = "儲存中..."; updateStatus('syncing');
+        const updates = {
+            name: document.getElementById('edit-name').value.trim(),
+            grade_base_year: calculateBaseYear(document.getElementById('edit-grade').value),
+            line_type: document.getElementById('edit-line').value.trim(),
+            prospect_course: document.getElementById('edit-prospect').value.trim(),
+            tel_o: document.getElementById('edit-telO').value.trim(),
+            tel_p: document.getElementById('edit-telP').value.trim(),
+            tel_m: document.getElementById('edit-telM').value.trim(),
+            school: document.getElementById('edit-school').value.trim(),
+            addr: document.getElementById('edit-addr').value.trim(),
+            call_record: document.getElementById('edit-call-record').value.trim(),
+            note: document.getElementById('edit-note').value.trim()
+        };
+        try {
+            const { error } = await supabaseClient.from('students').update(updates).eq('id', targetUuid);
+            if (error) throw error;
+            closeModal('detail-modal'); fetchData();
+        } catch (err) { alert("修改失敗：" + err.message); } finally { btn.disabled = false; btn.innerText = "儲存所有修改"; }
+    }
+
+    async function handleAddStudent() {
+        const name = document.getElementById('f-name').value.trim();
+        if (!name) return alert("姓名必填");
+        const { error } = await supabaseClient.from('students').insert([{
+            name, 
+            grade_base_year: calculateBaseYear(document.getElementById('f-grade').value),
+            line_type: document.getElementById('f-line').value.trim(),
+            prospect_course: document.getElementById('f-prospect').value.trim(),
+            tel_o: document.getElementById('f-telO').value,
+            tel_p: document.getElementById('f-telP').value, 
+            tel_m: document.getElementById('f-telM').value,
+            school: document.getElementById('f-school').value, 
+            note: document.getElementById('f-note').value
+        }]);
+        if (!error) { 
+            ['f-name','f-grade','f-line','f-prospect','f-telO','f-telP','f-telM','f-school','f-note'].forEach(id => document.getElementById(id).value = '');
+            fetchData(); 
         }
+    }
 
-        async function fetchData() {
-            updateStatus('syncing');
-            const keyword = document.getElementById('global-search').value.toLowerCase().trim();
-            const { data: classData } = await supabaseClient.from('classes').select('*');
-            const { data: stuData } = await supabaseClient.from('students').select('*').order('created_at', { ascending: false });
-            classes = classData || [];
-            students = stuData || [];
-            renderTable(keyword);
-            updateStatus('ready');
-        }
+    function openQuickClass(name) {
+        selectedName = name;
+        document.getElementById('target-stu-name').innerText = `加入 ${name}`;
+        const options = document.getElementById('class-options');
+        options.innerHTML = classes.filter(c => !c.is_archived).map(c => `
+            <button onclick="${c.members?.includes(name) ? '' : `addToClass('${c.id}')`}" class="w-full text-left p-3 rounded-xl border mb-2 font-bold ${c.members?.includes(name) ? 'bg-slate-50 text-slate-300' : 'hover:bg-slate-800 hover:text-white'}">
+                ${c.name} ${c.members?.includes(name) ? '(已在班)' : ''}
+            </button>`).join('');
+        document.getElementById('quick-class-modal').classList.add('active');
+    }
 
-        function renderTable(keyword) {
-            const body = document.getElementById('stu-table-body');
-            const filtered = students.filter(s => {
-                const myClsNames = classes.filter(c => c.members && c.members.includes(s.name)).map(c => c.name).join(' ');
-                return `${s.name} ${s.tel_o} ${s.school} ${myClsNames}`.toLowerCase().includes(keyword);
-            });
-            body.innerHTML = filtered.map(s => {
-                const myCls = classes.filter(c => c.members && c.members.includes(s.name));
-                return `
-                <tr class="stu-row" onclick="openEditModal('${s.id}')">
-                    <td class="font-black text-slate-800">${s.name}</td>
-                    <td class="font-bold text-emerald-600">${s.tel_o || '-'}</td>
-                    <td class="text-slate-400 text-xs">${s.tel_p || '-'}</td>
-                    <td class="text-slate-400 text-xs">${s.tel_m || '-'}</td>
-                    <td><div class="flex flex-wrap gap-1">${myCls.map(c => `<span class="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded font-bold">${c.name}</span>`).join('') || '<span class="text-slate-300">未入班</span>'}</div></td>
-                    <td class="text-slate-500 font-bold truncate max-w-[100px]">${s.school || '-'}</td>
-                    <td class="text-center" onclick="event.stopPropagation()"><button onclick="openQuickClass('${s.name}')" class="text-base hover:scale-110">➕</button></td>
-                    <td class="text-center" onclick="event.stopPropagation()"><button onclick="deleteStu('${s.id}')" class="text-slate-300 hover:text-rose-500 transition">✕</button></td>
-                </tr>`;
-            }).join('');
-        }
+    async function addToClass(cid) {
+        const cls = classes.find(c => c.id === cid);
+        await supabaseClient.from('classes').update({ members: [...(cls.members || []), selectedName] }).eq('id', cid);
+        closeModal('quick-class-modal'); fetchData();
+    }
 
-        function openEditModal(id) {
-            const s = students.find(x => String(x.id) === String(id));
-            if (!s) return;
-            document.getElementById('edit-id').value = s.id;
-            document.getElementById('edit-name').value = s.name || '';
-            document.getElementById('edit-telO').value = s.tel_o || '';
-            document.getElementById('edit-telP').value = s.tel_p || '';
-            document.getElementById('edit-telM').value = s.tel_m || '';
-            document.getElementById('edit-school').value = s.school || '';
-            document.getElementById('edit-addr').value = s.addr || '';
-            document.getElementById('edit-note').value = s.note || '';
-            document.getElementById('detail-modal').classList.add('active');
-        }
+    async function deleteStu(id) {
+        if (confirm("確定刪除？")) { await supabaseClient.from('students').delete().eq('id', id); fetchData(); }
+    }
 
-        async function saveStudentEdit() {
-            const targetUuid = document.getElementById('edit-id').value;
-            const btn = document.getElementById('save-edit-btn');
-            if (!targetUuid) return;
-            btn.disabled = true; btn.innerText = "儲存中..."; updateStatus('syncing');
-            const updates = {
-                name: document.getElementById('edit-name').value.trim(),
-                tel_o: document.getElementById('edit-telO').value.trim(),
-                tel_p: document.getElementById('edit-telP').value.trim(),
-                tel_m: document.getElementById('edit-telM').value.trim(),
-                school: document.getElementById('edit-school').value.trim(),
-                addr: document.getElementById('edit-addr').value.trim(),
-                note: document.getElementById('edit-note').value.trim()
-            };
-            try {
-                const { error } = await supabaseClient.from('students').update(updates).eq('id', targetUuid);
-                if (error) throw error;
-                closeModal('detail-modal'); fetchData();
-            } catch (err) { alert("修改失敗：" + err.message); } finally { btn.disabled = false; btn.innerText = "儲存所有修改"; }
-        }
-
-        async function handleAddStudent() {
-            const name = document.getElementById('f-name').value.trim();
-            if (!name) return alert("姓名必填");
-            const { error } = await supabaseClient.from('students').insert([{
-                name, tel_o: document.getElementById('f-telO').value,
-                tel_p: document.getElementById('f-telP').value, tel_m: document.getElementById('f-telM').value,
-                school: document.getElementById('f-school').value, addr: document.getElementById('f-addr').value,
-                note: document.getElementById('f-note').value
-            }]);
-            if (!error) { 
-                ['f-name','f-telO','f-telP','f-telM','f-school','f-addr','f-note'].forEach(id => document.getElementById(id).value = '');
-                fetchData(); 
-            }
-        }
-
-        function openQuickClass(name) {
-            selectedName = name;
-            document.getElementById('target-stu-name').innerText = `加入 ${name}`;
-            const options = document.getElementById('class-options');
-            options.innerHTML = classes.filter(c => !c.is_archived).map(c => `
-                <button onclick="${c.members?.includes(name) ? '' : `addToClass('${c.id}')`}" class="w-full text-left p-3 rounded-xl border mb-2 font-bold ${c.members?.includes(name) ? 'bg-slate-50 text-slate-300' : 'hover:bg-slate-800 hover:text-white'}">
-                    ${c.name} ${c.members?.includes(name) ? '(已在班)' : ''}
-                </button>`).join('');
-            document.getElementById('quick-class-modal').classList.add('active');
-        }
-
-        async function addToClass(cid) {
-            const cls = classes.find(c => c.id === cid);
-            await supabaseClient.from('classes').update({ members: [...(cls.members || []), selectedName] }).eq('id', cid);
-            closeModal('quick-class-modal'); fetchData();
-        }
-
-        async function deleteStu(id) {
-            if (confirm("確定刪除？")) { await supabaseClient.from('students').delete().eq('id', id); fetchData(); }
-        }
-
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-        window.onload = init;
-    </script>
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    window.onload = init;
+</script>
 </body>
 </html>

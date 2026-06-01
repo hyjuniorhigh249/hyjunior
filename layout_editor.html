@@ -40,7 +40,6 @@
 </head>
 <body class="p-8">
     <div class="max-w-[1500px] mx-auto">
-        <!-- 頂部管理導航 -->
         <header class="flex justify-between items-end mb-8">
             <div>
                 <h1 class="text-4xl font-black text-slate-800 tracking-tighter">座次配置系統</h1>
@@ -57,21 +56,22 @@
                         <option value="">請選取班級...</option>
                     </select>
                 </div>
-                <div class="px-4">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">授課教室</label>
-                    <select id="room-select" onchange="loadRoomLayout(this.value)" class="font-black text-slate-700 outline-none bg-transparent cursor-pointer">
-                        <option value="">請選取教室...</option>
-                    </select>
+                <div class="px-4 flex items-center gap-2">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">授課教室</label>
+                        <select id="room-select" onchange="loadRoomLayout(this.value)" class="font-black text-slate-700 outline-none bg-transparent cursor-pointer">
+                            <option value="">請選取教室...</option>
+                        </select>
+                    </div>
+                    <button onclick="openRoomModal()" class="w-6 h-6 rounded-full bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600 font-bold flex items-center justify-center transition text-sm ml-2" title="新增教室">+</button>
                 </div>
                 <button onclick="saveAll()" class="bg-blue-600 text-white px-10 py-3 rounded-2xl font-black hover:bg-blue-700 shadow-[0_10px_20px_-5px_rgba(37,99,235,0.4)] transition active:scale-95">儲存配置</button>
             </div>
         </header>
 
         <div class="flex gap-10">
-            <!-- 左側操作面板 -->
             <div class="w-80 shrink-0">
                 <div class="bg-white rounded-[2.5rem] p-8 border border-slate-200 shadow-sm sticky top-8">
-                    <!-- 排座模式面板 -->
                     <div id="panel-assign">
                         <h3 class="text-xs font-black text-slate-400 tracking-widest uppercase mb-6">未排座學生名單</h3>
                         <div id="unassigned-list" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
@@ -79,7 +79,6 @@
                         </div>
                     </div>
 
-                    <!-- 格局模式面板 -->
                     <div id="panel-layout" class="hidden">
                         <h3 class="text-xs font-black text-rose-500 tracking-widest uppercase mb-6">硬體格局編輯</h3>
                         <div class="space-y-3">
@@ -91,12 +90,10 @@
                 </div>
             </div>
 
-            <!-- 右側教室畫布 -->
             <div id="canvas-wrapper" class="flex-1 canvas-container">
                 <div class="w-full max-w-xl bg-slate-100 text-slate-400 py-3 font-black rounded-2xl mb-16 tracking-[3em] text-center text-xs border border-slate-200">黑 板</div>
                 
                 <div class="relative">
-                    <!-- 格局調整按鈕 (僅在格局模式顯示) -->
                     <div id="grid-extender" class="hidden">
                         <div class="control-group side-controls">
                             <button class="w-8 h-8 rounded-full bg-slate-800 text-white font-bold" onclick="changeGrid('col', 1)">+</button>
@@ -110,6 +107,35 @@
 
                     <div id="editor-grid" class="grid-canvas"></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="room-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center z-50 transition-all">
+        <div class="bg-white p-8 rounded-[2.5rem] w-full max-w-md border border-slate-100 shadow-2xl scale-95 transition-transform duration-300">
+            <h3 class="text-2xl font-black text-slate-800 mb-6 tracking-tight">建立新教室</h3>
+            
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-xs font-black text-slate-400 uppercase mb-2">教室名稱</label>
+                    <input type="text" id="modal-room-name" placeholder="例如：201 教室、A 號大講堂" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-blue-500 focus:bg-white transition">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-black text-slate-400 uppercase mb-2">初始列數 (Rows)</label>
+                        <input type="number" id="modal-room-rows" value="6" min="1" max="20" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-blue-500 focus:bg-white transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-slate-400 uppercase mb-2">初始行數 (Cols)</label>
+                        <input type="number" id="modal-room-cols" value="8" min="1" max="20" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-blue-500 focus:bg-white transition">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeRoomModal()" class="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-500 font-black rounded-2xl transition">取消</button>
+                <button onclick="submitNewRoom()" class="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-lg shadow-blue-600/20 transition active:scale-95">確認建立</button>
             </div>
         </div>
     </div>
@@ -134,15 +160,26 @@
 
         async function init() {
             const { data: classes } = await supabaseClient.from('classes').select('*').eq('is_archived', false).order('name');
-            const { data: rooms } = await supabaseClient.from('rooms').select('*').order('name');
             
             const cSelect = document.getElementById('class-select');
             classes?.forEach(c => cSelect.add(new Option(c.name, c.id)));
 
-            const rSelect = document.getElementById('room-select');
-            rooms?.forEach(r => rSelect.add(new Option(r.name, r.id)));
-            
+            await refreshRoomSelect();
             render();
+        }
+
+        // 抽取出來以便重複使用的教室選單刷新函式
+        async function refreshRoomSelect(selectId = null) {
+            const { data: rooms } = await supabaseClient.from('rooms').select('*').order('name');
+            const rSelect = document.getElementById('room-select');
+            
+            // 清空除第一題示外的所有選項
+            rSelect.innerHTML = '<option value="">請選取教室...</option>';
+            rooms?.forEach(r => rSelect.add(new Option(r.name, r.id)));
+
+            if(selectId) {
+                rSelect.value = selectId;
+            }
         }
 
         function setMode(m) {
@@ -315,6 +352,50 @@
         }
 
         function setBrush(b) { config.brush = b; }
+
+        // --- 彈窗控制功能 ---
+        function openRoomModal() {
+            document.getElementById('room-modal').classList.remove('hidden');
+            document.getElementById('modal-room-name').value = '';
+            document.getElementById('modal-room-rows').value = 6;
+            document.getElementById('modal-room-cols').value = 8;
+        }
+
+        function closeRoomModal() {
+            document.getElementById('room-modal').classList.add('hidden');
+        }
+
+        async function submitNewRoom() {
+            const name = document.getElementById('modal-room-name').value.trim();
+            const rows = parseInt(document.getElementById('modal-room-rows').value);
+            const cols = parseInt(document.getElementById('modal-room-cols').value);
+
+            if (!name) return alert('請填寫教室名稱');
+            if (isNaN(rows) || rows < 1 || isNaN(cols) || cols < 1) return alert('請輸入正確的行列格局尺寸');
+
+            try {
+                // 將教室新增至 Supabase 'rooms' 資料表
+                const { data, error } = await supabaseClient.from('rooms').insert([{
+                    name: name,
+                    grid_size: { rows: rows, cols: cols },
+                    layout_config: {}
+                }]).select();
+
+                if (error) throw error;
+
+                alert(`教室「${name}」建立成功！`);
+                closeRoomModal();
+
+                // 重新載入下拉選單，並直接選取新建立的這間教室
+                const newRoomId = data[0].id;
+                await refreshRoomSelect(newRoomId);
+                loadRoomLayout(newRoomId);
+
+            } catch (err) {
+                console.error(err);
+                alert('建立教室時發生錯誤，請檢查主控台訊息。');
+            }
+        }
 
         window.onload = init;
     </script>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>班級管理 - 浩元行政系統</title>
+    <title>班級管理 - 昊學行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -12,7 +12,7 @@
         .accordion-open .accordion-content { max-height: 1000px; }
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
-        input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; }
+        input[type="time"]::-webkit-calendar-picker-indicator, input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
     </style>
 </head>
 <body class="p-6">
@@ -34,7 +34,7 @@
 
         <section class="opacity-60">
             <h2 class="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-3 flex items-center gap-2">
-                <span class="w-1.5 h-1.5 bg-slate-400 rounded-full"></span> 歷史存檔班級
+                <span class="w-1.5 h-1.5 bg-slate-400 rounded-full"></span> 歷史存檔班級 (已結業或手動封存)
             </h2>
             <div id="archived-classes-list" class="grid grid-cols-1 gap-2"></div>
         </section>
@@ -55,17 +55,24 @@
                     <label class="text-[10px] font-black text-slate-400 uppercase ml-1">任課老師</label>
                     <input type="text" id="m-class-teacher" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold" placeholder="老師姓名">
                 </div>
-                <div class="grid grid-cols-2 gap-2">
+                
+                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-500 uppercase ml-1">開課日</label>
+                        <input type="date" id="m-class-start-date" class="w-full p-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-800 text-xs font-bold bg-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-500 uppercase ml-1">結業日</label>
+                        <input type="date" id="m-class-end-date" class="w-full p-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-800 text-xs font-bold bg-white">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mt-2">
                     <div class="col-span-2">
                         <label class="text-[10px] font-black text-slate-400 uppercase ml-1">上課星期</label>
                         <select id="m-class-day" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold bg-white">
-                            <option value="1">每週一</option>
-                            <option value="2">每週二</option>
-                            <option value="3">每週三</option>
-                            <option value="4">每週四</option>
-                            <option value="5">每週五</option>
-                            <option value="6">每週六</option>
-                            <option value="0">每週日</option>
+                            <option value="1">每週一</option><option value="2">每週二</option><option value="3">每週三</option>
+                            <option value="4">每週四</option><option value="5">每週五</option><option value="6">每週六</option><option value="0">每週日</option>
                         </select>
                     </div>
                     <div>
@@ -79,7 +86,7 @@
                 </div>
                 <div>
                     <label class="text-[10px] font-black text-slate-400 uppercase ml-1">備註說明</label>
-                    <textarea id="m-class-note" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 h-20 font-bold" placeholder="備註..."></textarea>
+                    <textarea id="m-class-note" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 h-16 font-bold" placeholder="備註..."></textarea>
                 </div>
             </div>
             <div class="flex gap-2 mt-6">
@@ -112,9 +119,17 @@
 
         async function init() { fetchClasses(); }
 
+        // 判斷是否過期結業
+        function isClassExpired(endDateStr) {
+            if (!endDateStr) return false; // 沒有設定結業日，就不自動結業
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // 抹除時間，只比較日期
+            const endDate = new Date(endDateStr);
+            return today > endDate; // 如果今天 > 結業日，就是過期了
+        }
+
         async function fetchClasses() {
             document.getElementById('status-text').innerText = "更新中...";
-            // 修正顯示順序：改為 created_at 降序 (最新的在最上面)
             const { data, error } = await supabaseClient.from('classes').select('*').order('created_at', { ascending: false });
             if (error) return;
 
@@ -127,6 +142,21 @@
                 const timeStr = cls.schedule_day !== null 
                     ? `${DAYS[cls.schedule_day]} ${cls.schedule_start?.slice(0,5) || '--:--'}-${cls.schedule_end?.slice(0,5) || '--:--'}`
                     : '未設定';
+                
+                // 判斷是否自動結業 (依據結業日) 或 手動封存
+                const isAutoArchived = isClassExpired(cls.end_date);
+                const isArchived = cls.is_archived || isAutoArchived;
+                
+                // 日期標籤顯示
+                let dateBadge = '';
+                if (cls.start_date || cls.end_date) {
+                    const start = cls.start_date ? cls.start_date.substring(5).replace('-','/') : '未定';
+                    const end = cls.end_date ? cls.end_date.substring(5).replace('-','/') : '未定';
+                    dateBadge = `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-bold border border-slate-200">期間: ${start} ~ ${end}</span>`;
+                }
+
+                // 如果是自動過期，顯示提醒標籤
+                const expiredBadge = isAutoArchived && !cls.is_archived ? `<span class="px-1.5 py-0.5 bg-rose-100 text-rose-600 rounded text-[9px] font-black ml-1">已結業</span>` : '';
 
                 const html = `
                 <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm transition hover:shadow-md">
@@ -134,10 +164,13 @@
                         <div class="flex items-center gap-3">
                             <span class="text-lg">📂</span>
                             <div>
-                                <h4 class="font-black text-slate-800 text-[15px] leading-tight">${cls.name}</h4>
-                                <p class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
-                                    ${cls.teacher || '無教師'} | ${timeStr} | ${cls.members ? cls.members.length : 0}位成員
-                                </p>
+                                <h4 class="font-black text-slate-800 text-[15px] leading-tight">${cls.name} ${expiredBadge}</h4>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase">
+                                        ${cls.teacher || '無教師'} | ${timeStr} | ${cls.members ? cls.members.length : 0}位成員
+                                    </p>
+                                    ${dateBadge}
+                                </div>
                             </div>
                         </div>
                         <div class="flex gap-1.5" onclick="event.stopPropagation()">
@@ -161,17 +194,18 @@
                         </div>
                     </div>
                 </div>`;
-                cls.is_archived ? archiveList.innerHTML += html : activeList.innerHTML += html;
+                isArchived ? archiveList.innerHTML += html : activeList.innerHTML += html;
             });
             document.getElementById('status-text').innerText = "最後同步：" + new Date().toLocaleTimeString();
         }
 
-        // --- 以下功能邏輯保持不變 ---
         function openCreateModal() {
             document.getElementById('modal-title').innerText = "🏫 建立新班級";
             document.getElementById('m-class-id').value = "";
             document.getElementById('m-class-name').value = "";
             document.getElementById('m-class-teacher').value = "";
+            document.getElementById('m-class-start-date').value = ""; // 清空開課日
+            document.getElementById('m-class-end-date').value = "";   // 清空結業日
             document.getElementById('m-class-day').value = "1";
             document.getElementById('m-class-start').value = "18:30";
             document.getElementById('m-class-end').value = "21:30";
@@ -186,6 +220,8 @@
             document.getElementById('m-class-id').value = cls.id;
             document.getElementById('m-class-name').value = cls.name;
             document.getElementById('m-class-teacher').value = cls.teacher || "";
+            document.getElementById('m-class-start-date').value = cls.start_date || ""; // 載入開課日
+            document.getElementById('m-class-end-date').value = cls.end_date || "";     // 載入結業日
             document.getElementById('m-class-day').value = cls.schedule_day ?? "1";
             document.getElementById('m-class-start').value = cls.schedule_start || "";
             document.getElementById('m-class-end').value = cls.schedule_end || "";
@@ -196,19 +232,29 @@
         async function saveClass() {
             const id = document.getElementById('m-class-id').value;
             const btn = document.getElementById('save-btn');
+            
+            // 處理日期格式，如果是空字串則存 null
+            const startDateVal = document.getElementById('m-class-start-date').value;
+            const endDateVal = document.getElementById('m-class-end-date').value;
+
             const payload = {
                 name: document.getElementById('m-class-name').value.trim(),
                 teacher: document.getElementById('m-class-teacher').value.trim(),
+                start_date: startDateVal ? startDateVal : null,
+                end_date: endDateVal ? endDateVal : null,
                 schedule_day: parseInt(document.getElementById('m-class-day').value),
                 schedule_start: document.getElementById('m-class-start').value,
                 schedule_end: document.getElementById('m-class-end').value,
                 note: document.getElementById('m-class-note').value.trim()
             };
+            
             if(!payload.name) return alert("請輸入班級名稱");
             btn.disabled = true; btn.innerText = "儲存中...";
+            
             let result;
             if (id) result = await supabaseClient.from('classes').update(payload).eq('id', id);
             else result = await supabaseClient.from('classes').insert([{ ...payload, members: [] }]);
+            
             btn.disabled = false; btn.innerText = "儲存資訊";
             if(result.error) alert("操作失敗：" + result.error.message);
             else { closeModal('class-modal'); fetchClasses(); }

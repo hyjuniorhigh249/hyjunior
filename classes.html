@@ -18,7 +18,7 @@
     <div class="max-w-7xl mx-auto">
         <header class="flex justify-between items-center mb-6">
             <div>
-                <h1 class="text-xl font-black text-slate-800">班級組織與班別管理</h1>
+                <h1 class="text-xl font-black text-slate-800">班級組織管理</h1>
                 <p id="status-text" class="text-[10px] font-bold text-slate-400 mt-0.5">連線檢查中...</p>
             </div>
             <button onclick="openCreateModal()" class="bg-slate-800 text-white px-5 py-1.5 rounded-lg text-sm font-black hover:bg-slate-700 shadow transition active:scale-95">＋ 建立新班級</button>
@@ -28,7 +28,7 @@
     </div>
 
     <div id="class-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
-        <div class="bg-white rounded-[24px] p-6 w-full max-w-lg shadow-2xl">
+        <div class="bg-white rounded-[24px] p-6 w-full max-w-md shadow-2xl">
             <h3 id="modal-title" class="text-lg font-black mb-5">設定班級資訊</h3>
             <input type="hidden" id="m-class-id">
             <div class="space-y-4">
@@ -36,14 +36,14 @@
                     <label class="text-[10px] font-black text-slate-400 uppercase ml-1">班級名稱*</label>
                     <input type="text" id="m-class-name" class="w-full p-2.5 border border-slate-200 rounded-xl font-bold">
                 </div>
-                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-xl">
-                    <div><label class="text-[10px] font-black text-slate-500 uppercase ml-1">開課日</label><input type="date" id="m-class-start-date" class="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold"></div>
-                    <div><label class="text-[10px] font-black text-slate-500 uppercase ml-1">結業日</label><input type="date" id="m-class-end-date" class="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold"></div>
+                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                    <div><label class="text-[10px] font-black text-slate-500 uppercase ml-1">開課日</label><input type="date" id="m-class-start-date" class="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold bg-white"></div>
+                    <div><label class="text-[10px] font-black text-slate-500 uppercase ml-1">結業日</label><input type="date" id="m-class-end-date" class="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold bg-white"></div>
                 </div>
-                </div>
+            </div>
             <div class="flex gap-2 mt-6">
                 <button onclick="closeModal('class-modal')" class="flex-1 py-2.5 font-bold text-slate-400">取消</button>
-                <button id="save-btn" onclick="saveClass()" class="flex-1 py-2.5 bg-slate-800 text-white rounded-xl font-black">儲存班級</button>
+                <button id="save-btn" onclick="saveClass()" class="flex-1 py-2.5 bg-slate-800 text-white rounded-xl font-black">儲存資訊</button>
             </div>
         </div>
     </div>
@@ -53,34 +53,73 @@
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        let allClassData = [];
         async function init() { fetchClasses(); }
 
         async function fetchClasses() {
             const { data } = await supabaseClient.from('classes').select('*').order('created_at', { ascending: false });
+            allClassData = data || [];
             const container = document.getElementById('classes-container');
-            container.innerHTML = (data || []).map(cls => `
+            container.innerHTML = allClassData.map(cls => `
                 <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
                     <div class="p-4 flex items-center justify-between cursor-pointer" onclick="this.parentElement.classList.toggle('accordion-open')">
-                        <h4 class="font-black text-lg text-slate-800">${cls.name}</h4>
-                        <div class="text-[10px] text-slate-400 font-bold">期間: ${cls.start_date || '未定'} ~ ${cls.end_date || '未定'}</div>
+                        <div class="flex items-center gap-4">
+                            <h4 class="font-black text-lg text-slate-800">${cls.name}</h4>
+                            <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold">期間: ${cls.start_date || '未定'} ~ ${cls.end_date || '未定'}</span>
+                        </div>
+                        <div class="flex gap-2" onclick="event.stopPropagation()">
+                            <button onclick="openEditModal('${cls.id}')" class="text-[10px] bg-slate-100 px-3 py-1 rounded font-black text-slate-600">編輯</button>
+                            <button onclick="deleteClass('${cls.id}')" class="text-[10px] bg-rose-50 px-3 py-1 rounded font-black text-rose-500">刪除</button>
+                        </div>
                     </div>
                     <div class="accordion-content p-4 border-t border-slate-100 bg-slate-50">
-                        <div class="mb-4">
-                            <p class="text-[10px] font-black text-slate-400 uppercase mb-2">子班別列表</p>
-                            </div>
-                        <button class="text-xs bg-slate-800 text-white px-3 py-1 rounded font-bold">＋ 新增子班別</button>
+                        <p class="text-[10px] font-black text-slate-400 uppercase mb-3">子班別列表 (排課功能開發中)</p>
+                        <button class="text-xs bg-slate-800 text-white px-3 py-1 rounded font-bold shadow hover:bg-slate-700">＋ 新增子班別</button>
                     </div>
                 </div>
             `).join('');
         }
 
-        function openCreateModal() { document.getElementById('class-modal').classList.add('active'); }
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-        async function saveClass() { 
-            /* 儲存邏輯：將 name, start_date, end_date 存入 Supabase */
-            closeModal('class-modal'); fetchClasses(); 
+        function openCreateModal() {
+            document.getElementById('modal-title').innerText = "建立新班級";
+            document.getElementById('m-class-id').value = "";
+            document.getElementById('m-class-name').value = "";
+            document.getElementById('m-class-start-date').value = "";
+            document.getElementById('m-class-end-date').value = "";
+            openModal('class-modal');
         }
 
+        function openEditModal(id) {
+            const cls = allClassData.find(x => x.id === id);
+            document.getElementById('modal-title').innerText = "編輯班級";
+            document.getElementById('m-class-id').value = cls.id;
+            document.getElementById('m-class-name').value = cls.name;
+            document.getElementById('m-class-start-date').value = cls.start_date || "";
+            document.getElementById('m-class-end-date').value = cls.end_date || "";
+            openModal('class-modal');
+        }
+
+        async function saveClass() {
+            const id = document.getElementById('m-class-id').value;
+            const payload = {
+                name: document.getElementById('m-class-name').value,
+                start_date: document.getElementById('m-class-start-date').value || null,
+                end_date: document.getElementById('m-class-end-date').value || null
+            };
+            if (id) await supabaseClient.from('classes').update(payload).eq('id', id);
+            else await supabaseClient.from('classes').insert([payload]);
+            closeModal('class-modal'); fetchClasses();
+        }
+
+        async function deleteClass(id) {
+            if(confirm("確定刪除此班級嗎？")) {
+                await supabaseClient.from('classes').delete().eq('id', id);
+                fetchClasses();
+            }
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
         window.onload = init;
     </script>
 </body>

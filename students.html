@@ -23,13 +23,16 @@
 
     <main class="flex flex-col h-screen">
         <div class="bg-white border-b border-slate-200 p-2 px-6 flex items-center justify-between shadow-sm z-20">
-            <div class="relative flex-1 max-w-2xl flex gap-2 items-center">
+            <div class="relative flex-1 max-w-3xl flex gap-2 items-center">
                 <div class="relative flex-1">
                     <span class="absolute left-3 top-2 text-slate-400">🔍</span>
                     <input type="text" id="global-search" oninput="fetchData()" placeholder="搜尋姓名、電話、學校..." class="w-full pl-10 pr-4 py-1.5 border border-slate-200 rounded-full bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all font-bold">
                 </div>
                 <button onclick="openColSettings()" class="shrink-0 bg-slate-100 text-slate-600 px-4 py-1.5 rounded-full font-bold hover:bg-slate-200 transition text-xs flex items-center gap-1.5 border border-slate-200">
                     ⚙️ 自訂欄位
+                </button>
+                <button onclick="exportToCSV()" class="shrink-0 bg-emerald-50 text-emerald-600 px-4 py-1.5 rounded-full font-bold hover:bg-emerald-100 transition text-xs flex items-center gap-1.5 border border-emerald-200">
+                    📥 匯出 Excel (CSV)
                 </button>
             </div>
             <div id="status-indicator" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 ml-4">
@@ -151,7 +154,7 @@
 
     let students = [], classes = [], selectedName = "";
     
-    // --- 新增：排序狀態變數 ---
+    // 排序狀態變數
     let currentSortKey = null; 
     let currentSortAsc = true; 
 
@@ -209,25 +212,22 @@
         updateStatus('ready');
     }
 
-    // --- 新增：處理點擊表頭的排序動作 ---
     function handleSort(key) {
         if (currentSortKey === key) {
-            currentSortAsc = !currentSortAsc; // 點選同一個欄位，切換升降冪
+            currentSortAsc = !currentSortAsc; 
         } else {
             currentSortKey = key;
-            currentSortAsc = true; // 點選新欄位，預設升冪
+            currentSortAsc = true; 
         }
         renderTable(document.getElementById('global-search').value.toLowerCase().trim());
     }
 
-    // --- 新增：產生排序的小箭頭圖示 ---
     function getSortIcon(key) {
         if (currentSortKey !== key) return '<span class="text-slate-300 ml-0.5 opacity-40">↕</span>';
         return currentSortAsc ? '<span class="text-slate-800 ml-0.5">↑</span>' : '<span class="text-slate-800 ml-0.5">↓</span>';
     }
 
     function renderTable(keyword) {
-        // 動態產生表頭，加入 onClick 與指標
         let theadHTML = `<tr><th class="w-16 cursor-pointer hover:bg-slate-200 select-none transition" onclick="handleSort('name')">姓名 ${getSortIcon('name')}</th>`;
         COL_DEF.forEach(c => {
             if(colSettings[c.key]) {
@@ -237,22 +237,17 @@
         theadHTML += `<th class="w-10 text-center">分班</th><th class="w-10 text-center">刪除</th></tr>`;
         document.getElementById('stu-table-head').innerHTML = theadHTML;
 
-        // 動態過濾
         let filtered = students.filter(s => {
             const myClsNames = classes.filter(c => c.members && c.members.includes(s.name)).map(c => c.name).join(' ');
             return `${s.name} ${s.tel_o} ${s.school} ${myClsNames} ${s.line_type || ''} ${s.prospect_course || ''} ${s.source || ''}`.toLowerCase().includes(keyword);
         });
 
-        // --- 新增：資料排序邏輯 ---
         if (currentSortKey) {
             filtered.sort((a, b) => {
                 let valA, valB;
-                
-                // 針對不同欄位抓取對應的數值
                 if (currentSortKey === 'name') {
                     valA = a.name || ''; valB = b.name || '';
                 } else if (currentSortKey === 'grade') {
-                    // 年級特製邏輯：轉為 1~12 的純數字進行比對
                     let gA = calculateDisplayGrade(a.grade_base_year);
                     let gB = calculateDisplayGrade(b.grade_base_year);
                     valA = (typeof gA === 'number') ? gA : (gA === '已畢業' ? 13 : 99);
@@ -263,12 +258,9 @@
                 } else if (currentSortKey === 'prospect') {
                     valA = a.prospect_course || ''; valB = b.prospect_course || '';
                 } else {
-                    // 其餘字串類型直接抓資料庫欄位 (包含 source, line_type, school 等)
-                    valA = a[currentSortKey] || '';
-                    valB = b[currentSortKey] || '';
+                    valA = a[currentSortKey] || ''; valB = b[currentSortKey] || '';
                 }
 
-                // 執行比對 (區分字串與數字)
                 if (typeof valA === 'string' && typeof valB === 'string') {
                     return currentSortAsc ? valA.localeCompare(valB, 'zh-TW') : valB.localeCompare(valA, 'zh-TW');
                 } else {
@@ -277,7 +269,6 @@
             });
         }
 
-        // 產生內容
         const body = document.getElementById('stu-table-body');
         body.innerHTML = filtered.map(s => {
             let tr = `<tr class="stu-row" onclick="openEditModal('${s.id}')">`;
@@ -294,6 +285,84 @@
             tr += `</tr>`;
             return tr;
         }).join('');
+    }
+
+    // --- 新增：匯出 Excel (CSV) 功能 ---
+    function exportToCSV() {
+        // 1. 取得當前搜尋關鍵字，並過濾出目前的學生名單
+        const keyword = document.getElementById('global-search').value.toLowerCase().trim();
+        const filtered = students.filter(s => {
+            const myClsNames = classes.filter(c => c.members && c.members.includes(s.name)).map(c => c.name).join(' ');
+            return `${s.name} ${s.tel_o} ${s.school} ${myClsNames} ${s.line_type || ''} ${s.prospect_course || ''} ${s.source || ''}`.toLowerCase().includes(keyword);
+        });
+
+        // 2. 套用目前的排序邏輯
+        if (currentSortKey) {
+            filtered.sort((a, b) => {
+                let valA, valB;
+                if (currentSortKey === 'name') { valA = a.name || ''; valB = b.name || ''; } 
+                else if (currentSortKey === 'grade') {
+                    let gA = calculateDisplayGrade(a.grade_base_year);
+                    let gB = calculateDisplayGrade(b.grade_base_year);
+                    valA = (typeof gA === 'number') ? gA : (gA === '已畢業' ? 13 : 99);
+                    valB = (typeof gB === 'number') ? gB : (gB === '已畢業' ? 13 : 99);
+                } else if (currentSortKey === 'classes') {
+                    valA = classes.filter(c => c.members && c.members.includes(a.name)).map(c => c.name).join('');
+                    valB = classes.filter(c => c.members && c.members.includes(b.name)).map(c => c.name).join('');
+                } else if (currentSortKey === 'prospect') {
+                    valA = a.prospect_course || ''; valB = b.prospect_course || '';
+                } else {
+                    valA = a[currentSortKey] || ''; valB = b[currentSortKey] || '';
+                }
+
+                if (typeof valA === 'string' && typeof valB === 'string') {
+                    return currentSortAsc ? valA.localeCompare(valB, 'zh-TW') : valB.localeCompare(valA, 'zh-TW');
+                } else {
+                    return currentSortAsc ? (valA - valB) : (valB - valA);
+                }
+            });
+        }
+
+        // 3. 準備表頭 (只匯出目前有勾選顯示的欄位)
+        const activeCols = COL_DEF.filter(c => colSettings[c.key]);
+        const headers = ['姓名', ...activeCols.map(c => c.label)];
+        
+        // 4. 準備資料列
+        const csvRows = [headers.map(h => `"${h}"`).join(',')];
+        
+        filtered.forEach(s => {
+            const row = [`"${s.name || ''}"`];
+            activeCols.forEach(c => {
+                let textVal = '';
+                if (c.key === 'classes') {
+                    // 班級特別處理：提取純文字並用逗號分隔
+                    textVal = classes.filter(cls => cls.members && cls.members.includes(s.name)).map(cls => cls.name).join('、') || '未入班';
+                } else if (c.key === 'grade') {
+                    textVal = calculateDisplayGrade(s.grade_base_year).toString();
+                } else if (c.key === 'prospect') {
+                    textVal = s.prospect_course || '';
+                } else {
+                    // 針對 source, line_type, tel_o 等直接取值
+                    textVal = (s[c.key] || '').toString(); 
+                }
+                // 處理 Excel 內文引號跳脫
+                textVal = textVal.replace(/"/g, '""');
+                row.push(`"${textVal}"`);
+            });
+            csvRows.push(row.join(','));
+        });
+
+        // 5. 產生 CSV 檔案並下載 (加入 \uFEFF 解決 Excel 中文亂碼問題)
+        const csvContent = "\uFEFF" + csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+        link.setAttribute("download", `昊學學生名單_${dateStr}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     function openColSettings() {

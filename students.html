@@ -150,24 +150,26 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let students = [], classes = [], selectedName = "";
+    
+    // --- 新增：排序狀態變數 ---
+    let currentSortKey = null; 
+    let currentSortAsc = true; 
 
-    // 欄位定義設定檔
     const COL_DEF = [
-        { key: 'grade', label: '年級', thClass: 'w-12 text-blue-600', tdClass: 'font-bold text-blue-600', val: s => calculateDisplayGrade(s.grade_base_year) },
-        { key: 'source', label: '來源', thClass: 'w-16', tdClass: 'text-slate-600 text-xs', val: s => s.source || '-' },
-        { key: 'line_type', label: '線別', thClass: 'w-16', tdClass: 'text-slate-600 text-xs', val: s => s.line_type || '-' },
+        { key: 'grade', label: '年級', thClass: 'w-16', tdClass: 'font-bold text-blue-600', val: s => calculateDisplayGrade(s.grade_base_year) },
+        { key: 'source', label: '來源', thClass: 'w-20', tdClass: 'text-slate-600 text-xs', val: s => s.source || '-' },
+        { key: 'line_type', label: '線別', thClass: 'w-20', tdClass: 'text-slate-600 text-xs', val: s => s.line_type || '-' },
         { key: 'prospect', label: '展望課程', thClass: 'w-24', tdClass: 'text-slate-600 text-xs', val: s => s.prospect_course || '-' },
-        { key: 'tel_o', label: '本人電話', thClass: 'w-24 text-emerald-600', tdClass: 'font-bold text-emerald-600', val: s => s.tel_o || '-' },
-        { key: 'tel_p', label: '爸爸電話', thClass: 'w-24', tdClass: 'text-slate-400 text-xs', val: s => s.tel_p || '-' },
-        { key: 'tel_m', label: '媽媽電話', thClass: 'w-24', tdClass: 'text-slate-400 text-xs', val: s => s.tel_m || '-' },
-        { key: 'classes', label: '所屬班級', thClass: 'w-36', tdClass: '', val: s => {
+        { key: 'tel_o', label: '本人電話', thClass: 'w-28 text-emerald-600', tdClass: 'font-bold text-emerald-600', val: s => s.tel_o || '-' },
+        { key: 'tel_p', label: '爸爸電話', thClass: 'w-28', tdClass: 'text-slate-400 text-xs', val: s => s.tel_p || '-' },
+        { key: 'tel_m', label: '媽媽電話', thClass: 'w-28', tdClass: 'text-slate-400 text-xs', val: s => s.tel_m || '-' },
+        { key: 'classes', label: '所屬班級', thClass: 'w-40', tdClass: '', val: s => {
             const myCls = classes.filter(c => c.members && c.members.includes(s.name));
             return `<div class="flex flex-wrap gap-1 whitespace-normal">${myCls.map(c => `<span class="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded font-bold">${c.name}</span>`).join('') || '<span class="text-slate-300 text-xs">未入班</span>'}</div>`;
         }},
-        { key: 'school', label: '就讀學校', thClass: 'w-24', tdClass: 'text-slate-500 font-bold truncate max-w-[120px]', val: s => s.school || '-' }
+        { key: 'school', label: '就讀學校', thClass: 'w-28', tdClass: 'text-slate-500 font-bold truncate max-w-[120px]', val: s => s.school || '-' }
     ];
 
-    // 讀取瀏覽器記憶的欄位設定，預設全開
     let colSettings = JSON.parse(localStorage.getItem('hy_stu_cols')) || { 
         grade: true, source: true, line_type: true, prospect: true, 
         tel_o: true, tel_p: false, tel_m: false, classes: true, school: true 
@@ -207,22 +209,76 @@
         updateStatus('ready');
     }
 
+    // --- 新增：處理點擊表頭的排序動作 ---
+    function handleSort(key) {
+        if (currentSortKey === key) {
+            currentSortAsc = !currentSortAsc; // 點選同一個欄位，切換升降冪
+        } else {
+            currentSortKey = key;
+            currentSortAsc = true; // 點選新欄位，預設升冪
+        }
+        renderTable(document.getElementById('global-search').value.toLowerCase().trim());
+    }
+
+    // --- 新增：產生排序的小箭頭圖示 ---
+    function getSortIcon(key) {
+        if (currentSortKey !== key) return '<span class="text-slate-300 ml-0.5 opacity-40">↕</span>';
+        return currentSortAsc ? '<span class="text-slate-800 ml-0.5">↑</span>' : '<span class="text-slate-800 ml-0.5">↓</span>';
+    }
+
     function renderTable(keyword) {
-        // 1. 動態產生表頭 <thead>
-        let theadHTML = `<tr><th class="w-16">姓名</th>`;
+        // 動態產生表頭，加入 onClick 與指標
+        let theadHTML = `<tr><th class="w-16 cursor-pointer hover:bg-slate-200 select-none transition" onclick="handleSort('name')">姓名 ${getSortIcon('name')}</th>`;
         COL_DEF.forEach(c => {
-            if(colSettings[c.key]) theadHTML += `<th class="${c.thClass}">${c.label}</th>`;
+            if(colSettings[c.key]) {
+                theadHTML += `<th class="${c.thClass} cursor-pointer hover:bg-slate-200 select-none transition" onclick="handleSort('${c.key}')">${c.label} ${getSortIcon(c.key)}</th>`;
+            }
         });
         theadHTML += `<th class="w-10 text-center">分班</th><th class="w-10 text-center">刪除</th></tr>`;
         document.getElementById('stu-table-head').innerHTML = theadHTML;
 
-        // 2. 動態過濾並產生內容 <tbody>
-        const body = document.getElementById('stu-table-body');
-        const filtered = students.filter(s => {
+        // 動態過濾
+        let filtered = students.filter(s => {
             const myClsNames = classes.filter(c => c.members && c.members.includes(s.name)).map(c => c.name).join(' ');
             return `${s.name} ${s.tel_o} ${s.school} ${myClsNames} ${s.line_type || ''} ${s.prospect_course || ''} ${s.source || ''}`.toLowerCase().includes(keyword);
         });
 
+        // --- 新增：資料排序邏輯 ---
+        if (currentSortKey) {
+            filtered.sort((a, b) => {
+                let valA, valB;
+                
+                // 針對不同欄位抓取對應的數值
+                if (currentSortKey === 'name') {
+                    valA = a.name || ''; valB = b.name || '';
+                } else if (currentSortKey === 'grade') {
+                    // 年級特製邏輯：轉為 1~12 的純數字進行比對
+                    let gA = calculateDisplayGrade(a.grade_base_year);
+                    let gB = calculateDisplayGrade(b.grade_base_year);
+                    valA = (typeof gA === 'number') ? gA : (gA === '已畢業' ? 13 : 99);
+                    valB = (typeof gB === 'number') ? gB : (gB === '已畢業' ? 13 : 99);
+                } else if (currentSortKey === 'classes') {
+                    valA = classes.filter(c => c.members && c.members.includes(a.name)).map(c => c.name).join('');
+                    valB = classes.filter(c => c.members && c.members.includes(b.name)).map(c => c.name).join('');
+                } else if (currentSortKey === 'prospect') {
+                    valA = a.prospect_course || ''; valB = b.prospect_course || '';
+                } else {
+                    // 其餘字串類型直接抓資料庫欄位 (包含 source, line_type, school 等)
+                    valA = a[currentSortKey] || '';
+                    valB = b[currentSortKey] || '';
+                }
+
+                // 執行比對 (區分字串與數字)
+                if (typeof valA === 'string' && typeof valB === 'string') {
+                    return currentSortAsc ? valA.localeCompare(valB, 'zh-TW') : valB.localeCompare(valA, 'zh-TW');
+                } else {
+                    return currentSortAsc ? (valA - valB) : (valB - valA);
+                }
+            });
+        }
+
+        // 產生內容
+        const body = document.getElementById('stu-table-body');
         body.innerHTML = filtered.map(s => {
             let tr = `<tr class="stu-row" onclick="openEditModal('${s.id}')">`;
             tr += `<td class="font-black text-slate-800">${s.name}</td>`;
@@ -240,7 +296,6 @@
         }).join('');
     }
 
-    // --- 欄位設定功能 ---
     function openColSettings() {
         const container = document.getElementById('col-toggles');
         container.innerHTML = COL_DEF.map(c => `
@@ -258,7 +313,7 @@
         });
         localStorage.setItem('hy_stu_cols', JSON.stringify(colSettings));
         closeModal('col-modal');
-        fetchData(); // 重新繪製表格
+        fetchData(); 
     }
 
     function openEditModal(id) {
@@ -353,6 +408,6 @@
 
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
     window.onload = init;
-</script>
+    </script>
 </body>
 </html>

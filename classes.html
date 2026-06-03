@@ -3,106 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>班級管理 - 昊學行政系統</title>
+    <title>班級與班別管理 - 昊學行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; color: #1e293b; font-size: 13px; }
         .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
-        .accordion-open .accordion-content { max-height: 1000px; }
+        .accordion-open .accordion-content { max-height: 2000px; }
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
-        input[type="time"]::-webkit-calendar-picker-indicator, input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
     </style>
 </head>
 <body class="p-6">
     <div class="max-w-7xl mx-auto">
         <header class="flex justify-between items-center mb-6">
             <div>
-                <h1 class="text-xl font-black text-slate-800">班級組織管理</h1>
+                <h1 class="text-xl font-black text-slate-800">班級組織與班別管理</h1>
                 <p id="status-text" class="text-[10px] font-bold text-slate-400 mt-0.5">連線檢查中...</p>
             </div>
             <button onclick="openCreateModal()" class="bg-slate-800 text-white px-5 py-1.5 rounded-lg text-sm font-black hover:bg-slate-700 shadow transition active:scale-95">＋ 建立新班級</button>
         </header>
 
-        <section class="mb-8">
-            <h2 class="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-3 flex items-center gap-2">
-                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> 進行中班級
-            </h2>
-            <div id="active-classes-list" class="grid grid-cols-1 gap-2"></div>
-        </section>
-
-        <section class="opacity-60">
-            <h2 class="font-black text-slate-400 text-[10px] uppercase tracking-widest mb-3 flex items-center gap-2">
-                <span class="w-1.5 h-1.5 bg-slate-400 rounded-full"></span> 歷史存檔班級 (已結業或手動封存)
-            </h2>
-            <div id="archived-classes-list" class="grid grid-cols-1 gap-2"></div>
-        </section>
+        <div id="classes-container" class="space-y-4"></div>
     </div>
 
     <div id="class-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
-        <div class="bg-white rounded-[24px] p-6 w-full max-w-md shadow-2xl">
-            <h3 id="modal-title" class="text-lg font-black mb-5 flex items-center gap-2">
-                <span class="text-xl">🏫</span> 設定班級資訊
-            </h3>
-            <input type="hidden" id="m-class-id"> 
-            <div class="space-y-3">
+        <div class="bg-white rounded-[24px] p-6 w-full max-w-lg shadow-2xl">
+            <h3 id="modal-title" class="text-lg font-black mb-5">設定班級資訊</h3>
+            <input type="hidden" id="m-class-id">
+            <div class="space-y-4">
                 <div>
                     <label class="text-[10px] font-black text-slate-400 uppercase ml-1">班級名稱*</label>
-                    <input type="text" id="m-class-name" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold" placeholder="例如：國三甲班">
+                    <input type="text" id="m-class-name" class="w-full p-2.5 border border-slate-200 rounded-xl font-bold">
                 </div>
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1">任課老師</label>
-                    <input type="text" id="m-class-teacher" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold" placeholder="老師姓名">
+                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-xl">
+                    <div><label class="text-[10px] font-black text-slate-500 uppercase ml-1">開課日</label><input type="date" id="m-class-start-date" class="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold"></div>
+                    <div><label class="text-[10px] font-black text-slate-500 uppercase ml-1">結業日</label><input type="date" id="m-class-end-date" class="w-full p-2 border border-slate-200 rounded-lg text-xs font-bold"></div>
                 </div>
-                <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                    <div>
-                        <label class="text-[10px] font-black text-slate-500 uppercase ml-1">開課日</label>
-                        <input type="date" id="m-class-start-date" class="w-full p-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-800 text-xs font-bold bg-white">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black text-slate-500 uppercase ml-1">結業日</label>
-                        <input type="date" id="m-class-end-date" class="w-full p-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-slate-800 text-xs font-bold bg-white">
-                    </div>
                 </div>
-                <div class="grid grid-cols-2 gap-2 mt-2">
-                    <div class="col-span-2">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1">上課星期</label>
-                        <select id="m-class-day" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold bg-white">
-                            <option value="1">每週一</option><option value="2">每週二</option><option value="3">每週三</option>
-                            <option value="4">每週四</option><option value="5">每週五</option><option value="6">每週六</option><option value="0">每週日</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1">開始時間</label>
-                        <input type="time" id="m-class-start" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold">
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1">結束時間</label>
-                        <input type="time" id="m-class-end" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 font-bold">
-                    </div>
-                </div>
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1">備註說明</label>
-                    <textarea id="m-class-note" class="w-full p-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 h-16 font-bold" placeholder="備註..."></textarea>
-                </div>
-            </div>
             <div class="flex gap-2 mt-6">
                 <button onclick="closeModal('class-modal')" class="flex-1 py-2.5 font-bold text-slate-400">取消</button>
-                <button id="save-btn" onclick="saveClass()" class="flex-1 py-2.5 bg-slate-800 text-white rounded-xl font-black shadow hover:bg-slate-900 transition">儲存資訊</button>
+                <button id="save-btn" onclick="saveClass()" class="flex-1 py-2.5 bg-slate-800 text-white rounded-xl font-black">儲存班級</button>
             </div>
-        </div>
-    </div>
-
-    <div id="member-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
-        <div class="bg-white rounded-[24px] p-6 w-full max-w-lg shadow-2xl max-h-[80vh] flex flex-col">
-            <h3 id="member-modal-title" class="text-lg font-black mb-4">加入學生成員</h3>
-            <div class="relative mb-4">
-                <input type="text" id="stu-search" oninput="searchStudentsForClass()" placeholder="搜尋學生姓名..." class="w-full p-2.5 pl-9 border border-slate-200 rounded-xl outline-none bg-slate-50 font-bold">
-                <span class="absolute left-3 top-3 text-slate-400">🔍</span>
-            </div>
-            <div id="stu-search-results" class="flex-1 overflow-y-auto space-y-1 mb-4"></div>
-            <button onclick="closeModal('member-modal')" class="w-full py-2.5 bg-slate-100 rounded-xl font-black text-slate-600 hover:bg-slate-200 transition">完成並關閉</button>
         </div>
     </div>
 
@@ -111,118 +53,34 @@
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const DAYS = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
-        let activeClassIdForMembers = null;
-        let allClassData = [];
-
         async function init() { fetchClasses(); }
 
-        function isClassExpired(endDateStr) {
-            if (!endDateStr) return false;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const endDate = new Date(endDateStr);
-            return today > endDate;
-        }
-
         async function fetchClasses() {
-            document.getElementById('status-text').innerText = "更新中...";
-            const { data, error } = await supabaseClient.from('classes').select('*').order('created_at', { ascending: false });
-            if (error) return;
-
-            allClassData = data;
-            const activeList = document.getElementById('active-classes-list');
-            const archiveList = document.getElementById('archived-classes-list');
-            activeList.innerHTML = ""; archiveList.innerHTML = "";
-
-            data.forEach(cls => {
-                const timeStr = cls.schedule_day !== null 
-                    ? `${DAYS[cls.schedule_day]} ${cls.schedule_start?.slice(0,5) || '--:--'}-${cls.schedule_end?.slice(0,5) || '--:--'}`
-                    : '未設定';
-                
-                const isAutoArchived = isClassExpired(cls.end_date);
-                const isArchived = cls.is_archived || isAutoArchived;
-                
-                const html = `
-                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm transition hover:shadow-md">
-                    <div class="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition" onclick="this.parentElement.classList.toggle('accordion-open')">
-                        <div class="flex items-center gap-3">
-                            <span class="text-lg">📂</span>
-                            <div>
-                                <h4 class="font-black text-slate-800 text-[15px] leading-tight">${cls.name} ${isAutoArchived && !cls.is_archived ? '<span class="px-1.5 py-0.5 bg-rose-100 text-rose-600 rounded text-[9px] font-black ml-1">已結業</span>' : ''}</h4>
-                                <p class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">${cls.teacher || '無教師'} | ${timeStr} | ${cls.members ? cls.members.length : 0}位成員</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-1.5" onclick="event.stopPropagation()">
-                            <button onclick="openEditModal('${cls.id}')" class="text-[10px] bg-slate-100 px-2.5 py-1 rounded-md font-black text-slate-600 hover:bg-slate-200 transition">修改</button>
-                            <button onclick="openMemberModal('${cls.id}', '${cls.name}')" class="text-[10px] bg-slate-800 px-2.5 py-1 rounded-md font-black text-white hover:bg-slate-700 transition">成員</button>
-                            ${!cls.is_archived ? `<button onclick="toggleArchive('${cls.id}', true)" class="text-[10px] bg-amber-50 px-2.5 py-1 rounded-md font-black text-amber-600 hover:bg-amber-100 transition">封存</button>` : `<button onclick="toggleArchive('${cls.id}', false)" class="text-[10px] bg-emerald-50 px-2.5 py-1 rounded-md font-black text-emerald-600 hover:bg-emerald-100 transition">恢復</button>`}
-                            <button onclick="deleteClass('${cls.id}', ${cls.members ? cls.members.length : 0})" class="text-[10px] bg-rose-50 px-2.5 py-1 rounded-md font-black text-rose-400 hover:bg-rose-100 transition">刪除</button>
-                        </div>
+            const { data } = await supabaseClient.from('classes').select('*').order('created_at', { ascending: false });
+            const container = document.getElementById('classes-container');
+            container.innerHTML = (data || []).map(cls => `
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm">
+                    <div class="p-4 flex items-center justify-between cursor-pointer" onclick="this.parentElement.classList.toggle('accordion-open')">
+                        <h4 class="font-black text-lg text-slate-800">${cls.name}</h4>
+                        <div class="text-[10px] text-slate-400 font-bold">期間: ${cls.start_date || '未定'} ~ ${cls.end_date || '未定'}</div>
                     </div>
-                </div>`;
-                isArchived ? archiveList.innerHTML += html : activeList.innerHTML += html;
-            });
-            document.getElementById('status-text').innerText = "最後同步：" + new Date().toLocaleTimeString();
-        }
-
-        async function removeMember(cid, name) {
-            if (!confirm(`確定要從班級中移除 ${name} 嗎？`)) return;
-            const { data, error } = await supabaseClient.from('classes').select('members').eq('id', cid).single();
-            if (error) return alert("讀取資料失敗");
-            const updatedMembers = (data.members || []).filter(m => m !== name);
-            const { error: updateError } = await supabaseClient.from('classes').update({ members: updatedMembers }).eq('id', cid);
-            if (updateError) {
-                alert("移除失敗：" + updateError.message);
-            } else {
-                searchStudentsForClass(); 
-                fetchClasses();
-            }
-        }
-
-        async function searchStudentsForClass() {
-            const keyword = document.getElementById('stu-search').value;
-            const { data: students } = await supabaseClient.from('students').select('name').ilike('name', `%${keyword}%`).limit(10);
-            const { data: cls } = await supabaseClient.from('classes').select('members').eq('id', activeClassIdForMembers).single();
-            const results = document.getElementById('stu-search-results');
-            const members = cls.members || [];
-
-            let html = `<p class="text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">班級現有成員</p>`;
-            html += members.map(m => `
-                <div class="flex items-center justify-between p-2.5 bg-rose-50 rounded-xl font-bold text-rose-700 text-sm mb-1">
-                    ${m} 
-                    <button onclick="removeMember('${activeClassIdForMembers}', '${m}')" class="text-rose-400 hover:text-rose-600 font-black text-xs">✕ 刪除</button>
+                    <div class="accordion-content p-4 border-t border-slate-100 bg-slate-50">
+                        <div class="mb-4">
+                            <p class="text-[10px] font-black text-slate-400 uppercase mb-2">子班別列表</p>
+                            </div>
+                        <button class="text-xs bg-slate-800 text-white px-3 py-1 rounded font-bold">＋ 新增子班別</button>
+                    </div>
                 </div>
             `).join('');
-
-            html += `<p class="text-[10px] font-black text-slate-400 uppercase mt-4 mb-2 ml-1">搜尋並加入</p>`;
-            html += students.map(s => {
-                const isMember = members.includes(s.name);
-                return `<div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl font-bold text-slate-700 text-sm">${s.name} ${isMember ? '<span class="text-emerald-500 text-xs">已加入</span>' : `<button onclick="addMember('${s.name}')" class="bg-slate-800 text-white px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-slate-700">加入</button>`}</div>`;
-            }).join('');
-            results.innerHTML = html;
         }
 
-        async function addMember(name) {
-            const { data } = await supabaseClient.from('classes').select('members').eq('id', activeClassIdForMembers).single();
-            await supabaseClient.from('classes').update({ members: [...(data.members || []), name] }).eq('id', activeClassIdForMembers);
-            searchStudentsForClass(); fetchClasses();
-        }
-
-        // 基本 CRUD 邏輯保持
-        function openCreateModal() { openModal('class-modal'); }
-        function openEditModal(id) { 
-            const cls = allClassData.find(x => x.id === id);
-            document.getElementById('m-class-id').value = cls.id;
-            document.getElementById('m-class-name').value = cls.name;
-            openModal('class-modal'); 
-        }
-        async function saveClass() { /* ...簡化邏輯... */ closeModal('class-modal'); fetchClasses(); }
-        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function openCreateModal() { document.getElementById('class-modal').classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-        async function toggleArchive(id, status) { await supabaseClient.from('classes').update({ is_archived: status }).eq('id', id); fetchClasses(); }
-        async function deleteClass(id, count) { if(confirm("確定刪除？")) { await supabaseClient.from('classes').delete().eq('id', id); fetchClasses(); } }
-        async function openMemberModal(id, name) { activeClassIdForMembers = id; document.getElementById('member-modal-title').innerText = `管理「${name}」成員`; openModal('member-modal'); searchStudentsForClass(); }
+        async function saveClass() { 
+            /* 儲存邏輯：將 name, start_date, end_date 存入 Supabase */
+            closeModal('class-modal'); fetchClasses(); 
+        }
+
         window.onload = init;
     </script>
 </body>

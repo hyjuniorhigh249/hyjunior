@@ -21,42 +21,31 @@
         <div id="classes-container" class="space-y-6"></div>
     </div>
 
-    <div id="class-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
-        <div class="bg-white rounded-[24px] p-6 w-full max-w-md shadow-2xl">
-            <h3 id="modal-title" class="text-lg font-black mb-5">設定班級資訊</h3>
-            <input type="hidden" id="m-class-id">
-            <div class="space-y-3">
-                <input type="text" id="m-class-name" placeholder="班級名稱*" class="w-full p-3 border rounded-xl font-bold">
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="date" id="m-class-start" class="p-2 border rounded-lg text-xs" placeholder="開課日">
-                    <input type="date" id="m-class-end" class="p-2 border rounded-lg text-xs" placeholder="結業日">
-                </div>
-                <textarea id="m-class-note" placeholder="備註..." class="w-full p-3 border rounded-xl h-20"></textarea>
-            </div>
-            <div class="flex gap-2 mt-6">
-                <button onclick="closeModal('class-modal')" class="flex-1 py-2 font-bold text-slate-400">取消</button>
-                <button onclick="saveClass()" class="flex-1 py-2 bg-slate-800 text-white rounded-xl font-black">儲存</button>
-            </div>
-        </div>
-    </div>
-
     <div id="student-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
-        <div class="bg-white rounded-[24px] p-6 w-full max-w-sm shadow-2xl">
+        <div class="bg-white rounded-[24px] p-6 w-full max-w-sm shadow-2xl flex flex-col max-h-[90vh]">
             <h3 class="text-lg font-black mb-4">加入學生至班級</h3>
+            
+            <div class="space-y-2 mb-4">
+                <input type="text" id="stu-search" oninput="filterStudents()" placeholder="搜尋姓名..." class="w-full p-2 border rounded-lg text-sm font-bold">
+                <select id="stu-grade-filter" onchange="filterStudents()" class="w-full p-2 border rounded-lg text-sm font-bold">
+                    <option value="">所有年級</option>
+                    <option value="7">七年級</option><option value="8">八年級</option><option value="9">九年級</option>
+                </select>
+            </div>
+
             <input type="hidden" id="stu-parent-id">
-            <div id="student-list-container" class="max-h-60 overflow-y-auto space-y-2"></div>
+            <div id="student-list-container" class="flex-1 overflow-y-auto space-y-1"></div>
             <button onclick="closeModal('student-modal')" class="w-full py-2 mt-4 bg-slate-100 rounded-xl font-bold">關閉</button>
         </div>
     </div>
 
     <script>
         const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
-        let allClassData = [];
-        let allStudents = [];
+        let allClassData = [], allStudents = [];
 
         async function init() {
             const { data: classes } = await supabaseClient.from('classes').select('*').order('created_at', { ascending: false });
-            const { data: students } = await supabaseClient.from('students').select('name');
+            const { data: students } = await supabaseClient.from('students').select('name, grade');
             allClassData = classes || [];
             allStudents = students || [];
             render();
@@ -66,25 +55,15 @@
             const container = document.getElementById('classes-container');
             container.innerHTML = allClassData.map(cls => `
                 <div class="bg-white p-6 rounded-2xl border shadow-sm">
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <h4 class="font-black text-lg">${cls.name}</h4>
-                            <p class="text-[10px] text-slate-400 font-bold">期間: ${cls.start_date || '未定'} ~ ${cls.end_date || '未定'}</p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="openClassModal('${cls.id}')" class="text-[10px] bg-slate-100 px-3 py-1 rounded font-black">編輯班級</button>
-                            <button onclick="deleteClass('${cls.id}')" class="text-[10px] bg-rose-50 text-rose-500 px-3 py-1 rounded font-black">刪除</button>
-                        </div>
-                    </div>
+                    <h4 class="font-black text-lg mb-4">${cls.name}</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         ${(cls.sub_classes || []).map((sub, idx) => `
                             <div class="bg-slate-50 p-4 rounded-xl border">
                                 <div class="flex justify-between items-center mb-2">
                                     <p class="font-black text-sm">${sub.name}</p>
-                                    <button onclick="openStudentModal('${cls.id}')" class="text-[9px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-black">＋ 加入學生</button>
+                                    <button onclick="openStudentModal('${cls.id}')" class="text-[9px] bg-blue-600 text-white px-2 py-1 rounded font-black">＋ 加入</button>
                                 </div>
-                                <p class="text-[10px] text-slate-500 font-bold mb-2">${sub.teacher} | ${sub.start}-${sub.end}</p>
-                                <div class="flex flex-wrap gap-1">
+                                <div class="flex flex-wrap gap-1 mt-2">
                                     ${(cls.members || []).map(m => `<span class="bg-white px-2 py-0.5 rounded border text-[10px] font-bold">${m}</span>`).join('')}
                                 </div>
                             </div>
@@ -94,45 +73,42 @@
             `).join('');
         }
 
-        async function openStudentModal(clsId) {
-            document.getElementById('stu-parent-id').value = clsId;
+        function filterStudents() {
+            const keyword = document.getElementById('stu-search').value.toLowerCase();
+            const grade = document.getElementById('stu-grade-filter').value;
             const container = document.getElementById('student-list-container');
-            container.innerHTML = allStudents.map(s => `
-                <div class="flex justify-between items-center p-2 hover:bg-slate-50 cursor-pointer" onclick="addStudent('${clsId}', '${s.name}')">
-                    <span class="font-bold text-sm">${s.name}</span>
+            
+            const filtered = allStudents.filter(s => {
+                const matchName = s.name.toLowerCase().includes(keyword);
+                const matchGrade = grade === "" || String(s.grade) === grade;
+                return matchName && matchGrade;
+            });
+
+            container.innerHTML = filtered.map(s => `
+                <div class="flex justify-between items-center p-2 hover:bg-slate-50 cursor-pointer border-b" onclick="addStudent('${document.getElementById('stu-parent-id').value}', '${s.name}')">
+                    <span class="font-bold text-sm">${s.name} <span class="text-[9px] text-slate-400">(${s.grade || '?'}年級)</span></span>
                     <span class="text-[10px] text-blue-500 font-bold">加入</span>
                 </div>
             `).join('');
+        }
+
+        async function openStudentModal(clsId) {
+            document.getElementById('stu-parent-id').value = clsId;
+            document.getElementById('stu-search').value = '';
+            document.getElementById('stu-grade-filter').value = '';
+            filterStudents();
             document.getElementById('student-modal').classList.add('active');
         }
 
         async function addStudent(clsId, stuName) {
             const cls = allClassData.find(c => c.id === clsId);
-            const currentMembers = cls.members || [];
-            if(currentMembers.includes(stuName)) return alert("學生已在班級中");
-            await supabaseClient.from('classes').update({ members: [...currentMembers, stuName] }).eq('id', clsId);
+            if((cls.members || []).includes(stuName)) return alert("學生已存在");
+            await supabaseClient.from('classes').update({ members: [...(cls.members || []), stuName] }).eq('id', clsId);
             alert("加入成功");
-            init(); // 刷新
-        }
-
-        // --- 班級與 Modal 基礎邏輯 ---
-        function openClassModal(id = null) {
-            const cls = allClassData.find(c => c.id === id);
-            document.getElementById('m-class-id').value = id || "";
-            document.getElementById('m-class-name').value = cls ? cls.name : "";
-            document.getElementById('class-modal').classList.add('active');
-        }
-
-        async function saveClass() {
-            const id = document.getElementById('m-class-id').value;
-            const payload = { name: document.getElementById('m-class-name').value, start_date: document.getElementById('m-class-start').value, end_date: document.getElementById('m-class-end').value, note: document.getElementById('m-class-note').value };
-            if(id) await supabaseClient.from('classes').update(payload).eq('id', id);
-            else await supabaseClient.from('classes').insert([payload]);
-            closeModal('class-modal'); init();
+            init();
         }
 
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-        async function deleteClass(id) { if(confirm("確定刪除？")) { await supabaseClient.from('classes').delete().eq('id', id); init(); } }
         window.onload = init;
     </script>
 </body>

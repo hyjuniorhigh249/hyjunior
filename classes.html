@@ -29,7 +29,11 @@
                 <input type="text" id="stu-search" oninput="filterStudents()" placeholder="搜尋姓名..." class="w-full p-2 border rounded-lg text-sm font-bold">
                 <select id="stu-grade-filter" onchange="filterStudents()" class="w-full p-2 border rounded-lg text-sm font-bold">
                     <option value="">所有年級</option>
-                    <option value="7">七年級</option><option value="8">八年級</option><option value="9">九年級</option>
+                    <script>
+                        // 動態產生小一到高三的選單
+                        const grades = ["小一", "小二", "小三", "小四", "小五", "小六", "七年級", "八年級", "九年級", "高一", "高二", "高三"];
+                        grades.forEach((g, i) => document.write(`<option value="${i+1}">${g}</option>`));
+                    </script>
                 </select>
             </div>
 
@@ -45,10 +49,17 @@
 
         async function init() {
             const { data: classes } = await supabaseClient.from('classes').select('*').order('created_at', { ascending: false });
-            const { data: students } = await supabaseClient.from('students').select('name, grade_base_year');
+            // 確保撈取 grade_base_year 與 initial_grade
+            const { data: students } = await supabaseClient.from('students').select('name, grade_base_year, initial_grade');
             allClassData = classes || [];
             allStudents = students || [];
             render();
+        }
+
+        function getStudentGrade(s) {
+            const currentYear = new Date().getFullYear();
+            const initialGrade = s.initial_grade || 1; 
+            return (currentYear - s.grade_base_year) + initialGrade;
         }
 
         function render() {
@@ -63,8 +74,7 @@
                                     <p class="font-black text-sm">${sub.name}</p>
                                     <button onclick="openStudentModal('${cls.id}')" class="text-[9px] bg-blue-600 text-white px-2 py-1 rounded font-black">＋ 加入</button>
                                 </div>
-                                <p class="text-[10px] text-slate-500 font-bold mb-2">${sub.teacher} | ${sub.start}-${sub.end}</p>
-                                <div class="flex flex-wrap gap-1">
+                                <div class="flex flex-wrap gap-1 mt-2">
                                     ${(cls.members || []).map(m => `<span class="bg-white px-2 py-0.5 rounded border text-[10px] font-bold">${m}</span>`).join('')}
                                 </div>
                             </div>
@@ -78,20 +88,19 @@
             const keyword = document.getElementById('stu-search').value.toLowerCase();
             const filterGrade = document.getElementById('stu-grade-filter').value;
             const container = document.getElementById('student-list-container');
-            const currentYear = new Date().getFullYear();
             
             const filtered = allStudents.filter(s => {
-                const studentGrade = currentYear - s.grade_base_year + 7;
+                const studentGrade = getStudentGrade(s);
                 const matchName = s.name.toLowerCase().includes(keyword);
                 const matchGrade = filterGrade === "" || String(studentGrade) === filterGrade;
                 return matchName && matchGrade;
             });
 
             container.innerHTML = filtered.map(s => {
-                const studentGrade = currentYear - s.grade_base_year + 7;
+                const studentGrade = getStudentGrade(s);
                 return `
                 <div class="flex justify-between items-center p-2 hover:bg-slate-50 cursor-pointer border-b" onclick="addStudent('${document.getElementById('stu-parent-id').value}', '${s.name}')">
-                    <span class="font-bold text-sm">${s.name} <span class="text-[9px] text-slate-400">(${studentGrade}年級)</span></span>
+                    <span class="font-bold text-sm">${s.name} <span class="text-[9px] text-slate-400">(第${studentGrade}年級)</span></span>
                     <span class="text-[10px] text-blue-500 font-bold">加入</span>
                 </div>`;
             }).join('');

@@ -50,14 +50,14 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="stat-card">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">國中部總人數</p>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">總學生人數</p>
                 <h2 id="count-students" class="text-3xl font-black text-slate-800">--</h2>
                 <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
                     <div class="bg-emerald-500 h-full w-[85%]"></div>
                 </div>
             </div>
             <div class="stat-card">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">全部班級數</p>
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">全部進行中班級</p>
                 <h2 id="count-all-classes" class="text-3xl font-black text-slate-800">--</h2>
                 <div class="mt-4 h-1 bg-slate-100 rounded-full overflow-hidden">
                     <div class="bg-blue-500 h-full w-[60%]"></div>
@@ -104,7 +104,6 @@
 
     <script>
         const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
-        // 修正後的 API Key，確保與其他功能頁面一致
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -114,6 +113,10 @@
             const now = new Date();
             const currentDay = now.getDay();
             
+            // 產生今日午夜的 Date 物件，用來精準比對修業日期
+            const todayCompare = new Date();
+            todayCompare.setHours(0, 0, 0, 0);
+            
             document.getElementById('display-date').innerText = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
             document.getElementById('display-day').innerText = DAYS_CH[currentDay];
 
@@ -121,7 +124,7 @@
                 // 1. 學生總數
                 const { count: studentCount } = await supabaseClient.from('students').select('*', { count: 'exact', head: true });
                 
-                // 2. 全部班級數
+                // 2. 全部進行中班級數 (未被封存的)
                 const { count: allClassCount } = await supabaseClient.from('classes').select('*', { count: 'exact', head: true }).eq('is_archived', false);
 
                 // 3. 本月新學生
@@ -129,12 +132,31 @@
                 const { count: newThisMonth } = await supabaseClient.from('students').select('*', { count: 'exact', head: true }).gte('created_at', firstDayOfMonth);
 
                 // 4. 今日課程內容
-                const { data: todayClasses } = await supabaseClient
+                // 先撈出符合星期幾、且沒有被手動封存的班級
+                const { data: rawTodayClasses } = await supabaseClient
                     .from('classes')
                     .select('*')
                     .eq('schedule_day', currentDay)
                     .eq('is_archived', false)
                     .order('schedule_start', { ascending: true });
+
+                // 🌟 新增邏輯：透過 JS 再過濾一次「開課日」與「結業日」
+                const todayClasses = (rawTodayClasses || []).filter(cls => {
+                    // 如果有設定開課日，且今天還沒到開課日 -> 不顯示
+                    if (cls.start_date) {
+                        const startDate = new Date(cls.start_date);
+                        startDate.setHours(0, 0, 0, 0);
+                        if (todayCompare < startDate) return false; 
+                    }
+                    // 如果有設定結業日，且今天已經超過結業日 -> 不顯示
+                    if (cls.end_date) {
+                        const endDate = new Date(cls.end_date);
+                        endDate.setHours(0, 0, 0, 0);
+                        if (todayCompare > endDate) return false;
+                    }
+                    // 如果都在期間內，或根本沒設定日期 -> 顯示
+                    return true; 
+                });
 
                 // 5. 最近異動紀錄 (最近 8 筆)
                 const { data: recentStudents } = await supabaseClient
@@ -152,7 +174,16 @@
                 // 渲染課程行程
                 const classBox = document.getElementById('today-classes-list');
                 if (todayClasses && todayClasses.length > 0) {
-                    classBox.innerHTML = todayClasses.map(cls => `
+                    classBox.innerHTML = todayClasses.map(cls => {
+                        // 準備日期顯示標籤
+                        let dateBadge = '';
+                        if (cls.start_date || cls.end_date) {
+                            const start = cls.start_date ? cls.start_date.substring(5).replace('-','/') : '未定';
+                            const end = cls.end_date ? cls.end_date.substring(5).replace('-','/') : '未定';
+                            dateBadge = `<span class="ml-2 text-[10px] font-bold text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded">期間: ${start}~${end}</span>`;
+                        }
+
+                        return `
                         <div class="course-card p-5">
                             <div class="flex justify-between items-start mb-3">
                                 <div>
@@ -162,7 +193,9 @@
                                         </span>
                                         <span class="text-slate-500 text-xs font-bold">${cls.teacher || '未排師資'} </span>
                                     </div>
-                                    <h4 class="text-xl font-black text-slate-800">${cls.name}</h4>
+                                    <h4 class="text-xl font-black text-slate-800 flex items-center">
+                                        ${cls.name} ${dateBadge}
+                                    </h4>
                                 </div>
                                 <div class="text-right">
                                     <p class="text-[10px] font-black text-slate-300 uppercase">學生人數</p>
@@ -175,7 +208,7 @@
                                     : '<p class="text-slate-300 italic text-xs">暫無學生成員</p>'}
                             </div>
                         </div>
-                    `).join('');
+                    `}).join('');
                 } else {
                     classBox.innerHTML = `<div class="bg-slate-50 rounded-3xl p-12 text-center border-2 border-dashed border-slate-200"><p class="text-slate-400 font-bold">☕ 今日無安排課程</p></div>`;
                 }

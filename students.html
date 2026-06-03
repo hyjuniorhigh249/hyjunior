@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學生總檔 - 浩元行政系統</title>
+    <title>學生總檔 - 昊學行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="pip-tool.js"></script>
@@ -23,59 +23,53 @@
 
     <main class="flex flex-col h-screen">
         <div class="bg-white border-b border-slate-200 p-2 px-6 flex items-center justify-between shadow-sm z-20">
-            <div class="relative flex-1 max-w-2xl">
-                <span class="absolute left-3 top-2 text-slate-400">🔍</span>
-                <input type="text" id="global-search" oninput="fetchData()" placeholder="搜尋姓名、電話、學校..." class="w-full pl-10 pr-4 py-1.5 border border-slate-200 rounded-full bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all font-bold">
+            <div class="relative flex-1 max-w-2xl flex gap-2 items-center">
+                <div class="relative flex-1">
+                    <span class="absolute left-3 top-2 text-slate-400">🔍</span>
+                    <input type="text" id="global-search" oninput="fetchData()" placeholder="搜尋姓名、電話、學校..." class="w-full pl-10 pr-4 py-1.5 border border-slate-200 rounded-full bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-800 outline-none transition-all font-bold">
+                </div>
+                <button onclick="openColSettings()" class="shrink-0 bg-slate-100 text-slate-600 px-4 py-1.5 rounded-full font-bold hover:bg-slate-200 transition text-xs flex items-center gap-1.5 border border-slate-200">
+                    ⚙️ 自訂欄位
+                </button>
             </div>
-            <div id="status-indicator" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100">
+            <div id="status-indicator" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 ml-4">
                 <div id="status-dot" class="w-2 h-2 bg-emerald-500 rounded-full"></div>
                 <span id="status-text" class="text-[11px] font-black text-emerald-600">連線正常</span>
             </div>
         </div>
 
         <div class="flex-1 overflow-y-auto p-4 space-y-4">
-            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 max-w-7xl mx-auto">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 max-w-[95%] mx-auto">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="font-black text-slate-700 text-xs text-center">快速錄入新學生</h3>
                     <button onclick="handleAddStudent()" class="bg-slate-800 text-white px-8 py-1.5 rounded-xl font-black hover:bg-slate-700 active:scale-95 transition">確認入庫</button>
                 </div>
-                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 mb-2">
-    <input type="text" id="f-name" class="form-input" placeholder="姓名*">
-   <select id="f-grade" class="form-input text-slate-500">
-        <option value="">年級</option>
-        <option value="1">小一 (1)</option><option value="2">小二 (2)</option><option value="3">小三 (3)</option>
-        <option value="4">小四 (4)</option><option value="5">小五 (5)</option><option value="6">小六 (6)</option>
-        <option value="7">國一 (7)</option><option value="8">國二 (8)</option><option value="9">國三 (9)</option>
-        <option value="10">高一 (10)</option><option value="11">高二 (11)</option><option value="12">高三 (12)</option>
-    </select>
-    <input type="text" id="f-line" class="form-input" placeholder="線別">
-    <input type="text" id="f-prospect" class="form-input" placeholder="展望課程">
-    <input type="text" id="f-telO" class="form-input text-emerald-600" placeholder="本人電話">
-    <input type="text" id="f-telP" class="form-input" placeholder="爸爸電話">
-    <input type="text" id="f-telM" class="form-input" placeholder="媽媽電話">
-    <input type="text" id="f-school" class="form-input" placeholder="學校">
-</div>
-<div class="grid grid-cols-1">
-    <input type="text" id="f-note" class="form-input font-normal italic" placeholder="備註...">
-</div>
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-2 mb-2">
+                    <input type="text" id="f-name" class="form-input" placeholder="姓名*">
+                    <select id="f-grade" class="form-input text-slate-500 p-0 px-2">
+                        <option value="">年級</option>
+                        <option value="1">小一 (1)</option><option value="2">小二 (2)</option><option value="3">小三 (3)</option>
+                        <option value="4">小四 (4)</option><option value="5">小五 (5)</option><option value="6">小六 (6)</option>
+                        <option value="7">國一 (7)</option><option value="8">國二 (8)</option><option value="9">國三 (9)</option>
+                        <option value="10">高一 (10)</option><option value="11">高二 (11)</option><option value="12">高三 (12)</option>
+                    </select>
+                    <input type="text" id="f-source" class="form-input" placeholder="來源">
+                    <input type="text" id="f-line" class="form-input" placeholder="線別">
+                    <input type="text" id="f-prospect" class="form-input" placeholder="展望課程">
+                    <input type="text" id="f-telO" class="form-input text-emerald-600" placeholder="本人電話">
+                    <input type="text" id="f-telP" class="form-input" placeholder="爸爸電話">
+                    <input type="text" id="f-telM" class="form-input" placeholder="媽媽電話">
+                    <input type="text" id="f-school" class="form-input" placeholder="學校">
+                </div>
+                <div class="grid grid-cols-1">
+                    <input type="text" id="f-note" class="form-input font-normal italic" placeholder="備註...">
+                </div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden max-w-7xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden max-w-[95%] mx-auto">
                 <div class="overflow-x-auto min-h-[400px]">
-                    <table class="stu-table w-full text-left border-collapse">
-                        <thead class="text-[10px] font-black text-slate-400 uppercase bg-slate-50">
-    <tr>
-        <th class="w-16">姓名</th>
-        <th class="w-12 text-blue-600">年級</th>
-        <th class="w-16">線別</th>
-        <th class="w-24">展望課程</th>
-        <th class="w-24 text-emerald-600">本人電話</th>
-        <th class="w-28">所屬班級</th>
-        <th class="w-20">就讀學校</th>
-        <th class="w-12 text-center">加班</th>
-        <th class="w-12 text-center">刪除</th>
-    </tr>
-</thead>
+                    <table class="stu-table w-full text-left border-collapse whitespace-nowrap">
+                        <thead id="stu-table-head" class="text-[10px] font-black text-slate-400 uppercase bg-slate-50"></thead>
                         <tbody id="stu-table-body" class="text-slate-600"></tbody>
                     </table>
                 </div>
@@ -84,48 +78,60 @@
     </main>
 
     <div id="detail-modal" class="modal fixed inset-0 z-[60] items-center justify-center p-4">
-        <div class="bg-white rounded-[32px] p-8 w-full max-w-2xl shadow-2xl relative">
-            <div class="flex justify-between items-center mb-6 border-b pb-4">
+        <div class="bg-white rounded-[32px] p-8 w-full max-w-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6 border-b pb-4 sticky top-0 bg-white z-10">
                 <h3 class="text-2xl font-black text-slate-800">修改學生資訊</h3>
                 <button onclick="closeModal('detail-modal')" class="text-slate-300 hover:text-slate-800 text-2xl transition">✕</button>
             </div>
             <input type="hidden" id="edit-id">
-           <div class="grid grid-cols-2 gap-x-8 gap-y-4">
-    <div class="space-y-4">
-        <div><label class="detail-label block">學生姓名*</label><input type="text" id="edit-name" class="form-input"></div>
-        <div>
-            <label class="detail-label block">目前年級 (7/1自動+1)</label>
-            <select id="edit-grade" class="form-input">
-                <option value="">未設定</option>
-                <option value="1">小一 (1)</option><option value="2">小二 (2)</option><option value="3">小三 (3)</option>
-                <option value="4">小四 (4)</option><option value="5">小五 (5)</option><option value="6">小六 (6)</option>
-                <option value="7">國一 (7)</option><option value="8">國二 (8)</option><option value="9">國三 (9)</option>
-                <option value="10">高一 (10)</option><option value="11">高二 (11)</option><option value="12">高三 (12)</option>
-            </select>
-        </div>
-        <div><label class="detail-label block">線別</label><input type="text" id="edit-line" class="form-input"></div>
-        <div><label class="detail-label block">展望課程</label><input type="text" id="edit-prospect" class="form-input"></div>
-        <div><label class="detail-label block">本人手機</label><input type="text" id="edit-telO" class="form-input text-emerald-600"></div>
-        <div><label class="detail-label block">就讀學校</label><input type="text" id="edit-school" class="form-input"></div>
-    </div>
-    <div class="space-y-4">
-        <div><label class="detail-label block">爸爸電話</label><input type="text" id="edit-telP" class="form-input"></div>
-        <div><label class="detail-label block">媽媽電話</label><input type="text" id="edit-telM" class="form-input"></div>
-        <div><label class="detail-label block">通訊地址 (輔助)</label><input type="text" id="edit-addr" class="form-input"></div>
-        <div class="h-full">
-            <label class="detail-label block">電訪紀錄</label>
-            <textarea id="edit-call-record" class="form-input h-32 font-normal"></textarea>
-        </div>
-    </div>
-    <div class="col-span-2 mt-2">
-        <label class="detail-label block">備註資訊</label>
-        <textarea id="edit-note" class="form-input h-16 font-normal italic"></textarea>
-    </div>
-</div>
+            <div class="grid grid-cols-2 gap-x-8 gap-y-4">
+                <div class="space-y-4">
+                    <div><label class="detail-label block">學生姓名*</label><input type="text" id="edit-name" class="form-input"></div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="detail-label block">目前年級</label>
+                            <select id="edit-grade" class="form-input">
+                                <option value="">未設定</option>
+                                <option value="1">小一</option><option value="2">小二</option><option value="3">小三</option>
+                                <option value="4">小四</option><option value="5">小五</option><option value="6">小六</option>
+                                <option value="7">國一</option><option value="8">國二</option><option value="9">國三</option>
+                                <option value="10">高一</option><option value="11">高二</option><option value="12">高三</option>
+                            </select>
+                        </div>
+                        <div><label class="detail-label block">來源</label><input type="text" id="edit-source" class="form-input"></div>
+                    </div>
+                    <div><label class="detail-label block">線別</label><input type="text" id="edit-line" class="form-input"></div>
+                    <div><label class="detail-label block">展望課程</label><input type="text" id="edit-prospect" class="form-input"></div>
+                    <div><label class="detail-label block">本人手機</label><input type="text" id="edit-telO" class="form-input text-emerald-600"></div>
+                    <div><label class="detail-label block">就讀學校</label><input type="text" id="edit-school" class="form-input"></div>
+                </div>
+                <div class="space-y-4">
+                    <div><label class="detail-label block">爸爸電話</label><input type="text" id="edit-telP" class="form-input"></div>
+                    <div><label class="detail-label block">媽媽電話</label><input type="text" id="edit-telM" class="form-input"></div>
+                    <div><label class="detail-label block">通訊地址 (輔助)</label><input type="text" id="edit-addr" class="form-input"></div>
+                    <div class="h-full">
+                        <label class="detail-label block">電訪紀錄</label>
+                        <textarea id="edit-call-record" class="form-input h-32 font-normal"></textarea>
+                    </div>
+                </div>
+                <div class="col-span-2 mt-2">
+                    <label class="detail-label block">備註資訊</label>
+                    <textarea id="edit-note" class="form-input h-16 font-normal italic"></textarea>
+                </div>
+            </div>
             <div class="mt-8 flex gap-3">
                 <button onclick="closeModal('detail-modal')" class="flex-1 py-3 bg-slate-50 text-slate-500 rounded-xl font-black">取消</button>
                 <button id="save-edit-btn" onclick="saveStudentEdit()" class="flex-1 py-3 bg-slate-800 text-white rounded-xl font-black shadow-lg hover:bg-slate-700 transition">儲存所有修改</button>
             </div>
+        </div>
+    </div>
+
+    <div id="col-modal" class="modal fixed inset-0 z-[80] items-center justify-center p-4">
+        <div class="bg-white rounded-[24px] p-6 w-full max-w-sm shadow-2xl">
+            <h3 class="text-lg font-black mb-1">自訂顯示欄位</h3>
+            <p class="text-xs text-slate-400 font-bold mb-4 border-b pb-3">勾選您希望在主要列表中顯示的資訊</p>
+            <div id="col-toggles" class="space-y-2 mb-6 max-h-[50vh] overflow-y-auto pr-1"></div>
+            <button onclick="saveColSettings()" class="w-full py-3 bg-slate-800 text-white rounded-xl font-black hover:bg-slate-700 transition">套用並更新表格</button>
         </div>
     </div>
 
@@ -145,7 +151,28 @@
 
     let students = [], classes = [], selectedName = "";
 
-    // --- 新增：年級自動計算邏輯 ---
+    // 欄位定義設定檔
+    const COL_DEF = [
+        { key: 'grade', label: '年級', thClass: 'w-12 text-blue-600', tdClass: 'font-bold text-blue-600', val: s => calculateDisplayGrade(s.grade_base_year) },
+        { key: 'source', label: '來源', thClass: 'w-16', tdClass: 'text-slate-600 text-xs', val: s => s.source || '-' },
+        { key: 'line_type', label: '線別', thClass: 'w-16', tdClass: 'text-slate-600 text-xs', val: s => s.line_type || '-' },
+        { key: 'prospect', label: '展望課程', thClass: 'w-24', tdClass: 'text-slate-600 text-xs', val: s => s.prospect_course || '-' },
+        { key: 'tel_o', label: '本人電話', thClass: 'w-24 text-emerald-600', tdClass: 'font-bold text-emerald-600', val: s => s.tel_o || '-' },
+        { key: 'tel_p', label: '爸爸電話', thClass: 'w-24', tdClass: 'text-slate-400 text-xs', val: s => s.tel_p || '-' },
+        { key: 'tel_m', label: '媽媽電話', thClass: 'w-24', tdClass: 'text-slate-400 text-xs', val: s => s.tel_m || '-' },
+        { key: 'classes', label: '所屬班級', thClass: 'w-36', tdClass: '', val: s => {
+            const myCls = classes.filter(c => c.members && c.members.includes(s.name));
+            return `<div class="flex flex-wrap gap-1 whitespace-normal">${myCls.map(c => `<span class="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded font-bold">${c.name}</span>`).join('') || '<span class="text-slate-300 text-xs">未入班</span>'}</div>`;
+        }},
+        { key: 'school', label: '就讀學校', thClass: 'w-24', tdClass: 'text-slate-500 font-bold truncate max-w-[120px]', val: s => s.school || '-' }
+    ];
+
+    // 讀取瀏覽器記憶的欄位設定，預設全開
+    let colSettings = JSON.parse(localStorage.getItem('hy_stu_cols')) || { 
+        grade: true, source: true, line_type: true, prospect: true, 
+        tel_o: true, tel_p: false, tel_m: false, classes: true, school: true 
+    };
+
     function getAcademicYear() {
         const d = new Date();
         return (d.getMonth() + 1) >= 7 ? d.getFullYear() : d.getFullYear() - 1;
@@ -181,27 +208,57 @@
     }
 
     function renderTable(keyword) {
+        // 1. 動態產生表頭 <thead>
+        let theadHTML = `<tr><th class="w-16">姓名</th>`;
+        COL_DEF.forEach(c => {
+            if(colSettings[c.key]) theadHTML += `<th class="${c.thClass}">${c.label}</th>`;
+        });
+        theadHTML += `<th class="w-10 text-center">分班</th><th class="w-10 text-center">刪除</th></tr>`;
+        document.getElementById('stu-table-head').innerHTML = theadHTML;
+
+        // 2. 動態過濾並產生內容 <tbody>
         const body = document.getElementById('stu-table-body');
         const filtered = students.filter(s => {
             const myClsNames = classes.filter(c => c.members && c.members.includes(s.name)).map(c => c.name).join(' ');
-            return `${s.name} ${s.tel_o} ${s.school} ${myClsNames} ${s.line_type || ''} ${s.prospect_course || ''}`.toLowerCase().includes(keyword);
+            return `${s.name} ${s.tel_o} ${s.school} ${myClsNames} ${s.line_type || ''} ${s.prospect_course || ''} ${s.source || ''}`.toLowerCase().includes(keyword);
         });
+
         body.innerHTML = filtered.map(s => {
-            const myCls = classes.filter(c => c.members && c.members.includes(s.name));
-            const displayGrade = calculateDisplayGrade(s.grade_base_year);
-            return `
-            <tr class="stu-row" onclick="openEditModal('${s.id}')">
-                <td class="font-black text-slate-800">${s.name}</td>
-                <td class="font-bold text-blue-600">${displayGrade}</td>
-                <td class="text-slate-600 text-xs">${s.line_type || '-'}</td>
-                <td class="text-slate-600 text-xs">${s.prospect_course || '-'}</td>
-                <td class="font-bold text-emerald-600">${s.tel_o || '-'}</td>
-                <td><div class="flex flex-wrap gap-1">${myCls.map(c => `<span class="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded font-bold">${c.name}</span>`).join('') || '<span class="text-slate-300">未入班</span>'}</div></td>
-                <td class="text-slate-500 font-bold truncate max-w-[100px]">${s.school || '-'}</td>
-                <td class="text-center" onclick="event.stopPropagation()"><button onclick="openQuickClass('${s.name}')" class="text-base hover:scale-110">➕</button></td>
-                <td class="text-center" onclick="event.stopPropagation()"><button onclick="deleteStu('${s.id}')" class="text-slate-300 hover:text-rose-500 transition">✕</button></td>
-            </tr>`;
+            let tr = `<tr class="stu-row" onclick="openEditModal('${s.id}')">`;
+            tr += `<td class="font-black text-slate-800">${s.name}</td>`;
+            
+            COL_DEF.forEach(c => {
+                if(colSettings[c.key]) {
+                    tr += `<td class="${c.tdClass}">${c.val(s)}</td>`;
+                }
+            });
+            
+            tr += `<td class="text-center" onclick="event.stopPropagation()"><button onclick="openQuickClass('${s.name}')" class="text-base hover:scale-110">➕</button></td>`;
+            tr += `<td class="text-center" onclick="event.stopPropagation()"><button onclick="deleteStu('${s.id}')" class="text-slate-300 hover:text-rose-500 transition">✕</button></td>`;
+            tr += `</tr>`;
+            return tr;
         }).join('');
+    }
+
+    // --- 欄位設定功能 ---
+    function openColSettings() {
+        const container = document.getElementById('col-toggles');
+        container.innerHTML = COL_DEF.map(c => `
+            <label class="flex items-center justify-between p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100 transition border border-transparent hover:border-slate-200">
+                <span class="font-bold text-slate-700">${c.label}</span>
+                <input type="checkbox" id="toggle-${c.key}" ${colSettings[c.key] ? 'checked' : ''} class="w-4 h-4 accent-slate-800 cursor-pointer">
+            </label>
+        `).join('');
+        document.getElementById('col-modal').classList.add('active');
+    }
+
+    function saveColSettings() {
+        COL_DEF.forEach(c => {
+            colSettings[c.key] = document.getElementById(`toggle-${c.key}`).checked;
+        });
+        localStorage.setItem('hy_stu_cols', JSON.stringify(colSettings));
+        closeModal('col-modal');
+        fetchData(); // 重新繪製表格
     }
 
     function openEditModal(id) {
@@ -212,6 +269,8 @@
         
         const currentGrade = calculateDisplayGrade(s.grade_base_year);
         document.getElementById('edit-grade').value = (currentGrade !== '-' && currentGrade !== '已畢業') ? currentGrade : '';
+        
+        document.getElementById('edit-source').value = s.source || '';
         document.getElementById('edit-line').value = s.line_type || '';
         document.getElementById('edit-prospect').value = s.prospect_course || '';
         document.getElementById('edit-telO').value = s.tel_o || '';
@@ -232,6 +291,7 @@
         const updates = {
             name: document.getElementById('edit-name').value.trim(),
             grade_base_year: calculateBaseYear(document.getElementById('edit-grade').value),
+            source: document.getElementById('edit-source').value.trim(),
             line_type: document.getElementById('edit-line').value.trim(),
             prospect_course: document.getElementById('edit-prospect').value.trim(),
             tel_o: document.getElementById('edit-telO').value.trim(),
@@ -255,6 +315,7 @@
         const { error } = await supabaseClient.from('students').insert([{
             name, 
             grade_base_year: calculateBaseYear(document.getElementById('f-grade').value),
+            source: document.getElementById('f-source').value.trim(),
             line_type: document.getElementById('f-line').value.trim(),
             prospect_course: document.getElementById('f-prospect').value.trim(),
             tel_o: document.getElementById('f-telO').value,
@@ -264,7 +325,7 @@
             note: document.getElementById('f-note').value
         }]);
         if (!error) { 
-            ['f-name','f-grade','f-line','f-prospect','f-telO','f-telP','f-telM','f-school','f-note'].forEach(id => document.getElementById(id).value = '');
+            ['f-name','f-grade','f-source','f-line','f-prospect','f-telO','f-telP','f-telM','f-school','f-note'].forEach(id => document.getElementById(id).value = '');
             fetchData(); 
         }
     }

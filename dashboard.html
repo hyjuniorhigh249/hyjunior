@@ -26,13 +26,25 @@
 
         async function loadDashboard() {
             const now = new Date();
-            const currentDay = now.getDay().toString(); // 對應資料庫的 day 欄位 (0-6)
+            // 設定 today 為今日午夜，方便比較日期
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const currentDay = now.getDay().toString();
             
             const { data: classes } = await supabaseClient.from('classes').select('*');
             const list = document.getElementById('today-classes-list');
             
             let todaysEvents = [];
+            
             (classes || []).forEach(cls => {
+                // 1. 檢查日期區間 (開課日與結業日)
+                const startDate = cls.start_date ? new Date(cls.start_date) : null;
+                const endDate = cls.end_date ? new Date(cls.end_date) : null;
+                
+                // 如果今天小於開課日，或是大於結業日，則該班級的所有子班別都不顯示
+                if (startDate && today < startDate) return;
+                if (endDate && today > endDate) return;
+
+                // 2. 檢查子班別
                 if (cls.sub_classes) {
                     cls.sub_classes.forEach(sub => {
                         if (sub.day === currentDay) {
@@ -57,7 +69,7 @@
                         </div>
                     </div>
                 `).join('')
-                : '<div class="text-center py-10 bg-white rounded-xl border border-dashed text-slate-400">今日無安排子班別課程</div>';
+                : '<div class="text-center py-10 bg-white rounded-xl border border-dashed text-slate-400">今日無安排進行中的子班別課程</div>';
         }
         loadDashboard();
     </script>

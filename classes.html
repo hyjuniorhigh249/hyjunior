@@ -23,18 +23,8 @@
 
     <div id="student-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-[24px] p-6 w-full max-w-sm shadow-2xl flex flex-col max-h-[90vh]">
-            <h3 class="text-lg font-black mb-4">加入學生至班級</h3>
-            <div class="space-y-2 mb-4">
-                <input type="text" id="stu-search" oninput="filterStudents()" placeholder="搜尋姓名..." class="w-full p-2 border rounded-lg text-sm font-bold">
-                <select id="stu-grade-filter" onchange="filterStudents()" class="w-full p-2 border rounded-lg text-sm font-bold">
-                    <option value="">所有年級</option>
-                    <script>
-                        const grades = ["小一", "小二", "小三", "小四", "小五", "小六", "七年級", "八年級", "九年級", "高一", "高二", "高三"];
-                        grades.forEach((g, i) => document.write(`<option value="${i+1}">${g}</option>`));
-                    </script>
-                </select>
-            </div>
-            <input type="hidden" id="stu-parent-id">
+            <h3 class="text-lg font-black mb-4">加入學生至該子班別</h3>
+            <input type="text" id="stu-search" oninput="filterStudents()" placeholder="搜尋姓名..." class="w-full p-2 border rounded-lg text-sm font-bold mb-4">
             <div id="student-list-container" class="flex-1 overflow-y-auto space-y-1"></div>
             <button onclick="closeModal('student-modal')" class="w-full py-2 mt-4 bg-slate-100 rounded-xl font-bold">關閉</button>
         </div>
@@ -42,39 +32,46 @@
 
     <script>
         const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
-        let allClassData = [], allStudents = [];
+        let allClassData = [], allStudents = [], targetClassId = '', targetSubIdx = 0;
 
         async function init() {
             const { data: classes } = await supabaseClient.from('classes').select('*').order('created_at', { ascending: false });
-            const { data: students } = await supabaseClient.from('students').select('name, grade_base_year, initial_grade');
+            const { data: students } = await supabaseClient.from('students').select('name, grade_base_year');
             allClassData = classes || [];
             allStudents = students || [];
             render();
         }
 
-        // 精準邏輯：6月(含)前視為上一學年，7月後視為新學年
         function getStudentGrade(s) {
             if (!s.grade_base_year) return 0;
             const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1;
-            const effectiveYear = (currentMonth < 7) ? currentYear - 1 : currentYear;
-            const initialGrade = s.initial_grade || 1;
-            return (effectiveYear - s.grade_base_year) + initialGrade;
+            const effectiveYear = (now.getMonth() + 1 < 7) ? now.getFullYear() - 1 : now.getFullYear();
+            return (effectiveYear - s.grade_base_year) + 7;
         }
 
         function render() {
             const container = document.getElementById('classes-container');
             container.innerHTML = allClassData.map(cls => `
                 <div class="bg-white p-6 rounded-2xl border shadow-sm">
-                    <h4 class="font-black text-lg mb-4">${cls.name}</h4>
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h4 class="font-black text-lg">${cls.name}</h4>
+                            <p class="text-[10px] text-slate-400 font-bold">備註: ${cls.note || '無'}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="openClassModal('${cls.id}')" class="text-[10px] bg-slate-100 px-3 py-1 rounded font-black">編輯班級</button>
+                            <button onclick="deleteClass('${cls.id}')" class="text-[10px] bg-rose-50 text-rose-500 px-3 py-1 rounded font-black">刪除</button>
+                        </div>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        ${(cls.sub_classes || []).map(sub => `
+                        ${(cls.sub_classes || []).map((sub, idx) => `
                             <div class="bg-slate-50 p-4 rounded-xl border">
-                                <p class="font-black text-sm mb-2">${sub.name}</p>
-                                <button onclick="openStudentModal('${cls.id}')" class="text-[9px] bg-blue-600 text-white px-2 py-1 rounded font-black">＋ 加入</button>
+                                <div class="flex justify-between items-center mb-2">
+                                    <p class="font-black text-sm">${sub.name}</p>
+                                    <button onclick="openStudentModal('${cls.id}', ${idx})" class="text-[9px] bg-blue-600 text-white px-2 py-1 rounded font-black">＋ 加入</button>
+                                </div>
                                 <div class="flex flex-wrap gap-1 mt-2">
-                                    ${(cls.members || []).map(m => `<span class="bg-white px-2 py-0.5 rounded border text-[10px] font-bold">${m}</span>`).join('')}
+                                    ${(sub.members || []).map(m => `<span class="bg-white px-2 py-0.5 rounded border text-[10px] font-bold">${m}</span>`).join('')}
                                 </div>
                             </div>
                         `).join('')}
@@ -83,43 +80,33 @@
             `).join('');
         }
 
-        function filterStudents() {
-            const keyword = document.getElementById('stu-search').value.toLowerCase();
-            const filterGrade = document.getElementById('stu-grade-filter').value;
-            const container = document.getElementById('student-list-container');
-            
-            const filtered = allStudents.filter(s => {
-                const grade = getStudentGrade(s);
-                const matchName = s.name.toLowerCase().includes(keyword);
-                const matchGrade = filterGrade === "" || String(grade) === filterGrade;
-                return matchName && matchGrade;
-            });
-
-            container.innerHTML = filtered.map(s => {
-                const grade = getStudentGrade(s);
-                return `
-                <div class="flex justify-between items-center p-2 hover:bg-slate-50 cursor-pointer border-b" onclick="addStudent('${document.getElementById('stu-parent-id').value}', '${s.name}')">
-                    <span class="font-bold text-sm">${s.name} <span class="text-[9px] text-slate-400">(${grade}年級)</span></span>
-                    <span class="text-[10px] text-blue-500 font-bold">加入</span>
-                </div>`;
-            }).join('');
-        }
-
-        async function openStudentModal(clsId) {
-            document.getElementById('stu-parent-id').value = clsId;
+        async function openStudentModal(clsId, idx) {
+            targetClassId = clsId; targetSubIdx = idx;
             filterStudents();
             document.getElementById('student-modal').classList.add('active');
         }
 
-        async function addStudent(clsId, stuName) {
-            const cls = allClassData.find(c => c.id === clsId);
-            if((cls.members || []).includes(stuName)) return alert("學生已存在");
-            await supabaseClient.from('classes').update({ members: [...(cls.members || []), stuName] }).eq('id', clsId);
+        function filterStudents() {
+            const keyword = document.getElementById('stu-search').value.toLowerCase();
+            const container = document.getElementById('student-list-container');
+            container.innerHTML = allStudents.filter(s => s.name.toLowerCase().includes(keyword)).map(s => `
+                <div class="p-2 border-b cursor-pointer hover:bg-slate-50" onclick="addStudent('${s.name}')">
+                    <span class="font-bold text-sm">${s.name}</span>
+                </div>
+            `).join('');
+        }
+
+        async function addStudent(stuName) {
+            const cls = allClassData.find(c => c.id === targetClassId);
+            let subs = [...(cls.sub_classes || [])];
+            subs[targetSubIdx].members = [...(subs[targetSubIdx].members || []), stuName];
+            await supabaseClient.from('classes').update({ sub_classes: subs }).eq('id', targetClassId);
             alert("加入成功"); init();
         }
 
+        async function deleteClass(id) { if(confirm("確定刪除班級？")) { await supabaseClient.from('classes').delete().eq('id', id); init(); } }
+        function openClassModal(id) { alert("請在班級管理後台更新資訊"); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-        function openClassModal() { /* 父班級 Modal 邏輯 */ }
         window.onload = init;
     </script>
 </body>

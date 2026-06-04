@@ -101,4 +101,14 @@
                 else if (state === 'blocked') div.className = "slot is-blocked";
                 else {
                     const seat = seatMap[key];
-                    div.className
+                    div.className = seat ? "slot has-student" : "slot is-empty";
+                    if(seat) div.innerHTML = `<span>${seat.student_name}</span>`;
+                }
+                grid.appendChild(div);
+            }
+        }
+    }
+    window.onload = init;
+</script>
+</body>
+</html>

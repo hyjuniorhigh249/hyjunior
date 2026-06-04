@@ -57,7 +57,7 @@
 <div class="main-grid">
     <div class="pane">
         <div class="p-5 border-b bg-white">
-            <h2 class="font-black text-slate-800 text-lg mb-4">今日全天名單</h2>
+            <h2 id="list-title" class="font-black text-slate-800 text-lg mb-4">今日名單</h2>
             <div class="grid grid-cols-2 gap-2">
                 <div class="bg-emerald-50 p-2 rounded-xl border border-emerald-100 text-center">
                     <span id="stat-all-present" class="block font-black text-xl text-emerald-600">0</span>
@@ -138,8 +138,16 @@
         currentRoom: null, currentSeats: []
     };
 
+    // 強制取得本地時區的 YYYY-MM-DD (避免跨夜產生 UTC 時差導致讀取到昨天資料)
+    function getLocalToday() {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     async function init() {
-        // 1. 抓取所需資料
         const { data: classes } = await supabaseClient.from('classes').select('*');
         const { data: rooms } = await supabaseClient.from('rooms').select('*');
         const { data: students } = await supabaseClient.from('students').select('*');
@@ -148,7 +156,6 @@
         db.allRooms = rooms || [];
         (students || []).forEach(s => db.studentDetails[s.name] = s);
 
-        // 2. 填充下拉選單 (列出所有 子班別)
         const switcher = document.getElementById('class-switcher');
         switcher.innerHTML = '<option value="">請選擇子班別...</option>';
         let firstVal = null;
@@ -161,7 +168,6 @@
             });
         });
 
-        // 3. 綁定監聽器
         document.getElementById('global-search').addEventListener('keypress', e => {
             if (e.key === 'Enter') {
                 const name = e.target.value.trim();
@@ -178,7 +184,6 @@
             el.addEventListener('change', e => saveClassLog(e.target.dataset.field, e.target.value));
         });
 
-        // 4. 預設載入第一個班別
         if (firstVal) {
             switcher.value = firstVal;
             switchClass(firstVal);
@@ -187,6 +192,10 @@
 
     async function switchClass(val) {
         if (!val) return;
+        
+        // 切換前先清除畫面，避免殘留視覺錯覺
+        document.getElementById('all-student-list').innerHTML = '<div class="p-8 text-center text-slate-400 font-bold">載入資料中...</div>';
+        
         const [mainId, subIdx] = val.split('_');
         db.activeClassId = mainId;
         db.activeSubIdx = parseInt(subIdx);
@@ -194,22 +203,23 @@
         const cls = db.allClasses.find(c => c.id === mainId);
         const sub = cls.sub_classes[db.activeSubIdx];
         const roomId = sub.room_id;
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalToday();
 
-        // 讀取日誌 (綁定在主班級 ID 下)
+        // 明確提示目前的班級
+        document.getElementById('list-title').innerText = `${cls.name} - ${sub.name}`;
+
+        // 讀取日誌
         const { data: diary } = await supabaseClient.from('class_logs').select('*')
             .eq('class_id', mainId).eq('log_date', today).maybeSingle();
         
         document.querySelectorAll('[data-field]').forEach(el => el.value = diary ? (diary[el.dataset.field] || '') : '');
 
-        // 初始化出缺席狀態
         const presentList = diary?.attendance_data || [];
         db.attendance = {};
         (sub.members || []).forEach(name => {
             db.attendance[name] = presentList.includes(name) ? 'present' : 'pending';
         });
 
-        // 判斷是否已綁定教室
         if (!roomId) {
             document.getElementById('seat-grid').innerHTML = "<div class='text-slate-400 font-bold col-span-full'>此子班別尚未綁定教室，請至「座位排班」設定</div>";
             document.getElementById('seat-grid').style.gridTemplateColumns = "1fr";
@@ -220,7 +230,6 @@
             return;
         }
 
-        // 讀取該教室的底圖與該子班別的座位
         db.currentRoom = db.allRooms.find(r => r.id === roomId);
         
         const { data: seats } = await supabaseClient.from('class_seats').select('*')
@@ -230,7 +239,6 @@
 
         db.currentSeats = seats || [];
 
-        // 渲染畫面
         renderSeats(db.currentRoom, db.currentSeats);
         renderFullList(sub.members);
         updateStats();
@@ -305,34 +313,62 @@
             div.onclick = () => div.classList.toggle('active');
             list.appendChild(div);
         });
+        
+        if((members||[]).length === 0) {
+            list.innerHTML = '<div class="p-8 text-center text-slate-400 font-bold">此班別目前沒有學生</div>';
+        }
     }
 
     async function updateAttendance(name, status) {
         db.attendance[name] = status;
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalToday();
         
         const cls = db.allClasses.find(c => c.id === db.activeClassId);
         const sub = cls.sub_classes[db.activeSubIdx];
-        const presentList = (sub.members || []).filter(m => db.attendance[m] === 'present');
-
-        // 更新日誌與學生出缺席
-        await supabaseClient.from('class_logs').upsert({
-            class_id: db.activeClassId, log_date: today, attendance_data: presentList
-        }, { onConflict: 'class_id, log_date' });
         
-        await supabaseClient.from('students').update({ arrival_status: status }).eq('name', name);
-        
-        // 使用快取資料直接重繪，提升效能
+        // 1. 畫面先即時更新 (Optimistic UI)
         renderSeats(db.currentRoom, db.currentSeats);
         renderFullList(sub.members);
         updateStats();
+
+        // 2. 背景處理資料庫寫入 (包含智慧合併機制，避免不同子班別互相覆蓋出缺席名單)
+        const { data: currentLog } = await supabaseClient.from('class_logs')
+            .select('*').eq('class_id', db.activeClassId).eq('log_date', today).maybeSingle();
+            
+        let presentList = currentLog?.attendance_data || [];
+        
+        if (status === 'present') {
+            if (!presentList.includes(name)) presentList.push(name);
+        } else {
+            presentList = presentList.filter(n => n !== name);
+        }
+
+        if (currentLog) {
+            await supabaseClient.from('class_logs').update({ attendance_data: presentList }).eq('id', currentLog.id);
+        } else {
+            await supabaseClient.from('class_logs').insert([{ 
+                class_id: db.activeClassId, log_date: today, attendance_data: presentList 
+            }]);
+        }
+        
+        // 同步寫入學生總檔
+        await supabaseClient.from('students').update({ arrival_status: status }).eq('name', name);
     }
 
     async function saveClassLog(field, value) {
-        const today = new Date().toISOString().split('T')[0];
-        await supabaseClient.from('class_logs').upsert({ 
-            class_id: db.activeClassId, log_date: today, [field]: value 
-        }, { onConflict: 'class_id, log_date' });
+        const today = getLocalToday();
+        
+        // 採用 update/insert 雙軌制，取代會無差別覆蓋欄位的 upsert
+        const { data: currentLog } = await supabaseClient.from('class_logs')
+            .select('*').eq('class_id', db.activeClassId).eq('log_date', today).maybeSingle();
+            
+        if (currentLog) {
+            await supabaseClient.from('class_logs').update({ [field]: value }).eq('id', currentLog.id);
+        } else {
+            await supabaseClient.from('class_logs').insert([{ 
+                class_id: db.activeClassId, log_date: today, [field]: value 
+            }]);
+        }
     }
 
     function updateStats() {

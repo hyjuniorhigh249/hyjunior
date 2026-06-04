@@ -201,4 +201,171 @@
 
         function selectStudent(name) { state.selectedStudent = name; updateSidebar(); }
 
-        function renderGrid
+        function renderGrid() {
+            if(!state.currentRoomId) return;
+            const grid = document.getElementById('editor-grid');
+            grid.style.gridTemplateColumns = `repeat(${state.cols}, 1fr)`;
+            grid.innerHTML = "";
+            
+            for (let r = 0; r < state.rows; r++) {
+                for (let c = 0; c < state.cols; c++) {
+                    const key = `${r}-${c}`;
+                    const configState = state.layoutConfig[key] || 'normal';
+                    const div = document.createElement('div');
+                    div.className = `slot ${configState === 'hallway' ? 'is-hallway' : ''} ${configState === 'blocked' ? 'is-blocked' : ''}`;
+                    
+                    if (configState === 'normal' && state.studentSeating[key]) {
+                        div.innerHTML = `<span class="font-black text-xs text-slate-700">${state.studentSeating[key]}</span>`;
+                    }
+
+                    div.onclick = () => handleSlotClick(key, configState);
+                    grid.appendChild(div);
+                }
+            }
+        }
+
+        function handleSlotClick(key, configState) {
+            if (state.mode === 'edit') {
+                if (configState === 'normal') state.layoutConfig[key] = 'blocked';
+                else if (configState === 'blocked') state.layoutConfig[key] = 'hallway';
+                else state.layoutConfig[key] = 'normal';
+                
+                if(state.layoutConfig[key] !== 'normal' && state.studentSeating[key]) {
+                    delete state.studentSeating[key];
+                }
+            } else {
+                if (configState !== 'normal') return;
+                if (state.selectedStudent) {
+                    state.studentSeating[key] = state.selectedStudent;
+                    state.selectedStudent = null;
+                } else if (state.studentSeating[key]) {
+                    delete state.studentSeating[key];
+                }
+            }
+            updateSidebar();
+            renderGrid();
+        }
+
+        async function saveAll() {
+            if(!state.currentRoomId) return alert("請先選擇教室");
+            
+            try {
+                // 1. 儲存教室底圖 (XX, 走廊)
+                const { error: roomErr } = await sb.from('rooms').update({ layout_config: state.layoutConfig }).eq('id', state.currentRoomId);
+                if(roomErr) throw new Error("儲存教室配置失敗: " + roomErr.message);
+                
+                // 2. 刪除舊座位 (透過 class_id, room_id, seat_label 來定位子班別)
+                const { error: delErr } = await sb.from('class_seats').delete()
+                    .eq('class_id', state.currentClassId)
+                    .eq('room_id', state.currentRoomId)
+                    .eq('seat_label', String(state.currentSubIdx));
+                
+                if(delErr) throw new Error("清理舊座位失敗: " + delErr.message);
+                
+                // 3. 準備新座位資料
+                const insertData = Object.entries(state.studentSeating).map(([key, name]) => ({
+                    class_id: state.currentClassId, 
+                    room_id: state.currentRoomId, 
+                    student_name: name,
+                    row_index: parseInt(key.split('-')[0]), 
+                    col_index: parseInt(key.split('-')[1]),
+                    seat_label: String(state.currentSubIdx) // 將子班別索引存於此
+                }));
+                
+                if(insertData.length > 0) {
+                    const { error: insErr } = await sb.from('class_seats').insert(insertData);
+                    if(insErr) throw new Error("儲存新座位失敗: " + insErr.message);
+                }
+                
+                alert("✅ 儲存成功！");
+            } catch (err) {
+                alert("儲存時發生錯誤：\n" + err.message);
+            }
+        }
+
+        // --- 教室 CRUD Modal ---
+        function openRoomModal() {
+            document.getElementById('room-id').value = '';
+            document.getElementById('room-name').value = '';
+            document.getElementById('room-rows').value = 5;
+            document.getElementById('room-cols').value = 8;
+            document.getElementById('room-modal-title').innerText = "新增教室";
+            document.getElementById('room-modal').classList.add('active');
+        }
+        function openEditRoomModal() {
+            if(!state.currentRoomId) return alert("請先選擇教室");
+            const r = state.allRooms.find(x => x.id === state.currentRoomId);
+            document.getElementById('room-id').value = r.id;
+            document.getElementById('room-name').value = r.name;
+            document.getElementById('room-rows').value = state.rows;
+            document.getElementById('room-cols').value = state.cols;
+            document.getElementById('room-modal-title').innerText = "修改目前教室";
+            document.getElementById('room-modal').classList.add('active');
+        }
+        async function saveRoomSetup() {
+            const id = document.getElementById('room-id').value;
+            const name = document.getElementById('room-name').value;
+            const rows = parseInt(document.getElementById('room-rows').value);
+            const cols = parseInt(document.getElementById('room-cols').value);
+            
+            if(!name) return alert("請輸入名稱");
+            
+            if(id) {
+                await sb.from('rooms').update({ name, grid_size: {rows, cols} }).eq('id', id);
+            } else {
+                await sb.from('rooms').insert([{ name, grid_size: {rows, cols}, layout_config: {} }]);
+            }
+            closeModal('room-modal');
+            window.location.reload(); 
+        }
+
+        // --- 複製座位功能 ---
+        function openCopyModal() {
+            if(!state.currentRoomId) return alert("請先設定本班別的教室！");
+            const select = document.getElementById('copy-source-select');
+            select.innerHTML = '<option value="">請選擇來源子班別...</option>';
+            state.allClasses.forEach(c => {
+                (c.sub_classes || []).forEach((sub, i) => {
+                    const uniqueId = `${c.id}_${i}`;
+                    if(uniqueId !== `${state.currentClassId}_${state.currentSubIdx}`) {
+                        select.add(new Option(`${c.name} - ${sub.name}`, uniqueId));
+                    }
+                });
+            });
+            document.getElementById('copy-modal').classList.add('active');
+        }
+
+        async function executeCopy() {
+            const sourceVal = document.getElementById('copy-source-select').value;
+            if(!sourceVal) return alert("請選擇來源");
+
+            const [sourceClassId, sourceSubIdx] = sourceVal.split('_');
+
+            // 利用 seat_label 過濾來源子班別
+            const { data: seats, error } = await sb.from('class_seats').select('*')
+                .eq('class_id', sourceClassId)
+                .eq('room_id', state.currentRoomId)
+                .eq('seat_label', String(sourceSubIdx));
+            
+            if(error) return alert("讀取來源座位失敗: " + error.message);
+            if(!seats || seats.length === 0) return alert("該來源班別在此教室沒有設定座位。");
+
+            let copyCount = 0;
+            seats.forEach(s => {
+                if(state.members.includes(s.student_name)) {
+                    state.studentSeating[`${s.row_index}-${s.col_index}`] = s.student_name;
+                    copyCount++;
+                }
+            });
+
+            closeModal('copy-modal');
+            updateSidebar();
+            renderGrid();
+            alert(`✅ 複製成功！共複製了 ${copyCount} 位學生的座位。(未報名本班別的學生已被自動略過)`);
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        window.onload = init;
+    </script>
+</body>
+</html>

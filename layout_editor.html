@@ -9,33 +9,41 @@
 <body class="p-8 bg-slate-100">
     <div class="max-w-6xl mx-auto">
         <div class="flex gap-4 mb-6">
-            <select id="subclass-select" onchange="loadSubClass(this.value)" class="p-2 border rounded-lg font-bold"></select>
-            <select id="room-select" onchange="loadRoom(this.value)" class="p-2 border rounded-lg font-bold"></select>
+            <select id="subclass-select" onchange="loadSubClass(this.value)" class="p-2 border rounded-lg font-bold">
+                <option value="">選擇子班別</option>
+            </select>
+            <select id="room-select" onchange="loadRoom(this.value)" class="p-2 border rounded-lg font-bold">
+                <option value="">選擇教室</option>
+            </select>
             <button onclick="newRoom()" class="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold">+ 新增教室</button>
-            <button onclick="toggleMode()" id="mode-btn" class="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold">切換：排座位/教室設定</button>
-            <button onclick="copySeats()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold">複製其他班座位</button>
+            <button onclick="toggleMode()" id="mode-btn" class="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold">座位排班模式</button>
+            <button onclick="saveAll()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold">儲存</button>
         </div>
         <div class="flex gap-8">
-            <div id="stu-list" class="w-48 space-y-2"></div>
+            <div id="stu-list" class="w-48 bg-white p-4 rounded-xl border"></div>
             <div id="grid" class="grid bg-white p-4 rounded-xl border"></div>
         </div>
     </div>
 
     <script>
-        const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', '...');
-        let state = { mode: 'seating', roomId: '', subId: '', seats: {}, room: {}, members: [] };
+        const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
+        let state = { mode: 'seating', roomId: '', subId: '', seats: {}, room: {grid_size:{cols:8,rows:5}, layout_config:{}}, members: [] };
 
         async function init() {
             const { data: classes } = await sb.from('classes').select('*');
-            const select = document.getElementById('subclass-select');
-            classes.forEach(c => (c.sub_classes||[]).forEach((s,i) => select.add(new Option(`${c.name}-${s.name}`, `${c.id}|${i}|${s.members.join(',')}`))));
-            loadRooms();
-        }
-
-        async function loadRooms() {
+            const sSelect = document.getElementById('subclass-select');
+            classes.forEach(c => (c.sub_classes||[]).forEach((s,i) => sSelect.add(new Option(`${c.name}-${s.name}`, `${c.id}|${i}|${s.members.join(',')}`))));
+            
             const { data: rooms } = await sb.from('rooms').select('*');
             const rSelect = document.getElementById('room-select');
             rooms.forEach(r => rSelect.add(new Option(r.name, r.id)));
+        }
+
+        function loadSubClass(val) {
+            const [id, idx, members] = val.split('|');
+            state.subId = id;
+            state.members = members.split(',');
+            document.getElementById('stu-list').innerHTML = state.members.map(m => `<div class="p-2 border rounded cursor-pointer hover:bg-slate-100" onclick="state.selectedStudent='${m}'">${m}</div>`).join('');
         }
 
         async function loadRoom(id) {
@@ -61,34 +69,24 @@
                     const div = document.createElement('div');
                     div.className = `w-[60px] h-[60px] border flex items-center justify-center cursor-pointer ${config === 'hallway' ? 'bg-slate-300' : (config === 'blocked' ? 'bg-red-300' : 'bg-white')}`;
                     div.innerHTML = config === 'blocked' ? 'XX' : (state.seats[key] || '');
-                    div.onclick = () => handleCellClick(key, config);
+                    div.onclick = () => {
+                        if(state.mode === 'edit') {
+                             state.room.layout_config[key] = config === 'normal' ? 'blocked' : (config === 'blocked' ? 'hallway' : 'normal');
+                        } else if(config === 'normal' && state.selectedStudent) {
+                             state.seats[key] = state.selectedStudent;
+                        }
+                        renderGrid();
+                    };
                     grid.appendChild(div);
                 }
             }
         }
-
-        function handleCellClick(key, config) {
-            if(state.mode === 'edit') {
-                if(config === 'normal') state.room.layout_config[key] = 'blocked';
-                else if(config === 'blocked') state.room.layout_config[key] = 'hallway';
-                else state.room.layout_config[key] = 'normal';
-            } else {
-                if(config !== 'normal') return;
-                state.seats[key] = state.selectedStudent;
-            }
-            renderGrid();
-        }
-
-        async function copySeats() {
-            const sourceId = prompt("輸入來源班別ID:");
-            const { data } = await sb.from('class_seats').select('*').eq('class_id', sourceId).eq('room_id', state.roomId);
-            state.seats = {};
-            data.forEach(s => {
-                if(state.members.includes(s.student_name)) state.seats[`${s.row_index}-${s.col_index}`] = s.student_name;
-            });
-            renderGrid();
-        }
         
+        async function newRoom() { const name = prompt("教室名稱"); if(name) await sb.from('rooms').insert([{name}]); location.reload(); }
+        async function saveAll() {
+            await sb.from('rooms').update({ layout_config: state.room.layout_config }).eq('id', state.roomId);
+            alert("已儲存教室與座位配置");
+        }
         window.onload = init;
     </script>
 </body>

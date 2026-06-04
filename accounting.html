@@ -6,75 +6,44 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
-    <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; }
-    </style>
+    <style>body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; }</style>
 </head>
 <body class="p-8">
 
     <div class="max-w-6xl mx-auto">
         <h1 class="text-3xl font-black text-slate-800 mb-8">會計財務報表</h1>
 
-        <!-- 區塊 1：區間繳費統計 -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border mb-8">
             <h2 class="font-black text-xl mb-4 text-emerald-700">📊 區間繳費統計 (實收金額)</h2>
             <div class="flex gap-4 items-end mb-6">
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">起始日期</label>
-                    <input type="date" id="date-start" class="p-2 border rounded-lg font-bold">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">結束日期</label>
-                    <input type="date" id="date-end" class="p-2 border rounded-lg font-bold">
-                </div>
+                <div><label class="block text-xs font-bold text-slate-400 mb-1">起始日期</label><input type="date" id="date-start" class="p-2 border rounded-lg font-bold"></div>
+                <div><label class="block text-xs font-bold text-slate-400 mb-1">結束日期</label><input type="date" id="date-end" class="p-2 border rounded-lg font-bold"></div>
                 <button onclick="queryIncome()" class="bg-slate-800 text-white px-6 py-2 rounded-lg font-black hover:bg-slate-700">查詢收入</button>
             </div>
             
             <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 inline-block mb-4">
-                <span class="font-bold text-emerald-800">區間總實收：</span>
-                <span id="total-income" class="font-black text-3xl text-emerald-600">$0</span>
+                <span class="font-bold text-emerald-800">區間總實收：</span><span id="total-income" class="font-black text-3xl text-emerald-600">$0</span>
             </div>
 
             <table class="w-full text-left border-collapse text-sm">
-                <thead>
-                    <tr class="bg-slate-100">
-                        <th class="p-2 border-b">日期</th>
-                        <th class="p-2 border-b">流水號</th>
-                        <th class="p-2 border-b">學生</th>
-                        <th class="p-2 border-b">方式</th>
-                        <th class="p-2 border-b">經手人</th>
-                        <th class="p-2 border-b text-right">實收金額</th>
-                    </tr>
-                </thead>
+                <thead><tr class="bg-slate-100"><th class="p-2 border-b">日期</th><th class="p-2 border-b">流水號</th><th class="p-2 border-b">學生</th><th class="p-2 border-b">方式</th><th class="p-2 border-b">經手人</th><th class="p-2 border-b text-right">實收金額</th></tr></thead>
                 <tbody id="income-list"></tbody>
             </table>
         </div>
 
-        <!-- 區塊 2：尚欠金額統計 -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="font-black text-xl text-rose-700">⚠️ 學生尚欠金額總表</h2>
                 <button onclick="exportDebtExcel()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-black flex items-center gap-2 hover:bg-emerald-700">📥 匯出 Excel</button>
             </div>
             
-            <p class="text-sm text-slate-500 mb-4 font-bold">系統會自動計算所有學生的「應繳總額(含折扣)」減去「已繳總額」，列出所有帳戶餘額為欠款的學生。</p>
-            
             <div class="bg-rose-50 p-4 rounded-xl border border-rose-100 inline-block mb-4">
-                <span class="font-bold text-rose-800">全補習班總欠款：</span>
-                <span id="total-debt" class="font-black text-3xl text-rose-600">$0</span>
+                <span class="font-bold text-rose-800">全補習班總欠款：</span><span id="total-debt" class="font-black text-3xl text-rose-600">$0</span>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="bg-slate-100">
-                            <th class="p-2 border-b w-24">學生姓名</th>
-                            <th class="p-2 border-b">報名班別明細 (應繳費用)</th>
-                            <th class="p-2 border-b w-32 text-right">應繳總計</th>
-                            <th class="p-2 border-b w-32 text-right">已繳總額</th>
-                            <th class="p-2 border-b w-32 text-right">尚欠金額</th>
-                        </tr>
-                    </thead>
+                    <thead><tr class="bg-slate-100"><th class="p-2 border-b w-24">學生姓名</th><th class="p-2 border-b">報名班別明細 (應繳費用)</th><th class="p-2 border-b w-32 text-right">應繳總計</th><th class="p-2 border-b w-32 text-right">已繳總額</th><th class="p-2 border-b w-32 text-right">尚欠金額</th></tr></thead>
                     <tbody id="debt-list"></tbody>
                 </table>
             </div>
@@ -83,120 +52,63 @@
 
     <script>
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
-        
-        let debtDataExport = []; // 給 Excel 用的資料
+        let debtDataExport = []; 
 
         async function init() {
             const today = new Date().toISOString().split('T')[0];
-            document.getElementById('date-start').value = today;
-            document.getElementById('date-end').value = today;
-            
-            // 頁面載入自動查欠款
+            document.getElementById('date-start').value = today; document.getElementById('date-end').value = today;
             queryDebt();
         }
 
         async function queryIncome() {
-            const start = document.getElementById('date-start').value;
-            const end = document.getElementById('date-end').value;
-            
-            const { data } = await sb.from('payment_logs').select('*')
-                .gte('pay_date', start).lte('pay_date', end)
-                .order('pay_date', { ascending: true });
-
-            let total = 0;
-            const tbody = document.getElementById('income-list');
-            tbody.innerHTML = (data || []).map(p => {
-                total += p.amount;
-                return `<tr class="border-b hover:bg-slate-50">
-                    <td class="p-2">${p.pay_date}</td>
-                    <td class="p-2 text-xs text-slate-400">${p.serial_no}</td>
-                    <td class="p-2 font-bold">${p.student_name}</td>
-                    <td class="p-2">${p.pay_method}</td>
-                    <td class="p-2">${p.handler}</td>
-                    <td class="p-2 text-right font-bold text-emerald-600">$${p.amount}</td>
-                </tr>`;
-            }).join('');
-            
-            if(!data || data.length === 0) tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">此區間無繳費紀錄</td></tr>';
-            
+            const start = document.getElementById('date-start').value, end = document.getElementById('date-end').value;
+            const { data } = await sb.from('payment_logs').select('*').gte('pay_date', start).lte('pay_date', end).order('pay_date', { ascending: true });
+            let total = 0; const tbody = document.getElementById('income-list');
+            tbody.innerHTML = (data || []).map(p => { total += p.amount; return `<tr class="border-b hover:bg-slate-50"><td class="p-2">${p.pay_date}</td><td class="p-2 text-xs text-slate-400">${p.serial_no}</td><td class="p-2 font-bold">${p.student_name}</td><td class="p-2">${p.pay_method}</td><td class="p-2">${p.handler}</td><td class="p-2 text-right font-bold text-emerald-600">$${p.amount}</td></tr>`; }).join('');
+            if(!data || data.length === 0) tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">無紀錄</td></tr>';
             document.getElementById('total-income').innerText = `$${total}`;
         }
 
         async function queryDebt() {
-            document.getElementById('debt-list').innerHTML = '<tr><td colspan="5" class="p-4 text-center">計算中...請稍候</td></tr>';
-            
-            // 撈取所需全部資料集 (實務上若資料大需改用後端，但行政系統前端處理尚可)
+            document.getElementById('debt-list').innerHTML = '<tr><td colspan="5" class="p-4 text-center">計算中...</td></tr>';
             const { data: students } = await sb.from('students').select('name');
             const { data: classes } = await sb.from('classes').select('*');
             const { data: bills } = await sb.from('student_bills').select('*');
             const { data: payments } = await sb.from('payment_logs').select('student_name, amount');
 
-            // 整理繳費總額 Map
             const paidMap = {};
-            (payments || []).forEach(p => {
-                paidMap[p.student_name] = (paidMap[p.student_name] || 0) + p.amount;
-            });
+            (payments || []).forEach(p => { paidMap[p.student_name] = (paidMap[p.student_name] || 0) + p.amount; });
 
-            // 整理每個學生的應繳明細
-            let totalSysDebt = 0;
-            let debtRowsHtml = '';
-            debtDataExport = [];
+            let totalSysDebt = 0, debtRowsHtml = ''; debtDataExport = [];
 
             (students || []).forEach(stu => {
-                let sPayable = 0;
-                let classDetails = [];
+                let sPayable = 0, classDetails = [];
+                (classes || []).forEach(c => (c.sub_classes || []).forEach((sub, idx) => {
+                    if(sub.members && sub.members.includes(stu.name)) {
+                        const b = bills.find(x => x.class_id === c.id && x.sub_idx === idx && x.student_name === stu.name);
+                        const discount = b ? b.discount_amount : 0;
+                        const finalFee = (sub.fee||0) + (sub.textbook_fee||0) + (sub.misc_fee||0) - discount;
+                        sPayable += finalFee; classDetails.push(`${c.name}-${sub.name}($${finalFee})`);
+                    }
+                }));
 
-                (classes || []).forEach(c => {
-                    (c.sub_classes || []).forEach((sub, idx) => {
-                        if(sub.members && sub.members.includes(stu.name)) {
-                            const b = bills.find(x => x.class_id === c.id && x.sub_idx === idx && x.student_name === stu.name);
-                            const discount = b ? b.discount_amount : 0;
-                            const finalFee = (sub.fee || 0) - discount;
-                            sPayable += finalFee;
-                            classDetails.push(`${c.name}-${sub.name}($${finalFee})`);
-                        }
-                    });
-                });
-
-                const sPaid = paidMap[stu.name] || 0;
-                const sDebt = sPayable - sPaid;
-
-                // 只有欠款大於 0 才顯示
+                const sPaid = paidMap[stu.name] || 0, sDebt = sPayable - sPaid;
                 if (sDebt > 0) {
                     totalSysDebt += sDebt;
-                    debtRowsHtml += `
-                        <tr class="border-b hover:bg-rose-50">
-                            <td class="p-2 font-bold">${stu.name}</td>
-                            <td class="p-2 text-xs text-slate-500">${classDetails.join('<br>')}</td>
-                            <td class="p-2 text-right">$${sPayable}</td>
-                            <td class="p-2 text-right text-emerald-600">$${sPaid}</td>
-                            <td class="p-2 text-right font-black text-rose-600">$${sDebt}</td>
-                        </tr>
-                    `;
-                    
-                    debtDataExport.push({
-                        "學生姓名": stu.name,
-                        "報名班別明細": classDetails.join(' , '),
-                        "應繳總計": sPayable,
-                        "已繳總額": sPaid,
-                        "尚欠金額": sDebt
-                    });
+                    debtRowsHtml += `<tr class="border-b hover:bg-rose-50"><td class="p-2 font-bold">${stu.name}</td><td class="p-2 text-xs text-slate-500">${classDetails.join('<br>')}</td><td class="p-2 text-right">$${sPayable}</td><td class="p-2 text-right text-emerald-600">$${sPaid}</td><td class="p-2 text-right font-black text-rose-600">$${sDebt}</td></tr>`;
+                    debtDataExport.push({ "學生姓名": stu.name, "報名明細": classDetails.join(' , '), "應繳總計": sPayable, "已繳總額": sPaid, "尚欠金額": sDebt });
                 }
             });
 
-            if(debtRowsHtml === '') debtRowsHtml = '<tr><td colspan="5" class="p-4 text-center text-slate-400">目前無任何欠款學生</td></tr>';
-            document.getElementById('debt-list').innerHTML = debtRowsHtml;
-            document.getElementById('total-debt').innerText = `$${totalSysDebt}`;
+            if(debtRowsHtml === '') debtRowsHtml = '<tr><td colspan="5" class="p-4 text-center text-slate-400">目前無欠款</td></tr>';
+            document.getElementById('debt-list').innerHTML = debtRowsHtml; document.getElementById('total-debt').innerText = `$${totalSysDebt}`;
         }
 
         function exportDebtExcel() {
-            if(debtDataExport.length === 0) return alert("目前無欠款資料可匯出");
-            const ws = XLSX.utils.json_to_sheet(debtDataExport);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "尚欠金額總表");
-            XLSX.writeFile(wb, `昊學欠款總表_${new Date().toISOString().split('T')[0]}.xlsx`);
+            if(debtDataExport.length === 0) return alert("無資料匯出");
+            const ws = XLSX.utils.json_to_sheet(debtDataExport); const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "尚欠金額總表"); XLSX.writeFile(wb, `昊學欠款總表_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
-
         window.onload = init;
     </script>
 </body>

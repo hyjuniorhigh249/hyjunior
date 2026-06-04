@@ -9,22 +9,47 @@
         body { font-family: "Inter", "Microsoft JhengHei", sans-serif; background: #f1f5f9; overflow: hidden; }
         .main-grid { display: grid; grid-template-columns: 280px 1fr 320px; height: 100vh; gap: 1px; background: #cbd5e1; }
         .pane { background: white; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* 教室視覺區塊 */
         .canvas-area { background-color: #94a3b8; overflow: auto; display: flex; flex-direction: column; align-items: center; }
-        .grid-container { background: #f8fafc; border: 2px solid #475569; border-radius: 20px; padding: 40px; margin: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); display: grid; gap: 12px; width: fit-content; }
+        .grid-container { 
+            background: #f8fafc; border: 2px solid #475569; border-radius: 20px; 
+            padding: 40px; margin: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            display: grid; gap: 12px; width: fit-content;
+        }
         
-        .slot { width: 85px; height: 85px; border-radius: 12px; font-weight: 800; font-size: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.1s; background: white; border: 1px solid #e2e8f0; }
+        .slot {
+            width: 85px; height: 85px; border-radius: 12px; font-weight: 800; font-size: 14px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: all 0.1s; background: white;
+        }
         .slot.is-hallway { background: #cbd5e1 !important; border: none !important; cursor: default; }
-        .slot.is-blocked { background: #fca5a5 !important; color: white !important; font-weight: 900; }
+        .slot.is-hallway::after { content: "走廊"; color: #64748b; font-size: 10px; font-weight: 900; }
+        .slot.is-blocked { background: #fca5a5 !important; border-color: #ef4444; color: white !important; font-weight: 900; cursor: default; }
         .slot.is-blocked::after { content: "XX"; }
-        .slot.has-student { cursor: pointer; }
-        .status-present { background: #10b981 !important; color: white !important; }
+        .slot.is-empty { border: 1px dashed #cbd5e1; background: #f8fafc; cursor: default; opacity: 0.5; }
+        .slot.has-student { cursor: pointer; border: 1px solid #e2e8f0; }
+        .status-present { background: #10b981 !important; color: white !important; border-color: #059669; }
         
+        /* 學生列表樣式 */
         .stu-item { transition: background 0.1s; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
         .stu-item:hover { background: #f8fafc; }
-        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s; background: #f8fafc; }
-        .stu-item.active .accordion-content { max-height: 100px; padding: 6px 16px; }
-        .blackboard { background: #1e293b; color: #f8fafc; border-radius: 6px; width: 400px; padding: 10px 0; text-align: center; font-weight: 900; letter-spacing: 2em; text-indent: 2em; margin-top: 25px; }
-        .diary-input { width: 100%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.75rem; font-size: 0.875rem; font-weight: 700; }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; background: #f8fafc; }
+        .stu-item.active .accordion-content { max-height: 100px; padding: 6px 16px 10px 16px; border-top: 1px solid #edf2f7; }
+
+        .blackboard { 
+            background: #1e293b; color: #f8fafc; border-radius: 6px; 
+            width: 400px; padding: 10px 0; text-align: center;
+            font-weight: 900; letter-spacing: 2em; text-indent: 2em;
+            margin-top: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* 統一聯絡本輸入框樣式 */
+        .diary-input {
+            width: 100%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem;
+            padding: 0.75rem; font-size: 0.875rem; font-weight: 700; outline: none; transition: border-color 0.2s;
+        }
+        .diary-input:focus { border-color: #10b981; background-color: #ffffff; }
     </style>
 </head>
 <body>
@@ -32,10 +57,16 @@
 <div class="main-grid">
     <div class="pane">
         <div class="p-5 border-b bg-white">
-            <h2 class="font-black text-slate-800 text-lg mb-4">今日名單</h2>
+            <h2 class="font-black text-slate-800 text-lg mb-4">今日全天名單</h2>
             <div class="grid grid-cols-2 gap-2">
-                <div class="bg-emerald-50 p-2 rounded-xl text-center"><span id="stat-all-present" class="block font-black text-xl text-emerald-600">0</span><span class="text-[10px] font-bold text-emerald-700">已到</span></div>
-                <div class="bg-slate-50 p-2 rounded-xl text-center"><span id="stat-all-pending" class="block font-black text-xl text-slate-400">0</span><span class="text-[10px] font-bold text-slate-500">待點</span></div>
+                <div class="bg-emerald-50 p-2 rounded-xl border border-emerald-100 text-center">
+                    <span id="stat-all-present" class="block font-black text-xl text-emerald-600">0</span>
+                    <span class="text-[10px] font-bold text-emerald-700">已到</span>
+                </div>
+                <div class="bg-slate-50 p-2 rounded-xl border border-slate-200 text-center">
+                    <span id="stat-all-pending" class="block font-black text-xl text-slate-400">0</span>
+                    <span class="text-[10px] font-bold text-slate-500">待點</span>
+                </div>
             </div>
         </div>
         <div id="all-student-list" class="flex-1 overflow-y-auto"></div>
@@ -43,53 +74,178 @@
 
     <div class="pane canvas-area">
         <div class="w-full bg-white/95 backdrop-blur sticky top-0 z-20 px-4 py-3 border-b flex justify-between items-center">
-            <input type="text" id="global-search" placeholder="全域點名..." class="w-60 px-4 py-2 bg-slate-100 rounded-full font-bold text-sm outline-none">
-            <select id="class-switcher" onchange="switchClass(this.value)" class="bg-slate-800 text-white font-black text-xs px-4 py-2 rounded-lg"></select>
+            <div class="relative w-64">
+                <input type="text" id="global-search" placeholder="全域點名 (輸入姓名)..." 
+                       class="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full font-bold text-sm outline-none focus:ring-2 ring-emerald-500">
+                <span class="absolute left-3.5 top-2">🔍</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[11px] font-black text-slate-400">切換子班別：</span>
+                <select id="class-switcher" onchange="switchClass(this.value)" class="bg-slate-800 text-white font-black text-xs px-4 py-2 rounded-lg shadow-lg outline-none cursor-pointer">
+                    <option value="">載入中...</option>
+                </select>
+            </div>
         </div>
         <div class="blackboard text-xs">黑板方向</div>
-        <div id="seat-grid" class="grid-container"></div>
+        <div id="seat-grid" class="grid-container">
+            <div class="text-slate-400 font-bold p-8">請先選擇左上方子班別</div>
+        </div>
     </div>
 
     <div class="pane border-l">
-        <div class="p-4 bg-slate-800 text-white font-black text-sm flex justify-between items-center"><span>📝 教學日誌</span></div>
+        <div class="p-4 bg-slate-800 text-white font-black text-sm tracking-widest flex justify-between items-center">
+            <span>📝 教學日誌</span>
+            <button onclick="copyContactLogs()" class="bg-emerald-500 hover:bg-emerald-600 text-[10px] px-3 py-1 rounded transition-colors">複製聯絡本</button>
+        </div>
         <div class="p-5 space-y-4 overflow-y-auto flex-1">
-            <input type="text" data-field="progress" class="diary-input" placeholder="上課進度">
-            <input type="text" data-field="homework" class="diary-input" placeholder="回家作業">
-            <input type="number" data-field="avg_score" class="diary-input" placeholder="平均成績">
+            <div>
+                <label class="text-[11px] font-black text-slate-400 mb-1.5 block">上課進度</label>
+                <input type="text" id="field-progress" data-field="progress" class="diary-input" placeholder="例如：4-3 ~ 4-4">
+            </div>
+            <div>
+                <label class="text-[11px] font-black text-slate-400 mb-1.5 block">發放講義</label>
+                <input type="text" id="field-handouts" data-field="handouts" class="diary-input">
+            </div>
+            <div>
+                <label class="text-[11px] font-black text-slate-400 mb-1.5 block">回家作業</label>
+                <input type="text" id="field-homework" data-field="homework" class="diary-input">
+            </div>
+            <div>
+                <label class="text-[11px] font-black text-slate-400 mb-1.5 block">下週考試</label>
+                <input type="text" id="field-next-exam" data-field="next_exam" class="diary-input">
+            </div>
+            <div>
+                <label class="text-[11px] font-black text-slate-400 mb-1.5 block">考試範圍</label>
+                <input type="text" id="field-exam-range" data-field="this_week_exam" class="diary-input">
+            </div>
+            <div class="pt-4 border-t border-slate-100">
+                <label class="text-[11px] font-black text-slate-500 mb-1.5 block text-center">本次測驗平均成績</label>
+                <div class="relative">
+                    <input type="number" id="field-avg-score" data-field="avg_score" class="diary-input text-center text-xl text-emerald-700" style="height: 50px;">
+                    <span class="absolute right-4 top-3.5 text-emerald-300 font-bold">分</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
     const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
-    let db = { allClasses: [], activeClassId: null, attendance: {}, studentDetails: {} };
+
+    let db = { 
+        allClasses: [], allRooms: [], studentDetails: {}, 
+        activeClassId: null, activeSubIdx: null, attendance: {}, 
+        currentRoom: null, currentSeats: []
+    };
 
     async function init() {
+        // 1. 抓取所需資料
         const { data: classes } = await supabaseClient.from('classes').select('*');
-        db.allClasses = classes;
+        const { data: rooms } = await supabaseClient.from('rooms').select('*');
+        const { data: students } = await supabaseClient.from('students').select('*');
+        
+        db.allClasses = classes || [];
+        db.allRooms = rooms || [];
+        (students || []).forEach(s => db.studentDetails[s.name] = s);
+
+        // 2. 填充下拉選單 (列出所有 子班別)
         const switcher = document.getElementById('class-switcher');
-        classes.forEach(c => switcher.add(new Option(c.name, c.id)));
-        if(classes.length > 0) switchClass(classes[0].id);
+        switcher.innerHTML = '<option value="">請選擇子班別...</option>';
+        let firstVal = null;
+        
+        db.allClasses.forEach(c => {
+            (c.sub_classes || []).forEach((sub, idx) => {
+                const val = `${c.id}_${idx}`;
+                if (!firstVal) firstVal = val;
+                switcher.add(new Option(`${c.name} - ${sub.name}`, val));
+            });
+        });
+
+        // 3. 綁定監聽器
+        document.getElementById('global-search').addEventListener('keypress', e => {
+            if (e.key === 'Enter') {
+                const name = e.target.value.trim();
+                if (db.attendance.hasOwnProperty(name)) {
+                    updateAttendance(name, 'present');
+                    e.target.value = '';
+                } else {
+                    alert('此班別中找不到該學生，請確認是否打錯名字！');
+                }
+            }
+        });
+
+        document.querySelectorAll('[data-field]').forEach(el => {
+            el.addEventListener('change', e => saveClassLog(e.target.dataset.field, e.target.value));
+        });
+
+        // 4. 預設載入第一個班別
+        if (firstVal) {
+            switcher.value = firstVal;
+            switchClass(firstVal);
+        }
     }
 
-    async function switchClass(id) {
-        db.activeClassId = id;
-        const cls = db.allClasses.find(c => c.id === id);
-        // 取得綁定教室
-        const { data: room } = await supabaseClient.from('rooms').select('*').eq('id', cls.room_id).single();
-        const { data: seats } = await supabaseClient.from('class_seats').select('*').eq('class_id', id);
+    async function switchClass(val) {
+        if (!val) return;
+        const [mainId, subIdx] = val.split('_');
+        db.activeClassId = mainId;
+        db.activeSubIdx = parseInt(subIdx);
+
+        const cls = db.allClasses.find(c => c.id === mainId);
+        const sub = cls.sub_classes[db.activeSubIdx];
+        const roomId = sub.room_id;
+        const today = new Date().toISOString().split('T')[0];
+
+        // 讀取日誌 (綁定在主班級 ID 下)
+        const { data: diary } = await supabaseClient.from('class_logs').select('*')
+            .eq('class_id', mainId).eq('log_date', today).maybeSingle();
         
-        renderSeats(room, seats);
+        document.querySelectorAll('[data-field]').forEach(el => el.value = diary ? (diary[el.dataset.field] || '') : '');
+
+        // 初始化出缺席狀態
+        const presentList = diary?.attendance_data || [];
+        db.attendance = {};
+        (sub.members || []).forEach(name => {
+            db.attendance[name] = presentList.includes(name) ? 'present' : 'pending';
+        });
+
+        // 判斷是否已綁定教室
+        if (!roomId) {
+            document.getElementById('seat-grid').innerHTML = "<div class='text-slate-400 font-bold col-span-full'>此子班別尚未綁定教室，請至「座位排班」設定</div>";
+            document.getElementById('seat-grid').style.gridTemplateColumns = "1fr";
+            db.currentRoom = null;
+            db.currentSeats = [];
+            renderFullList(sub.members);
+            updateStats();
+            return;
+        }
+
+        // 讀取該教室的底圖與該子班別的座位
+        db.currentRoom = db.allRooms.find(r => r.id === roomId);
+        
+        const { data: seats } = await supabaseClient.from('class_seats').select('*')
+            .eq('class_id', mainId)
+            .eq('room_id', roomId)
+            .eq('seat_label', String(subIdx));
+
+        db.currentSeats = seats || [];
+
+        // 渲染畫面
+        renderSeats(db.currentRoom, db.currentSeats);
+        renderFullList(sub.members);
+        updateStats();
     }
 
     function renderSeats(room, seats) {
-        const grid = document.getElementById('seat-grid');
+        if(!room) return;
+        const container = document.getElementById('seat-grid');
         const layout = room.layout_config || {};
         const size = room.grid_size || { rows: 5, cols: 8 };
-        grid.style.gridTemplateColumns = `repeat(${size.cols}, 85px)`;
-        grid.innerHTML = "";
         
-        const seatMap = Object.fromEntries(seats?.map(s => [`${s.row_index}-${s.col_index}`, s]) || []);
+        container.style.gridTemplateColumns = `repeat(${size.cols}, 85px)`;
+        container.innerHTML = "";
+        
+        const seatMap = Object.fromEntries(seats.map(s => [`${s.row_index}-${s.col_index}`, s]));
 
         for (let r = 0; r < size.rows; r++) {
             for (let c = 0; c < size.cols; c++) {
@@ -97,17 +253,118 @@
                 const state = layout[key] || 'normal';
                 const div = document.createElement('div');
 
-                if (state === 'hallway') div.className = "slot is-hallway";
-                else if (state === 'blocked') div.className = "slot is-blocked";
-                else {
+                if (state === 'hallway') {
+                    div.className = "slot is-hallway";
+                } else if (state === 'blocked') {
+                    div.className = "slot is-blocked";
+                } else {
                     const seat = seatMap[key];
-                    div.className = seat ? "slot has-student" : "slot is-empty";
-                    if(seat) div.innerHTML = `<span>${seat.student_name}</span>`;
+                    if (seat && seat.student_name) {
+                        const status = db.attendance[seat.student_name] || 'pending';
+                        div.className = `slot has-student status-${status} ${status === 'present' ? 'status-present' : ''}`;
+                        div.innerHTML = `<span class="leading-none text-center font-bold break-words w-full px-1">${seat.student_name}</span>`;
+                        div.onclick = () => updateAttendance(seat.student_name, status === 'present' ? 'pending' : 'present');
+                    } else {
+                        div.className = "slot is-empty";
+                    }
                 }
-                grid.appendChild(div);
+                container.appendChild(div);
             }
         }
     }
+
+    function renderFullList(members) {
+        const list = document.getElementById('all-student-list');
+        list.innerHTML = "";
+        
+        const sorted = (members || []).sort((a,b) => {
+            const statusA = db.attendance[a] === 'present' ? 1 : 0;
+            const statusB = db.attendance[b] === 'present' ? 1 : 0;
+            if (statusA !== statusB) return statusA - statusB;
+            return a.localeCompare(b, 'zh-Hant');
+        });
+
+        sorted.forEach(name => {
+            const info = db.studentDetails[name] || {};
+            const status = db.attendance[name];
+            const div = document.createElement('div');
+            div.className = `stu-item ${status === 'present' ? 'opacity-50' : ''}`;
+            div.innerHTML = `
+                <div class="flex justify-between items-center py-2.5 px-4 font-bold text-sm">
+                    <span class="text-slate-700">${name}</span>
+                    <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${status === 'present' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}">
+                        ${status === 'present' ? '已到' : '待點'}
+                    </span>
+                </div>
+                <div class="accordion-content text-[11px] font-bold text-slate-500 space-y-1">
+                    <div>父：${info.tel_p || '--'}</div>
+                    <div>母：${info.tel_m || '--'}</div>
+                    <div>本：${info.tel_o || '--'}</div>
+                </div>
+            `;
+            div.onclick = () => div.classList.toggle('active');
+            list.appendChild(div);
+        });
+    }
+
+    async function updateAttendance(name, status) {
+        db.attendance[name] = status;
+        const today = new Date().toISOString().split('T')[0];
+        
+        const cls = db.allClasses.find(c => c.id === db.activeClassId);
+        const sub = cls.sub_classes[db.activeSubIdx];
+        const presentList = (sub.members || []).filter(m => db.attendance[m] === 'present');
+
+        // 更新日誌與學生出缺席
+        await supabaseClient.from('class_logs').upsert({
+            class_id: db.activeClassId, log_date: today, attendance_data: presentList
+        }, { onConflict: 'class_id, log_date' });
+        
+        await supabaseClient.from('students').update({ arrival_status: status }).eq('name', name);
+        
+        // 使用快取資料直接重繪，提升效能
+        renderSeats(db.currentRoom, db.currentSeats);
+        renderFullList(sub.members);
+        updateStats();
+    }
+
+    async function saveClassLog(field, value) {
+        const today = new Date().toISOString().split('T')[0];
+        await supabaseClient.from('class_logs').upsert({ 
+            class_id: db.activeClassId, log_date: today, [field]: value 
+        }, { onConflict: 'class_id, log_date' });
+    }
+
+    function updateStats() {
+        const vals = Object.values(db.attendance);
+        document.getElementById('stat-all-present').innerText = vals.filter(v => v === 'present').length;
+        document.getElementById('stat-all-pending').innerText = vals.filter(v => v === 'pending').length;
+    }
+
+    function copyContactLogs() {
+        const now = new Date();
+        const dateStr = `${now.getMonth() + 1}/${now.getDate()}`;
+        const className = document.getElementById('class-switcher').selectedOptions[0].text;
+        
+        const progress = document.getElementById('field-progress').value;
+        const handouts = document.getElementById('field-handouts').value;
+        const homework = document.getElementById('field-homework').value;
+        const nextExam = document.getElementById('field-next-exam').value;
+        const examRange = document.getElementById('field-exam-range').value;
+        const avgScore = document.getElementById('field-avg-score').value;
+
+        let msg = `家長您好\n以下為 ${dateStr} ${className} 課堂狀況：\n`;
+        if(progress) msg += `上課範圍：${progress}\n`;
+        if(handouts) msg += `發放資料：${handouts}\n`;
+        if(homework) msg += `回家作業：${homework}\n`;
+        if(nextExam) msg += `下週考試：${nextExam}\n`;
+        if(examRange) msg += `考試範圍：${examRange}\n`;
+        if(avgScore) msg += `平均分數：${avgScore}分\n`;
+        msg += `考卷內容已於課堂上檢討完畢`;
+
+        navigator.clipboard.writeText(msg).then(() => alert('聯絡本訊息已複製！'));
+    }
+
     window.onload = init;
 </script>
 </body>

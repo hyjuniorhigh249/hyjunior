@@ -10,9 +10,9 @@
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
         
-        /* 專屬列印排版 (完美對應上傳的Word檔) */
+        /* 專屬列印排版 (完美對應Word檔) */
         @media print {
-            body { background: white !important; font-family: "Microsoft JhengHei", sans-serif; }
+            body { background: white !important; font-family: "Microsoft JhengHei", sans-serif; padding: 0 !important; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             
@@ -23,10 +23,11 @@
             
             .p-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
             .p-table th, .p-table td { border: 1px solid black; padding: 10px; text-align: center; vertical-align: middle; }
-            .p-table th { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; font-weight: 900; }
+            .p-table th { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: 900; }
             
             .p-footer-note { font-size: 13px; line-height: 1.6; }
             .p-bold { font-weight: 900; }
+            @page { margin: 1cm; size: portrait; }
         }
     </style>
 </head>
@@ -34,57 +35,72 @@
 
     <div class="max-w-6xl mx-auto no-print flex gap-6">
         <div class="w-80 shrink-0 bg-white p-5 rounded-2xl shadow-sm border h-[calc(100vh-4rem)] flex flex-col">
-            <h2 class="font-black text-xl mb-4">學費結算與沖銷</h2>
-            <input type="text" id="stu-search" placeholder="搜尋學生姓名..." class="w-full p-2 border rounded-lg mb-4 font-bold outline-none focus:ring-2 focus:ring-slate-800">
-            <div id="stu-list" class="flex-1 overflow-y-auto space-y-2"></div>
+            <h2 class="font-black text-xl mb-4 text-slate-800">學費結算與沖銷</h2>
+            <input type="text" id="stu-search" placeholder="輸入姓名快速搜尋..." class="w-full p-2 border rounded-lg mb-4 font-bold outline-none focus:ring-2 focus:ring-slate-800 bg-slate-50">
+            <div id="stu-list" class="flex-1 overflow-y-auto space-y-2">
+                <div class="text-center text-slate-400 font-bold p-4 text-sm">資料連線中，請稍候...</div>
+            </div>
         </div>
 
         <div class="flex-1 bg-white p-6 rounded-2xl shadow-sm border h-[calc(100vh-4rem)] overflow-y-auto" id="billing-panel" style="display:none;">
             <div class="flex justify-between items-center mb-6 border-b pb-4">
                 <h2 class="font-black text-2xl text-slate-800">學生：<span id="b-stu-name" class="text-blue-600"></span></h2>
                 <div class="flex gap-2">
-                    <button onclick="printDoc('notice')" class="bg-slate-700 text-white px-4 py-2 rounded-lg font-black hover:bg-slate-800">🖨️ 印繳費通知單</button>
-                    <button onclick="openPaymentModal()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-black shadow-lg hover:bg-emerald-700">💰 進行繳費(沖銷)</button>
+                    <button onclick="printDoc('notice')" class="bg-slate-700 text-white px-4 py-2 rounded-lg font-black hover:bg-slate-800 transition">🖨️ 印繳費通知單</button>
+                    <button onclick="openPaymentModal()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-black shadow-lg hover:bg-emerald-700 transition">💰 進行繳費 (沖銷)</button>
                 </div>
             </div>
 
-            <h3 class="font-black text-lg mb-3">📋 報名班別與費用明細</h3>
-            <table class="w-full text-left border-collapse mb-8">
-                <thead>
-                    <tr class="bg-slate-100 text-sm">
-                        <th class="p-3 border-b">班別名稱</th>
-                        <th class="p-3 border-b text-right">各項費用</th>
-                        <th class="p-3 border-b text-right">總價</th>
-                        <th class="p-3 border-b w-32">折扣原因/金額</th>
-                        <th class="p-3 border-b text-right">應繳小計</th>
-                        <th class="p-3 border-b text-center">存</th>
-                    </tr>
-                </thead>
-                <tbody id="bill-items"></tbody>
-            </table>
-
-            <h3 class="font-black text-lg mb-3 mt-4 border-t pt-6">📜 歷史繳費紀錄 (沖銷明細)</h3>
-            <table class="w-full text-left border-collapse mb-4 text-sm">
-                <thead><tr class="bg-emerald-50 text-emerald-800"><th class="p-2 border-b">日期</th><th class="p-2 border-b">流水號</th><th class="p-2 border-b">方式</th><th class="p-2 border-b text-right">繳費金額</th><th class="p-2 border-b text-center">印收據</th></tr></thead>
-                <tbody id="payment-logs"></tbody>
-            </table>
-            
-            <div class="bg-rose-50 p-4 rounded-xl border border-rose-200 flex justify-between items-center mt-6">
-                <span class="font-black text-rose-800 text-lg">目前尚欠金額</span>
-                <span class="font-black text-3xl text-rose-600" id="b-total-debt">$0</span>
+            <h3 class="font-black text-lg mb-3 text-slate-700">📋 報名班別與費用明細</h3>
+            <div class="overflow-x-auto mb-8 bg-white border rounded-xl shadow-sm">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-sm">
+                            <th class="p-3 border-b">班別名稱</th>
+                            <th class="p-3 border-b text-right">各項費用</th>
+                            <th class="p-3 border-b text-right">原價總計</th>
+                            <th class="p-3 border-b w-40">折扣設定 (原因/金額)</th>
+                            <th class="p-3 border-b text-right text-rose-600">應繳小計</th>
+                            <th class="p-3 border-b text-center">儲存優惠</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bill-items"></tbody>
+                </table>
             </div>
+
+            <h3 class="font-black text-lg mb-3 mt-4 border-t pt-6 text-emerald-700">📜 歷史繳費紀錄 (沖銷明細)</h3>
+            <div class="overflow-x-auto bg-white border rounded-xl shadow-sm">
+                <table class="w-full text-left border-collapse mb-4 text-sm">
+                    <thead><tr class="bg-emerald-50 text-emerald-800"><th class="p-3 border-b">日期</th><th class="p-3 border-b">流水號</th><th class="p-3 border-b">方式</th><th class="p-3 border-b text-right">已繳金額</th><th class="p-3 border-b text-center">補印收據</th></tr></thead>
+                    <tbody id="payment-logs"></tbody>
+                </table>
+            </div>
+            
+            <div class="bg-rose-50 p-5 rounded-xl border border-rose-200 flex justify-between items-center mt-6 shadow-sm">
+                <span class="font-black text-rose-800 text-lg">⚠️ 目前尚欠金額總計</span>
+                <span class="font-black text-4xl text-rose-600" id="b-total-debt">$0</span>
+            </div>
+        </div>
+        
+        <div class="flex-1 bg-slate-50 rounded-2xl border border-dashed border-slate-300 h-[calc(100vh-4rem)] flex items-center justify-center flex-col text-slate-400" id="empty-panel">
+            <span class="text-6xl mb-4">👈</span>
+            <h2 class="text-xl font-black">請從左側點選一位學生</h2>
+            <p class="text-sm font-bold mt-2">即可結算學費、設定優惠、印單與入帳</p>
         </div>
     </div>
 
     <div id="pay-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4 no-print">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-            <h3 class="text-xl font-black mb-4">入帳 / 沖銷作業</h3>
-            <label class="block text-xs font-bold text-slate-400 mb-1">繳費日期</label><input type="date" id="pay-date" class="w-full p-2 border rounded-lg mb-3 font-bold">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl border">
+            <h3 class="text-xl font-black mb-4 text-slate-800">入帳 / 沖銷作業</h3>
+            <label class="block text-xs font-bold text-slate-400 mb-1">繳費日期</label><input type="date" id="pay-date" class="w-full p-2 border rounded-lg mb-3 font-bold bg-slate-50">
             <label class="block text-xs font-bold text-slate-400 mb-1">繳費方式</label>
-            <select id="pay-method" class="w-full p-2 border rounded-lg mb-3 font-bold"><option value="現金">現金</option><option value="匯款">轉帳/匯款</option></select>
-            <label class="block text-xs font-bold text-slate-400 mb-1">本次繳費金額 (元)</label><input type="number" id="pay-amount" class="w-full p-2 border rounded-lg mb-3 font-black text-lg text-emerald-600">
-            <label class="block text-xs font-bold text-slate-400 mb-1">經手人</label><input type="text" id="pay-handler" class="w-full p-2 border rounded-lg mb-6 font-bold" placeholder="行政人員姓名">
-            <div class="flex gap-2"><button onclick="closeModal('pay-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold">取消</button><button onclick="executePayment()" class="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-bold">確認入帳</button></div>
+            <select id="pay-method" class="w-full p-2 border rounded-lg mb-3 font-bold bg-slate-50"><option value="現金">現金</option><option value="匯款">轉帳/匯款</option></select>
+            <label class="block text-xs font-bold text-slate-400 mb-1">本次繳費金額 (元)</label><input type="number" id="pay-amount" class="w-full p-2 border border-emerald-300 rounded-lg mb-3 font-black text-2xl text-emerald-600 bg-emerald-50">
+            <label class="block text-xs font-bold text-slate-400 mb-1">經手人</label><input type="text" id="pay-handler" class="w-full p-2 border rounded-lg mb-6 font-bold bg-slate-50" placeholder="行政人員姓名">
+            <div class="flex gap-2">
+                <button onclick="closeModal('pay-modal')" class="flex-1 py-3 bg-slate-100 rounded-xl font-bold hover:bg-slate-200">取消</button>
+                <button onclick="executePayment()" class="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-black shadow-md hover:bg-emerald-700">確認入帳</button>
+            </div>
         </div>
     </div>
 
@@ -119,9 +135,9 @@
             <div>三、 學生於實際開課日起算逾一週且未達全期或總課程時數之三分之一期間內提出退費申請者,應退還當期開班約定繳納費用總額之二分之一。 四、學生於達全期或總課程時數之三分之一以上者,不予退費。</div>
         </div>
     </div>
-
     <script>
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
+        
         let students = [], allStudentsData = [], classes = [], bills = [], payments = [];
         let currentStudent = null, currentEnrolled = [], currentTotalDebt = 0;
         
@@ -139,62 +155,142 @@
         }
 
         async function init() {
-            const { data: stus } = await sb.from('students').select('*');
-            allStudentsData = stus || [];
-            students = allStudentsData.map(s => s.name);
-            document.getElementById('stu-search').addEventListener('input', renderStuList);
-            renderStuList();
-            document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
+            try {
+                // 1. 取得學生清單
+                const { data: stus, error: stuErr } = await sb.from('students').select('*');
+                if (stuErr) throw stuErr;
+                
+                allStudentsData = stus || [];
+                // 過濾掉名字可能是 null 或空值的異常資料
+                students = allStudentsData.map(s => s.name).filter(n => n && n.trim() !== '');
+                
+                document.getElementById('stu-search').addEventListener('input', renderStuList);
+                renderStuList();
+                
+                // 預設今日
+                document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
+                
+            } catch (error) {
+                console.error(error);
+                document.getElementById('stu-list').innerHTML = `<div class="p-4 text-center text-red-500 font-bold text-sm bg-red-50 rounded-lg border border-red-200">讀取資料失敗：<br>${error.message}</div>`;
+            }
         }
 
         function renderStuList() {
-            const k = document.getElementById('stu-search').value.toLowerCase();
-            document.getElementById('stu-list').innerHTML = students.filter(s => s.toLowerCase().includes(k)).map(s => `<div onclick="loadStudentData('${s}')" class="p-3 border rounded-xl cursor-pointer hover:bg-slate-100 font-bold ${s===currentStudent?'bg-blue-50':''}">${s}</div>`).join('');
+            const k = document.getElementById('stu-search').value.toLowerCase().trim();
+            const listContainer = document.getElementById('stu-list');
+            
+            const filtered = students.filter(s => s.toLowerCase().includes(k));
+            
+            if (filtered.length === 0) {
+                listContainer.innerHTML = '<div class="text-center text-slate-400 font-bold p-4 text-sm mt-4">找不到符合條件的學生</div>';
+                return;
+            }
+
+            listContainer.innerHTML = filtered.map(s => `
+                <div onclick="loadStudentData('${s}')" class="p-3 border rounded-xl cursor-pointer font-bold transition-colors ${s===currentStudent?'bg-blue-600 text-white border-blue-700 shadow-md':'bg-white hover:bg-slate-100 text-slate-700'}">
+                    ${s}
+                </div>
+            `).join('');
         }
 
         async function loadStudentData(name) {
-            currentStudent = name; document.getElementById('b-stu-name').innerText = name;
-            document.getElementById('billing-panel').style.display = 'block'; renderStuList();
+            try {
+                currentStudent = name; 
+                document.getElementById('b-stu-name').innerText = name;
+                
+                // 切換右側畫面
+                document.getElementById('empty-panel').style.display = 'none';
+                document.getElementById('billing-panel').style.display = 'block'; 
+                renderStuList(); // 讓左側列表反白剛點選的學生
 
-            const { data: clsData } = await sb.from('classes').select('*'); classes = clsData || [];
-            currentEnrolled = [];
-            classes.forEach(c => (c.sub_classes || []).forEach((sub, idx) => {
-                if(sub.members && sub.members.includes(name)) {
-                    currentEnrolled.push({
-                        class_id: c.id, sub_idx: idx, main_name: c.name, sub_name: sub.name,
-                        fee: sub.fee||0, tb_fee: sub.textbook_fee||0, m_fee: sub.misc_fee||0,
-                        start: c.start_date, end: c.end_date
-                    });
-                }
-            }));
-            const { data: bData } = await sb.from('student_bills').select('*').eq('student_name', name); bills = bData || [];
-            const { data: pData } = await sb.from('payment_logs').select('*').eq('student_name', name).order('pay_date', { ascending: false }); payments = pData || [];
-            renderBillingTable();
+                // 2. 取得班級與報名資料
+                const { data: clsData, error: clsErr } = await sb.from('classes').select('*'); 
+                if (clsErr) throw clsErr;
+                classes = clsData || [];
+                
+                currentEnrolled = [];
+                classes.forEach(c => (c.sub_classes || []).forEach((sub, idx) => {
+                    if(sub.members && sub.members.includes(name)) {
+                        currentEnrolled.push({
+                            class_id: c.id, sub_idx: idx, main_name: c.name, sub_name: sub.name,
+                            fee: sub.fee||0, tb_fee: sub.textbook_fee||0, m_fee: sub.misc_fee||0,
+                            start: c.start_date, end: c.end_date
+                        });
+                    }
+                }));
+
+                // 3. 取得專屬優惠
+                const { data: bData } = await sb.from('student_bills').select('*').eq('student_name', name); 
+                bills = bData || [];
+                
+                // 4. 取得歷史繳費
+                const { data: pData } = await sb.from('payment_logs').select('*').eq('student_name', name).order('pay_date', { ascending: false }); 
+                payments = pData || [];
+                
+                renderBillingTable();
+                
+            } catch (error) {
+                alert("載入該學生的帳單資料時發生錯誤：\n" + error.message);
+            }
         }
 
         function renderBillingTable() {
-            let totalPayable = 0; const tbody = document.getElementById('bill-items'); tbody.innerHTML = '';
-            currentEnrolled.forEach(en => {
-                const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0, discount_reason: '' };
-                const subTotal = en.fee + en.tb_fee + en.m_fee;
-                const finalFee = subTotal - b.discount_amount;
-                totalPayable += finalFee;
+            let totalPayable = 0; 
+            const tbody = document.getElementById('bill-items'); 
+            tbody.innerHTML = '';
+            
+            if (currentEnrolled.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">該名學生目前尚未報名任何班別</td></tr>';
+            } else {
+                currentEnrolled.forEach(en => {
+                    const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0, discount_reason: '' };
+                    const subTotal = en.fee + en.tb_fee + en.m_fee;
+                    const finalFee = subTotal - b.discount_amount;
+                    totalPayable += finalFee;
 
-                tbody.innerHTML += `
-                    <tr class="border-b">
-                        <td class="p-3 font-bold">${en.main_name}-${en.sub_name}</td>
-                        <td class="p-3 text-right text-xs text-slate-500">學:${en.fee}<br>雜:${en.m_fee}<br>教:${en.tb_fee}</td>
-                        <td class="p-3 text-right font-bold">$${subTotal}</td>
-                        <td class="p-3"><div class="flex gap-1"><input type="text" value="${b.discount_reason}" id="rsn-${en.class_id}-${en.sub_idx}" class="w-16 p-1 border text-xs" placeholder="原因"><input type="number" value="${b.discount_amount}" id="amt-${en.class_id}-${en.sub_idx}" class="w-16 p-1 border text-rose-500 font-bold" placeholder="金額"></div></td>
-                        <td class="p-3 text-right font-black">$${finalFee}</td>
-                        <td class="p-3 text-center"><button onclick="saveDiscount('${en.class_id}', ${en.sub_idx})" class="bg-slate-200 px-2 py-1 rounded text-xs font-bold">存</button></td>
-                    </tr>`;
-            });
+                    tbody.innerHTML += `
+                        <tr class="border-b hover:bg-slate-50 transition">
+                            <td class="p-3 font-black text-slate-700">${en.main_name} - ${en.sub_name}</td>
+                            <td class="p-3 text-right text-xs text-slate-500 font-bold leading-relaxed">學: $${en.fee}<br>雜: $${en.m_fee}<br>教: $${en.tb_fee}</td>
+                            <td class="p-3 text-right font-black text-slate-800">$${subTotal}</td>
+                            <td class="p-3">
+                                <div class="flex gap-1 flex-col">
+                                    <input type="text" value="${b.discount_reason}" id="rsn-${en.class_id}-${en.sub_idx}" class="w-full p-1.5 border rounded text-xs bg-white outline-none focus:ring-1 ring-blue-400" placeholder="填寫原因(例:舊生)">
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-xs font-black text-slate-400">折$</span>
+                                        <input type="number" value="${b.discount_amount}" id="amt-${en.class_id}-${en.sub_idx}" class="w-full p-1.5 border rounded text-rose-500 font-black bg-white outline-none focus:ring-1 ring-rose-400" placeholder="金額">
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-3 text-right font-black text-rose-600 text-lg">$${finalFee}</td>
+                            <td class="p-3 text-center">
+                                <button onclick="saveDiscount('${en.class_id}', ${en.sub_idx})" class="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-blue-200 shadow-sm">💾 儲存</button>
+                            </td>
+                        </tr>`;
+                });
+            }
+
             let totalPaid = 0;
-            document.getElementById('payment-logs').innerHTML = payments.map(p => {
-                totalPaid += p.amount;
-                return `<tr><td class="p-2">${p.pay_date}</td><td class="p-2 text-xs">${p.serial_no}</td><td class="p-2">${p.pay_method}</td><td class="p-2 text-right font-bold text-emerald-600">$${p.amount}</td><td class="p-2 text-center"><button onclick="printDoc('receipt', '${p.serial_no}')" class="bg-slate-200 px-2 rounded text-xs">列印</button></td></tr>`;
-            }).join('');
+            const logBody = document.getElementById('payment-logs');
+            if (payments.length === 0) {
+                logBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400 font-bold">尚無繳費紀錄</td></tr>';
+            } else {
+                logBody.innerHTML = payments.map(p => {
+                    totalPaid += p.amount;
+                    return `
+                        <tr class="border-b hover:bg-emerald-100 transition">
+                            <td class="p-3 font-bold">${p.pay_date}</td>
+                            <td class="p-3 text-xs text-slate-500 font-bold">${p.serial_no}</td>
+                            <td class="p-3 font-bold">${p.pay_method}</td>
+                            <td class="p-3 text-right font-black text-emerald-600">$${p.amount}</td>
+                            <td class="p-3 text-center">
+                                <button onclick="printDoc('receipt', '${p.serial_no}')" class="bg-slate-200 text-slate-700 px-3 py-1 rounded shadow-sm text-xs font-black hover:bg-slate-300">補印</button>
+                            </td>
+                        </tr>`;
+                }).join('');
+            }
+            
             currentTotalDebt = totalPayable - totalPaid;
             document.getElementById('b-total-debt').innerText = `$${currentTotalDebt}`;
         }
@@ -202,21 +298,47 @@
         async function saveDiscount(cId, sIdx) {
             const amt = parseInt(document.getElementById(`amt-${cId}-${sIdx}`).value) || 0;
             const rsn = document.getElementById(`rsn-${cId}-${sIdx}`).value.trim();
-            const exist = bills.find(b => b.class_id === cId && b.sub_idx === sIdx);
-            if(exist) await sb.from('student_bills').update({ discount_amount: amt, discount_reason: rsn }).eq('id', exist.id);
-            else await sb.from('student_bills').insert([{ student_name: currentStudent, class_id: cId, sub_idx: sIdx, discount_amount: amt, discount_reason: rsn }]);
-            alert("已儲存"); loadStudentData(currentStudent);
+            try {
+                const exist = bills.find(b => b.class_id === cId && b.sub_idx === sIdx);
+                if(exist) await sb.from('student_bills').update({ discount_amount: amt, discount_reason: rsn }).eq('id', exist.id);
+                else await sb.from('student_bills').insert([{ student_name: currentStudent, class_id: cId, sub_idx: sIdx, discount_amount: amt, discount_reason: rsn }]);
+                
+                alert("優惠折扣已成功儲存！"); 
+                loadStudentData(currentStudent);
+            } catch (error) {
+                alert("儲存失敗：" + error.message);
+            }
         }
 
-        function openPaymentModal() { if(!currentStudent) return; document.getElementById('pay-modal').classList.add('active'); }
+        function openPaymentModal() { 
+            if(!currentStudent) return; 
+            document.getElementById('pay-amount').value = '';
+            document.getElementById('pay-handler').value = '';
+            document.getElementById('pay-modal').classList.add('active'); 
+        }
+
         async function executePayment() {
-            const amt = parseInt(document.getElementById('pay-amount').value), date = document.getElementById('pay-date').value;
-            const method = document.getElementById('pay-method').value, handler = document.getElementById('pay-handler').value.trim();
-            if(!amt || !handler) return alert("資料不完整");
-            const serial = `NO.${date.replace(/-/g, '')}${Math.floor(1000+Math.random()*9000)}`;
-            await sb.from('payment_logs').insert([{ serial_no: serial, student_name: currentStudent, amount: amt, pay_method: method, pay_date: date, handler: handler }]);
-            closeModal('pay-modal'); loadStudentData(currentStudent);
-            if(confirm("入帳成功！列印收據？")) printDoc('receipt', serial);
+            const amt = parseInt(document.getElementById('pay-amount').value);
+            const date = document.getElementById('pay-date').value;
+            const method = document.getElementById('pay-method').value;
+            const handler = document.getElementById('pay-handler').value.trim();
+            
+            if(!amt || !handler) return alert("請確認「金額」及「經手人」皆已填寫！");
+            
+            try {
+                const serial = `NO.${date.replace(/-/g, '')}${Math.floor(1000+Math.random()*9000)}`;
+                const { error } = await sb.from('payment_logs').insert([{ serial_no: serial, student_name: currentStudent, amount: amt, pay_method: method, pay_date: date, handler: handler }]);
+                if (error) throw error;
+                
+                closeModal('pay-modal'); 
+                loadStudentData(currentStudent);
+                
+                if(confirm("✅ 繳費入帳成功！\n\n請問是否要立即為家長列印收據？")) {
+                    printDoc('receipt', serial);
+                }
+            } catch (error) {
+                alert("入帳失敗：" + error.message);
+            }
         }
 
         function printDoc(type, serial = null) {
@@ -237,7 +359,7 @@
                 totalPayable += finalFee;
 
                 html += `<tr>
-                    <td>班級:${en.main_name}<br>班別:${en.sub_name}</td>
+                    <td>班級: ${en.main_name}<br>班別: ${en.sub_name}</td>
                     <td style="text-align:left;">學費: ${en.fee}<br>雜費: ${en.m_fee}<br>教材費: ${en.tb_fee}<br>總價: ${subTotal}</td>
                     <td>${b.discount_reason}<br>折 ${b.discount_amount} 元<br>折扣後金額:<br>${finalFee}</td>
                     <td>${en.start ? en.start.replace(/-/g,'/') : '未定'}<br>至<br>${en.end ? en.end.replace(/-/g,'/') : '未定'}</td>
@@ -246,18 +368,19 @@
 
             if(type === 'notice') {
                 document.getElementById('p-title').innerText = "昊學文教   繳費通知單";
-                const d = new Date(); d.setDate(d.getDate() + 7); // 預設7天期限
+                const d = new Date(); d.setDate(d.getDate() + 7); 
                 document.getElementById('p-serial-info').innerText = `流水編號: NO. SYSTEM (繳費後產生)`;
-                html += `<tr><td colspan="2" class="p-bold">實收總金額<br>${numToChinese(totalPayable)}</td><td colspan="2" class="p-bold text-lg">${totalPayable} 元<br><span style="font-size:12px;font-weight:normal;">繳費期限:${d.toISOString().split('T')[0].replace(/-/g,'/')}前</span></td></tr>`;
+                html += `<tr><td colspan="2" class="p-bold">實收總金額<br>${numToChinese(totalPayable)}</td><td colspan="2" class="p-bold text-lg">${totalPayable} 元<br><span style="font-size:12px;font-weight:normal;">繳費期限: ${d.toISOString().split('T')[0].replace(/-/g,'/')} 前</span></td></tr>`;
                 
                 document.getElementById('p-footer-notice').style.display = 'block';
                 document.getElementById('p-footer-receipt').style.display = 'none';
             } else {
                 document.getElementById('p-title').innerText = "昊學文教   課程收據";
                 const p = payments.find(x => x.serial_no === serial);
+                if(!p) return alert("找不到收據紀錄");
                 document.getElementById('p-serial-info').innerText = `流水編號: ${p.serial_no}`;
                 
-                const debt = totalPayable - payments.reduce((sum, curr) => sum + curr.amount, 0); // 算到當下的欠款
+                const debt = totalPayable - payments.reduce((sum, curr) => sum + curr.amount, 0); 
                 html += `<tr><td colspan="2" class="p-bold text-left">本日繳費: ${p.amount} 元<br>尚欠: ${debt} 元</td><td colspan="2" class="p-bold text-left">繳費方式: ${p.pay_method === '現金' ? '☑現金 ☐轉帳' : '☐現金 ☑轉帳'}</td></tr>`;
                 
                 document.getElementById('p-footer-notice').style.display = 'none';
@@ -267,6 +390,9 @@
             document.getElementById('p-table').innerHTML = html;
             window.print();
         }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        window.onload = init;
     </script>
 </body>
 </html>

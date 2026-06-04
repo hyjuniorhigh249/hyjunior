@@ -2,72 +2,73 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>浩元行政系統 - 座位排班管理</title>
+    <title>座位排班管理 - 昊學行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; }
-        .grid-canvas { display: grid; gap: 10px; background: #f8fafc; padding: 20px; border-radius: 1.5rem; border: 2px solid #cbd5e1; }
-        .slot { aspect-ratio: 1/1; width: 80px; background: white; border: 1px solid #e2e8f0; border-radius: 0.75rem; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
-        .slot:hover { border-color: #3b82f6; transform: translateY(-2px); }
-        .slot.is-hallway { background: #e2e8f0; border: none; cursor: not-allowed; }
+        .grid-canvas { display: grid; gap: 8px; background: #fff; padding: 20px; border-radius: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .slot { aspect-ratio: 1/1; width: 60px; background: white; border: 2px solid #e2e8f0; border-radius: 0.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s; }
+        .slot:hover { border-color: #3b82f6; }
+        .slot.is-hallway { background: #cbd5e1; border: none; cursor: default; }
+        .slot.is-blocked { background: #fca5a5; border-color: #ef4444; color: white; font-weight: 900; }
+        .slot.is-blocked::after { content: "XX"; }
     </style>
 </head>
 <body class="p-8">
     <div class="max-w-6xl mx-auto">
-        <header class="flex justify-between items-end mb-8">
-            <h1 class="text-3xl font-black text-slate-800">子班別座位管理</h1>
-            <div class="flex items-center gap-4 bg-white p-3 rounded-2xl shadow border">
-                <select id="subclass-select" onchange="loadSubClass(this.value)" class="font-black text-slate-700 outline-none p-2 cursor-pointer"></select>
-                <select id="room-select" onchange="loadRoomLayout(this.value)" class="font-black text-slate-700 outline-none p-2 cursor-pointer"></select>
-                <button onclick="openCopyModal()" class="bg-emerald-600 text-white px-6 py-2 rounded-xl font-black hover:bg-emerald-700">複製座位</button>
-                <button onclick="saveAll()" class="bg-blue-600 text-white px-6 py-2 rounded-xl font-black">儲存</button>
+        <header class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-black text-slate-800">座位排班管理</h1>
+            <div class="flex gap-2">
+                <select id="subclass-select" onchange="loadSubClass(this.value)" class="p-2 rounded-lg font-bold border"></select>
+                <select id="room-select" onchange="loadRoomLayout(this.value)" class="p-2 rounded-lg font-bold border"></select>
+                <button onclick="toggleMode()" id="mode-btn" class="bg-amber-500 text-white px-4 py-2 rounded-lg font-black">座位排班模式</button>
+                <button onclick="saveAll()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-black">儲存設定</button>
             </div>
         </header>
 
-        <div class="flex gap-8">
-            <div id="unassigned-list" class="w-64 space-y-2"></div>
+        <div class="flex gap-6">
+            <div id="unassigned-list" class="w-48 space-y-2"></div>
             <div id="editor-grid" class="grid-canvas"></div>
         </div>
     </div>
 
     <script>
-        const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
-        let config = { currentSubClassId: null, currentRoomId: null, studentSeating: {}, roomLayout: {}, rows: 6, cols: 8, selectedStudent: null, members: [] };
+        const supabase = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', '...');
+        let config = { 
+            currentSubClassId: null, currentRoomId: null, 
+            studentSeating: {}, layoutConfig: {}, 
+            mode: 'seating', // 'seating' 或 'edit'
+            rows: 5, cols: 8, selectedStudent: null, members: [] 
+        };
 
         async function init() {
-            const { data: classes } = await supabaseClient.from('classes').select('*');
+            const { data: classes } = await supabase.from('classes').select('*');
             const select = document.getElementById('subclass-select');
-            select.innerHTML = '<option value="">請選擇子班別...</option>';
-            classes?.forEach(cls => {
-                (cls.sub_classes || []).forEach((sub, idx) => {
-                    const uniqueId = `${cls.id}_${idx}`;
-                    select.add(new Option(`${cls.name} - ${sub.name}`, uniqueId));
-                });
-            });
-            const { data: rooms } = await supabaseClient.from('rooms').select('*');
+            classes?.forEach(cls => (cls.sub_classes || []).forEach((sub, i) => select.add(new Option(`${cls.name}-${sub.name}`, `${cls.id}_${i}`))));
+            
+            const { data: rooms } = await supabase.from('rooms').select('*');
             const rSelect = document.getElementById('room-select');
             rooms?.forEach(r => rSelect.add(new Option(r.name, r.id)));
         }
 
-        async function loadSubClass(uniqueId) {
-            config.currentSubClassId = uniqueId;
-            const [parentId, idx] = uniqueId.split('_');
-            const { data } = await supabaseClient.from('classes').select('members').eq('id', parentId).single();
-            config.members = data.members || [];
-            updateSidebar();
+        function toggleMode() {
+            config.mode = config.mode === 'seating' ? 'edit' : 'seating';
+            document.getElementById('mode-btn').innerText = config.mode === 'seating' ? '座位排班模式' : '教室設定模式';
+            render();
         }
 
         async function loadRoomLayout(roomId) {
             config.currentRoomId = roomId;
-            const { data: room } = await supabaseClient.from('rooms').select('*').eq('id', roomId).single();
-            config.roomLayout = room.layout_config || {};
-            config.rows = room.grid_size.rows; config.cols = room.grid_size.cols;
-            
-            // 撈取該子班別的專屬座位
-            const { data: seats } = await supabaseClient.from('class_seats')
-                .select('*').eq('class_id', config.currentSubClassId).eq('room_id', roomId);
+            const { data: room } = await supabase.from('rooms').select('*').eq('id', roomId).single();
+            config.layoutConfig = room.layout_config || {};
+            config.rows = room.grid_size.rows;
+            config.cols = room.grid_size.cols;
+            loadSeats();
+        }
+
+        async function loadSeats() {
+            const { data: seats } = await supabase.from('class_seats').select('*').eq('class_id', config.currentSubClassId).eq('room_id', config.currentRoomId);
             config.studentSeating = {};
             seats?.forEach(s => config.studentSeating[`${s.row_index}-${s.col_index}`] = s.student_name);
             render();
@@ -76,46 +77,50 @@
         function render() {
             const grid = document.getElementById('editor-grid');
             grid.innerHTML = ""; grid.style.gridTemplateColumns = `repeat(${config.cols}, 1fr)`;
+            
             for (let r = 0; r < config.rows; r++) {
                 for (let c = 0; c < config.cols; c++) {
                     const key = `${r}-${c}`;
-                    const slot = document.createElement('div');
-                    slot.className = config.roomLayout[key] === 'hallway' ? 'slot is-hallway' : 'slot';
-                    const stu = config.studentSeating[key];
-                    if (stu && stu !== 'HALLWAY') slot.innerHTML = `<span class="font-black text-xs">${stu}</span><button onclick="removeStudent('${key}', event)" class="text-[9px] text-rose-500">移除</button>`;
-                    slot.onclick = () => { if(config.selectedStudent) { config.studentSeating[key] = config.selectedStudent; config.selectedStudent = null; updateSidebar(); render(); } };
-                    grid.appendChild(slot);
+                    const div = document.createElement('div');
+                    const state = config.layoutConfig[key] || 'normal';
+                    div.className = `slot ${state === 'hallway' ? 'is-hallway' : ''} ${state === 'blocked' ? 'is-blocked' : ''}`;
+                    
+                    if (state === 'normal' && config.studentSeating[key]) {
+                        div.innerHTML = `<span class="text-[10px] font-black">${config.studentSeating[key]}</span>`;
+                    }
+
+                    div.onclick = () => handleSlotClick(key, state);
+                    grid.appendChild(div);
                 }
             }
         }
 
-        function updateSidebar() {
-            const assigned = Object.values(config.studentSeating);
-            document.getElementById('unassigned-list').innerHTML = config.members.filter(n => !assigned.includes(n))
-                .map(n => `<div onclick="config.selectedStudent='${n}'" class="p-3 bg-white rounded-xl font-bold border cursor-pointer hover:border-blue-500">${n}</div>`).join('');
+        function handleSlotClick(key, state) {
+            if (config.mode === 'edit') {
+                if (state === 'normal') config.layoutConfig[key] = 'blocked';
+                else if (state === 'blocked') config.layoutConfig[key] = 'hallway';
+                else config.layoutConfig[key] = 'normal';
+            } else {
+                if (state !== 'normal') return;
+                if (config.selectedStudent) {
+                    config.studentSeating[key] = config.selectedStudent;
+                    config.selectedStudent = null;
+                } else if (config.studentSeating[key]) {
+                    delete config.studentSeating[key];
+                }
+            }
+            render();
         }
-
-        function removeStudent(key, e) { e.stopPropagation(); delete config.studentSeating[key]; render(); updateSidebar(); }
 
         async function saveAll() {
-            await supabaseClient.from('class_seats').delete().eq('class_id', config.currentSubClassId).eq('room_id', config.currentRoomId);
-            const batch = Object.entries(config.studentSeating).map(([key, name]) => {
-                const [r, c] = key.split('-');
-                return { class_id: config.currentSubClassId, room_id: config.currentRoomId, student_name: name, row_index: r, col_index: c };
-            });
-            await supabaseClient.from('class_seats').insert(batch);
-            alert("座位儲存成功！");
-        }
-
-        async function openCopyModal() {
-            const sourceId = prompt("請輸入來源子班別的唯一ID (格式: 父ID_索引):");
-            if(!sourceId) return;
-            const { data: seats } = await supabaseClient.from('class_seats').select('*').eq('class_id', sourceId).eq('room_id', config.currentRoomId);
-            if(!seats || seats.length === 0) return alert("該教室無來源班別座位");
-            
-            await supabaseClient.from('class_seats').delete().eq('class_id', config.currentSubClassId).eq('room_id', config.currentRoomId);
-            await supabaseClient.from('class_seats').insert(seats.map(s => ({...s, class_id: config.currentSubClassId})));
-            loadRoomLayout(config.currentRoomId);
+            await supabase.from('rooms').update({ layout_config: config.layoutConfig }).eq('id', config.currentRoomId);
+            await supabase.from('class_seats').delete().eq('class_id', config.currentSubClassId).eq('room_id', config.currentRoomId);
+            const seats = Object.entries(config.studentSeating).map(([k, name]) => ({
+                class_id: config.currentSubClassId, room_id: config.currentRoomId, student_name: name,
+                row_index: k.split('-')[0], col_index: k.split('-')[1]
+            }));
+            await supabase.from('class_seats').insert(seats);
+            alert("已儲存教室佈局與座位");
         }
 
         window.onload = init;

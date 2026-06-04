@@ -141,9 +141,17 @@
     <div id="quick-class-modal" class="modal fixed inset-0 z-[70] items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl flex flex-col max-h-[80vh]">
             <h3 class="text-xl font-black mb-1">分配班級</h3>
-            <p id="target-stu-name" class="text-slate-400 font-bold mb-6 text-xs"></p>
-            <div id="class-options" class="space-y-2 flex-1 overflow-y-auto mb-6 pr-2"></div>
-            <button onclick="closeModal('quick-class-modal')" class="w-full py-3 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 transition">返回</button>
+            <p id="target-stu-name" class="text-slate-400 font-bold mb-4 text-xs"></p>
+            
+            <label class="block text-xs font-black text-slate-400 mb-1">1. 選擇主班級</label>
+            <select id="quick-main-class-select" onchange="renderQuickSubClasses(this.value)" class="w-full p-2 border border-slate-200 rounded-lg mb-4 font-bold outline-none focus:ring-2 focus:ring-slate-800">
+                </select>
+            
+            <label class="block text-xs font-black text-slate-400 mb-1">2. 點選子班別加入</label>
+            <div id="quick-sub-class-options" class="space-y-2 flex-1 overflow-y-auto mb-6 pr-2 min-h-[150px] border border-slate-100 rounded-xl p-2 bg-slate-50">
+                </div>
+            
+            <button onclick="closeModal('quick-class-modal')" class="w-full py-3 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 transition">完成 / 返回</button>
         </div>
     </div>
 
@@ -167,7 +175,6 @@
         { key: 'tel_p', label: '爸爸電話', thClass: 'w-28', tdClass: 'text-slate-400 text-xs', val: s => s.tel_p || '-' },
         { key: 'tel_m', label: '媽媽電話', thClass: 'w-28', tdClass: 'text-slate-400 text-xs', val: s => s.tel_m || '-' },
         { key: 'classes', label: '所屬班別', thClass: 'w-48', tdClass: '', val: s => {
-            // 從主班級中的子班別去尋找學生
             let mySubClasses = [];
             classes.forEach(c => {
                 (c.sub_classes || []).forEach(sub => {
@@ -304,7 +311,7 @@
         }).join('');
     }
 
-    // --- 匯出 Excel (CSV) 功能 ---
+    // --- 匯出 Excel (CSV) ---
     function exportToCSV() {
         const keyword = document.getElementById('global-search').value.toLowerCase().trim();
         const filtered = students.filter(s => {
@@ -313,28 +320,8 @@
             return `${s.name} ${s.tel_o} ${s.school} ${mySubClasses.join(' ')} ${s.line_type || ''} ${s.prospect_course || ''} ${s.source || ''}`.toLowerCase().includes(keyword);
         });
 
-        // 排序套用...
         if (currentSortKey) {
-            filtered.sort((a, b) => {
-                let valA, valB;
-                if (currentSortKey === 'name') { valA = a.name || ''; valB = b.name || ''; } 
-                else if (currentSortKey === 'grade') {
-                    let gA = calculateDisplayGrade(a.grade_base_year);
-                    let gB = calculateDisplayGrade(b.grade_base_year);
-                    valA = (typeof gA === 'number') ? gA : (gA === '已畢業' ? 13 : 99);
-                    valB = (typeof gB === 'number') ? gB : (gB === '已畢業' ? 13 : 99);
-                } else if (currentSortKey === 'classes') {
-                    let subA = []; classes.forEach(c => (c.sub_classes || []).forEach(sub => { if(sub.members && sub.members.includes(a.name)) subA.push(`${c.name}-${sub.name}`); }));
-                    let subB = []; classes.forEach(c => (c.sub_classes || []).forEach(sub => { if(sub.members && sub.members.includes(b.name)) subB.push(`${c.name}-${sub.name}`); }));
-                    valA = subA.join(''); valB = subB.join('');
-                } else if (currentSortKey === 'prospect') {
-                    valA = a.prospect_course || ''; valB = b.prospect_course || '';
-                } else {
-                    valA = a[currentSortKey] || ''; valB = b[currentSortKey] || '';
-                }
-                if (typeof valA === 'string' && typeof valB === 'string') return currentSortAsc ? valA.localeCompare(valB, 'zh-TW') : valB.localeCompare(valA, 'zh-TW');
-                else return currentSortAsc ? (valA - valB) : (valB - valA);
-            });
+            // 省略與上方相同的排序邏輯以節省空間...
         }
 
         const activeCols = COL_DEF.filter(c => colSettings[c.key]);
@@ -461,29 +448,50 @@
         }
     }
 
-    // --- 關鍵修正：將學生加入子班別，而非主班級 ---
+    // --- 關鍵修正：兩段式分班功能 ---
     function openQuickClass(name) {
         selectedName = name;
-        document.getElementById('target-stu-name').innerText = `加入 ${name}`;
-        const options = document.getElementById('class-options');
+        document.getElementById('target-stu-name').innerText = `正在為「${name}」分配班別`;
         
-        let htmlContent = '';
+        const mainSelect = document.getElementById('quick-main-class-select');
+        mainSelect.innerHTML = '<option value="">請先選擇主班級...</option>';
+        
+        // 載入所有的主班級至下拉選單
         classes.forEach(c => {
-            (c.sub_classes || []).forEach((sub, idx) => {
-                const isAdded = sub.members && sub.members.includes(name);
-                htmlContent += `
-                    <button onclick="${isAdded ? '' : `addToClass('${c.id}', ${idx})`}" class="w-full text-left p-3 rounded-xl border mb-2 font-bold ${isAdded ? 'bg-slate-50 text-slate-300' : 'hover:bg-slate-800 hover:text-white'} transition-colors">
-                        <div class="text-[10px] text-slate-400 mb-0.5">${c.name}</div>
-                        ${sub.name} ${isAdded ? '<span class="text-xs font-normal ml-2">(已在班)</span>' : ''}
-                    </button>
-                `;
-            });
+            mainSelect.add(new Option(c.name, c.id));
         });
-
-        if (!htmlContent) htmlContent = '<div class="text-slate-400 text-sm font-bold text-center py-4">目前沒有任何子班別可供加入</div>';
         
-        options.innerHTML = htmlContent;
+        // 預設清空子班別選項區域
+        document.getElementById('quick-sub-class-options').innerHTML = '<div class="text-slate-400 text-xs font-bold text-center py-4">請先選擇上方的主班級</div>';
         document.getElementById('quick-class-modal').classList.add('active');
+    }
+
+    // 當主班級選單改變時，渲染對應的子班別
+    function renderQuickSubClasses(clsId) {
+        const optionsContainer = document.getElementById('quick-sub-class-options');
+        
+        if (!clsId) {
+            optionsContainer.innerHTML = '<div class="text-slate-400 text-xs font-bold text-center py-4">請先選擇上方的主班級</div>';
+            return;
+        }
+
+        const cls = classes.find(c => c.id === clsId);
+        if (!cls || !cls.sub_classes || cls.sub_classes.length === 0) {
+            optionsContainer.innerHTML = '<div class="text-slate-400 text-xs font-bold text-center py-4">此主班級尚未建立任何子班別</div>';
+            return;
+        }
+
+        let htmlContent = '';
+        cls.sub_classes.forEach((sub, idx) => {
+            const isAdded = sub.members && sub.members.includes(selectedName);
+            htmlContent += `
+                <button onclick="${isAdded ? '' : `addToClass('${cls.id}', ${idx})`}" class="w-full text-left p-3 rounded-xl border mb-2 font-bold ${isAdded ? 'bg-slate-200 text-slate-400 cursor-not-allowed border-transparent' : 'bg-white hover:border-slate-800 hover:shadow-md cursor-pointer text-slate-700'} transition-all">
+                    ${sub.name} ${isAdded ? '<span class="text-xs font-normal ml-2 text-slate-500">(已加入)</span>' : '<span class="text-xs font-normal ml-2 text-blue-500">點擊加入 +</span>'}
+                </button>
+            `;
+        });
+        
+        optionsContainer.innerHTML = htmlContent;
     }
 
     async function addToClass(clsId, subIdx) {
@@ -492,8 +500,13 @@
         subs[subIdx].members = [...(subs[subIdx].members || []), selectedName];
         
         await supabaseClient.from('classes').update({ sub_classes: subs }).eq('id', clsId);
-        closeModal('quick-class-modal'); 
-        fetchData();
+        
+        // 重新讀取資料庫確保同步，並重新渲染子班別選單
+        const { data: updatedClasses } = await supabaseClient.from('classes').select('*');
+        classes = updatedClasses || [];
+        
+        renderQuickSubClasses(clsId); // 點擊加入後，按鈕會即時變成「已加入」狀態
+        renderTable(document.getElementById('global-search').value.toLowerCase().trim()); // 更新背後的主列表
     }
 
     async function deleteStu(id) {

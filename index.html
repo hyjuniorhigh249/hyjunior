@@ -19,16 +19,13 @@
             const { data: { session }, error } = await supabaseClient.auth.getSession();
             
             if (!session) {
-                // 偵測到未登入，直接觸發 Google OAuth 跳轉
                 await supabaseClient.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        // 登入成功後導回目前的網址
                         redirectTo: window.location.origin + window.location.pathname 
                     }
                 });
             } else {
-                // 已登入，顯示使用者帳號
                 const emailElement = document.getElementById('admin-email');
                 if (emailElement) emailElement.innerText = session.user.email;
             }
@@ -39,12 +36,10 @@
         // 監聽驗證狀態，處理登出情況
         supabaseClient.auth.onAuthStateChange((event) => {
             if (event === 'SIGNED_OUT') {
-                // 登出後重新載入，會再次觸發 checkAuth 並跳轉至 Google
                 window.location.reload();
             }
         });
     </script>
-
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; }
         
@@ -62,15 +57,12 @@
             text-align: left;
             margin-bottom: 0.25rem;
         }
-
         .nav-link:hover { background-color: #f8fafc; }
-
         .nav-link.active { 
             background-color: #1e293b; 
             color: #ffffff; 
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); 
         }
-
         .sidebar-header { 
             font-weight: 900; 
             font-size: 1.125rem; 
@@ -93,18 +85,15 @@
             padding-right: 0.5rem;
             letter-spacing: 0.05em;
         }
-
         .text-blue-link { color: #2563eb; }
         .text-blue-link:hover { background-color: #eff6ff; }
     </style>
 </head>
 <body class="flex h-screen bg-white overflow-hidden">
-
     <nav class="w-40 bg-white border-r border-slate-200 p-3 flex flex-col shrink-0 h-screen sticky top-0">
         <div onclick="changePage('dashboard.html', document.getElementById('nav-dash'))" class="sidebar-header">
-            昊學行政
+            昊學文教
         </div>
-
         <div class="flex flex-col">
             <button id="nav-dash" onclick="changePage('dashboard.html', this)" class="nav-link active">
                 <span>🏠</span> 系統首頁
@@ -119,7 +108,13 @@
                 <span>🪑</span> 教室座位
             </button>
             <button id="nav-attendance" onclick="changePage('attendance.html', this)" class="nav-link">
-                <span>📚</span> 點名與成績
+                <span>📚</span> 點名成績
+            </button>
+            <button id="nav-billing" onclick="changePage('billing.html', this)" class="nav-link">
+                <span>💰</span> 繳費作業
+            </button>
+            <button id="nav-accounting" onclick="changePage('accounting.html', this)" class="nav-link">
+                <span>📊</span> 會計系統
             </button>
         </div>
         
@@ -129,32 +124,26 @@
                 <span>📱</span> 迷你通訊窗
             </button>
         </div>
-
         <div class="mt-auto pt-4 border-t border-slate-100 px-2">
             <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">管理員</p>
             <p id="admin-email" class="text-[10px] font-medium text-slate-500 truncate mb-2">驗證中...</p>
             <button onclick="logout()" class="w-full text-left text-[10px] font-bold text-red-400 hover:text-red-600 transition">登出系統</button>
         </div>
     </nav>
-
     <main class="flex-1 relative bg-slate-50">
         <iframe id="main-content" src="dashboard.html" class="w-full h-full border-none"></iframe>
     </main>
-
     <script>
         function changePage(url, btn) {
             const iframe = document.getElementById('main-content');
             if (iframe) {
                 iframe.src = url;
             }
-
             if (btn) {
                 document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
             }
         }
-
-        // 登出函式
         async function logout() {
             if(confirm("確定要登出系統嗎？")) {
                 await supabaseClient.auth.signOut();

@@ -23,10 +23,16 @@
             body { background: white !important; padding: 0 !important; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
-            .grid-canvas { box-shadow: none !important; border: 2px solid #333 !important; padding: 10px !important; margin: 0 auto !important; }
-            .slot { border: 2px solid #64748b !important; color: #000 !important; font-size: 16px !important; }
-            .slot.is-hallway { background: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .slot.is-blocked { background: #fca5a5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            
+            /* 強制列印背景色與格線 */
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            
+            .grid-canvas { box-shadow: none !important; border: 2px solid #333 !important; padding: 15px !important; margin: 0 auto !important; }
+            .slot { border: 2px solid #64748b !important; color: #000 !important; font-size: 16px !important; background-color: #ffffff !important; }
+            .slot.is-hallway { background-color: #e2e8f0 !important; }
+            .slot.is-blocked { background-color: #fca5a5 !important; }
+            .slot.is-hallway::after { content: "走廊"; color: #64748b; font-size: 10px; }
+            
             @page { margin: 1cm; size: landscape; } /* 預設橫向列印 */
         }
     </style>
@@ -36,7 +42,7 @@
     <div id="print-header" class="hidden print-only text-center mb-6 mt-4">
         <h1 id="print-title" class="text-4xl font-black text-black">座位表</h1>
         <p id="print-subtitle" class="text-xl font-bold text-gray-600 mt-2"></p>
-        <div class="mt-6 bg-gray-800 text-white w-48 mx-auto font-black py-1 rounded">黑板方向</div>
+        <div class="mt-6 bg-gray-800 text-white w-48 mx-auto font-black py-1 rounded">黑板方向 ↑</div>
     </div>
 
     <div class="max-w-7xl mx-auto no-print">
@@ -49,7 +55,7 @@
 
         <div class="flex gap-2 mb-6 items-center bg-white p-4 rounded-xl shadow-sm border flex-wrap">
             <select id="subclass-select" onchange="loadSubClass(this.value)" class="p-2 rounded-lg font-bold border outline-none cursor-pointer">
-                <option value="">1. 選擇子班別 (可不選，純印空白教室)</option>
+                <option value="">1. 選擇子班別 (純印空白免選)</option>
             </select>
             <span class="text-slate-400 font-bold">▶</span>
             <select id="room-select" onchange="handleRoomSelect(this.value)" class="p-2 rounded-lg font-bold border outline-none cursor-pointer">
@@ -66,23 +72,24 @@
             </div>
 
             <div class="ml-auto flex gap-2">
-                <button onclick="openCopyModal()" class="bg-teal-600 text-white px-4 py-2 rounded-lg font-black">複製其他班座位</button>
+                <button onclick="openCopyModal()" class="bg-teal-600 text-white px-4 py-2 rounded-lg font-black">複製其他班</button>
                 <button onclick="openEditRoomModal()" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-black">修改排數</button>
                 <button onclick="toggleMode()" id="mode-btn" class="bg-amber-500 text-white px-4 py-2 rounded-lg font-black">模式: 排座位</button>
                 <button onclick="saveAll()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-black shadow-lg">儲存設定</button>
             </div>
         </div>
+    </div>
 
-        <div class="flex gap-6">
-            <div id="sidebar-container" class="w-56 shrink-0">
-                <div class="bg-white rounded-xl shadow-sm border p-3 mb-2 text-center text-xs font-black text-slate-500">黑板方向 ↑</div>
-                <div id="unassigned-list" class="space-y-2 max-h-[600px] overflow-y-auto pr-2"></div>
-            </div>
-            <div class="flex-1 flex justify-start">
-                <div id="editor-grid" class="grid-canvas">
-                    <div class="text-slate-400 font-bold p-10 flex h-full items-center justify-center col-span-full">
-                        請先從上方選擇子班別或教室
-                    </div>
+    <div class="max-w-7xl mx-auto flex gap-6">
+        <div id="sidebar-container" class="w-56 shrink-0 no-print">
+            <div class="bg-white rounded-xl shadow-sm border p-3 mb-2 text-center text-xs font-black text-slate-500">黑板方向 ↑</div>
+            <div id="unassigned-list" class="space-y-2 max-h-[600px] overflow-y-auto pr-2"></div>
+        </div>
+        
+        <div class="flex-1 flex justify-start">
+            <div id="editor-grid" class="grid-canvas">
+                <div class="text-slate-400 font-bold p-10 flex h-full items-center justify-center col-span-full">
+                    請先從上方選擇子班別或教室
                 </div>
             </div>
         </div>
@@ -159,7 +166,6 @@
 
         async function loadSubClass(val) {
             if(!val) {
-                // 如果切換回不選，清空班級狀態，保留教室選擇狀態
                 state.currentClassId = null;
                 state.currentSubIdx = null;
                 state.members = [];
@@ -189,18 +195,13 @@
             }
         }
 
-        // 修改：處理選擇教室的邏輯，若有選子班別則進行綁定，否則純載入空白教室
         async function handleRoomSelect(roomId) {
             if(!roomId) return;
-            
-            // 如果有選子班別，這代表要「綁定」教室
             if(state.currentClassId && state.currentSubIdx !== null && !isNaN(state.currentSubIdx)) {
                 const cls = state.allClasses.find(c => c.id === state.currentClassId);
                 cls.sub_classes[state.currentSubIdx].room_id = roomId;
                 await sb.from('classes').update({ sub_classes: cls.sub_classes }).eq('id', state.currentClassId);
             }
-            
-            // 載入教室配置
             await loadRoom(roomId);
         }
 
@@ -213,7 +214,6 @@
 
             state.studentSeating = {};
 
-            // 只有在選擇了子班別時，才去資料庫讀取座位
             if(state.currentClassId && state.currentSubIdx !== null && !isNaN(state.currentSubIdx)) {
                 const { data: seats, error } = await sb.from('class_seats').select('*')
                     .eq('class_id', state.currentClassId)
@@ -322,13 +322,10 @@
             if(!state.currentRoomId) return alert("請先選擇教室");
             
             try {
-                // 1. 儲存教室底圖 (XX, 走廊)
                 const { error: roomErr } = await sb.from('rooms').update({ layout_config: state.layoutConfig }).eq('id', state.currentRoomId);
                 if(roomErr) throw new Error("儲存教室配置失敗: " + roomErr.message);
                 
-                // 如果有選子班別，才去存座位表
                 if(state.currentClassId && state.currentSubIdx !== null && !isNaN(state.currentSubIdx)) {
-                    // 2. 刪除舊座位
                     const { error: delErr } = await sb.from('class_seats').delete()
                         .eq('class_id', state.currentClassId)
                         .eq('room_id', state.currentRoomId)
@@ -336,7 +333,6 @@
                     
                     if(delErr) throw new Error("清理舊座位失敗: " + delErr.message);
                     
-                    // 3. 準備新座位資料
                     const insertData = Object.entries(state.studentSeating).map(([key, name]) => ({
                         class_id: state.currentClassId, 
                         room_id: state.currentRoomId, 
@@ -351,7 +347,6 @@
                         if(insErr) throw new Error("儲存新座位失敗: " + insErr.message);
                     }
                 }
-                
                 alert("✅ 儲存成功！");
             } catch (err) {
                 alert("儲存時發生錯誤：\n" + err.message);
@@ -368,14 +363,12 @@
             const roomName = room ? room.name : "未知教室";
 
             if (state.currentClassId && state.currentSubIdx !== null && !isNaN(state.currentSubIdx)) {
-                // 印子班別
                 const cls = state.allClasses.find(c => c.id === state.currentClassId);
                 const sub = cls.sub_classes[state.currentSubIdx];
                 title = `${cls.name} - ${sub.name}`;
                 subtitle = `使用教室：${roomName}`;
                 fileName = `${cls.name}_${sub.name}_座位表`;
             } else {
-                // 空白教室
                 title = `${roomName} 空白座位表`;
                 subtitle = " ";
                 fileName = `${roomName}_空白座位表`;
@@ -388,8 +381,6 @@
             const t = getMapTitles();
             document.getElementById('print-title').innerText = t.title;
             document.getElementById('print-subtitle').innerText = t.subtitle;
-            
-            // 觸發瀏覽器列印
             window.print();
         }
 
@@ -397,21 +388,16 @@
             if(!state.currentRoomId) return alert("請先選擇要匯出的教室！");
             const t = getMapTitles();
             
-            // 建立 2D 陣列資料 (符合 Excel Row/Col 格式)
             let aoa = [];
-            
-            // 表頭 (兩行)
             aoa.push([t.title]);
             if(t.subtitle.trim() !== "") aoa.push([t.subtitle]);
-            aoa.push([]); // 空行
+            aoa.push([]); 
             
-            // 黑板方向標示
             let boardRow = Array(state.cols).fill("");
             boardRow[Math.floor((state.cols - 1) / 2)] = "【 黑板方向 ↑ 】";
             aoa.push(boardRow);
-            aoa.push([]); // 空行
+            aoa.push([]); 
             
-            // 讀取網格並轉換為文字
             for (let r = 0; r < state.rows; r++) {
                 let rowData = [];
                 for (let c = 0; c < state.cols; c++) {
@@ -428,19 +414,15 @@
                 aoa.push(rowData);
             }
             
-            // 使用 SheetJS 產生 Excel
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(aoa);
             
-            // 設定第一列置中與欄寬
-            const wscols = Array(state.cols).fill({wch: 12}); // 設定欄寬
+            const wscols = Array(state.cols).fill({wch: 12}); 
             ws['!cols'] = wscols;
 
             XLSX.utils.book_append_sheet(wb, ws, "座位表");
             XLSX.writeFile(wb, `${t.fileName}.xlsx`);
         }
-        // =======================================================
-
 
         // --- 教室 CRUD Modal ---
         function openRoomModal() {

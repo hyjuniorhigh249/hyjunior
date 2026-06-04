@@ -38,7 +38,7 @@
                 <button onclick="openCopyModal()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-black">複製其他班座位</button>
                 <button onclick="openEditRoomModal()" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-black">修改教室排數</button>
                 <button onclick="toggleMode()" id="mode-btn" class="bg-amber-500 text-white px-4 py-2 rounded-lg font-black">目前模式: 排座位</button>
-                <button onclick="saveAll()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-black">儲存所有設定</button>
+                <button onclick="saveAll()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-black shadow-lg">儲存所有設定</button>
             </div>
         </div>
 
@@ -86,7 +86,7 @@
     <script>
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
         let state = { 
-            mode: 'seating', // 'seating' = 排座位, 'edit' = 設定XX/走廊
+            mode: 'seating', 
             allClasses: [], allRooms: [],
             currentClassId: null, currentSubIdx: null, currentRoomId: null, 
             studentSeating: {}, layoutConfig: {}, members: [], selectedStudent: null,
@@ -125,7 +125,6 @@
             const cls = state.allClasses.find(c => c.id === clsId);
             state.members = cls.sub_classes[idx].members || [];
             
-            // 自動選取該子班綁定的教室 (如果之前有綁定)
             const roomId = cls.sub_classes[idx].room_id; 
             if(roomId) {
                 document.getElementById('room-select').value = roomId;
@@ -139,7 +138,6 @@
 
         async function bindRoom(roomId) {
             if(!state.currentClassId || !roomId) return;
-            // 綁定教室到此子班別
             const cls = state.allClasses.find(c => c.id === state.currentClassId);
             cls.sub_classes[state.currentSubIdx].room_id = roomId;
             await sb.from('classes').update({ sub_classes: cls.sub_classes }).eq('id', state.currentClassId);
@@ -153,10 +151,14 @@
             state.rows = room.grid_size?.rows || 5;
             state.cols = room.grid_size?.cols || 8;
 
-            // 讀取座位
-            const { data: seats } = await sb.from('class_seats').select('*')
-                .eq('class_id', `${state.currentClassId}_${state.currentSubIdx}`).eq('room_id', roomId);
+            // 讀取座位 (關鍵修正：利用 seat_label 區分同一教室下的不同子班別)
+            const { data: seats, error } = await sb.from('class_seats').select('*')
+                .eq('class_id', state.currentClassId)
+                .eq('room_id', roomId)
+                .eq('seat_label', String(state.currentSubIdx));
             
+            if(error) console.error("讀取座位失敗:", error);
+
             state.studentSeating = {};
             seats?.forEach(s => state.studentSeating[`${s.row_index}-${s.col_index}`] = s.student_name);
             
@@ -199,157 +201,4 @@
 
         function selectStudent(name) { state.selectedStudent = name; updateSidebar(); }
 
-        function renderGrid() {
-            if(!state.currentRoomId) return;
-            const grid = document.getElementById('editor-grid');
-            grid.style.gridTemplateColumns = `repeat(${state.cols}, 1fr)`;
-            grid.innerHTML = "";
-            
-            for (let r = 0; r < state.rows; r++) {
-                for (let c = 0; c < state.cols; c++) {
-                    const key = `${r}-${c}`;
-                    const configState = state.layoutConfig[key] || 'normal';
-                    const div = document.createElement('div');
-                    div.className = `slot ${configState === 'hallway' ? 'is-hallway' : ''} ${configState === 'blocked' ? 'is-blocked' : ''}`;
-                    
-                    if (configState === 'normal' && state.studentSeating[key]) {
-                        div.innerHTML = `<span class="font-black text-xs text-slate-700">${state.studentSeating[key]}</span>`;
-                    }
-
-                    div.onclick = () => handleSlotClick(key, configState);
-                    grid.appendChild(div);
-                }
-            }
-        }
-
-        function handleSlotClick(key, configState) {
-            if (state.mode === 'edit') {
-                // 循環狀態: normal -> blocked (XX) -> hallway -> normal
-                if (configState === 'normal') state.layoutConfig[key] = 'blocked';
-                else if (configState === 'blocked') state.layoutConfig[key] = 'hallway';
-                else state.layoutConfig[key] = 'normal';
-                
-                // 如果該位置被設為不可坐或走廊，且上面原本有人，自動把人拔掉
-                if(state.layoutConfig[key] !== 'normal' && state.studentSeating[key]) {
-                    delete state.studentSeating[key];
-                }
-            } else {
-                if (configState !== 'normal') return; // XX 或走廊不可排座位
-                if (state.selectedStudent) {
-                    state.studentSeating[key] = state.selectedStudent;
-                    state.selectedStudent = null;
-                } else if (state.studentSeating[key]) {
-                    // 點擊已入座的學生，將其拔起
-                    delete state.studentSeating[key];
-                }
-            }
-            updateSidebar();
-            renderGrid();
-        }
-
-        async function saveAll() {
-            if(!state.currentRoomId) return alert("請先選擇教室");
-            
-            // 1. 儲存教室底圖 (XX, 走廊)
-            await sb.from('rooms').update({ layout_config: state.layoutConfig }).eq('id', state.currentRoomId);
-            
-            // 2. 儲存座位表 (先刪除舊的)
-            const uniqueClassId = `${state.currentClassId}_${state.currentSubIdx}`;
-            await sb.from('class_seats').delete().eq('class_id', uniqueClassId).eq('room_id', state.currentRoomId);
-            
-            const insertData = Object.entries(state.studentSeating).map(([key, name]) => ({
-                class_id: uniqueClassId, room_id: state.currentRoomId, student_name: name,
-                row_index: parseInt(key.split('-')[0]), col_index: parseInt(key.split('-')[1])
-            }));
-            
-            if(insertData.length > 0) {
-                await sb.from('class_seats').insert(insertData);
-            }
-            
-            alert("✅ 儲存成功！");
-        }
-
-        // --- 教室 CRUD Modal ---
-        function openRoomModal() {
-            document.getElementById('room-id').value = '';
-            document.getElementById('room-name').value = '';
-            document.getElementById('room-rows').value = 5;
-            document.getElementById('room-cols').value = 8;
-            document.getElementById('room-modal-title').innerText = "新增教室";
-            document.getElementById('room-modal').classList.add('active');
-        }
-        function openEditRoomModal() {
-            if(!state.currentRoomId) return alert("請先選擇教室");
-            const r = state.allRooms.find(x => x.id === state.currentRoomId);
-            document.getElementById('room-id').value = r.id;
-            document.getElementById('room-name').value = r.name;
-            document.getElementById('room-rows').value = state.rows;
-            document.getElementById('room-cols').value = state.cols;
-            document.getElementById('room-modal-title').innerText = "修改目前教室";
-            document.getElementById('room-modal').classList.add('active');
-        }
-        async function saveRoomSetup() {
-            const id = document.getElementById('room-id').value;
-            const name = document.getElementById('room-name').value;
-            const rows = parseInt(document.getElementById('room-rows').value);
-            const cols = parseInt(document.getElementById('room-cols').value);
-            
-            if(!name) return alert("請輸入名稱");
-            
-            if(id) {
-                // Update
-                await sb.from('rooms').update({ name, grid_size: {rows, cols} }).eq('id', id);
-            } else {
-                // Insert
-                await sb.from('rooms').insert([{ name, grid_size: {rows, cols}, layout_config: {} }]);
-            }
-            closeModal('room-modal');
-            window.location.reload(); // 重新整理以確保全域資料同步
-        }
-
-        // --- 複製座位功能 ---
-        function openCopyModal() {
-            if(!state.currentRoomId) return alert("請先設定本班別的教室！");
-            const select = document.getElementById('copy-source-select');
-            select.innerHTML = '<option value="">請選擇來源子班別...</option>';
-            state.allClasses.forEach(c => {
-                (c.sub_classes || []).forEach((sub, i) => {
-                    const uniqueId = `${c.id}_${i}`;
-                    // 排除自己
-                    if(uniqueId !== `${state.currentClassId}_${state.currentSubIdx}`) {
-                        select.add(new Option(`${c.name} - ${sub.name}`, uniqueId));
-                    }
-                });
-            });
-            document.getElementById('copy-modal').classList.add('active');
-        }
-
-        async function executeCopy() {
-            const sourceId = document.getElementById('copy-source-select').value;
-            if(!sourceId) return alert("請選擇來源");
-
-            const { data: seats } = await sb.from('class_seats').select('*')
-                .eq('class_id', sourceId).eq('room_id', state.currentRoomId);
-            
-            if(!seats || seats.length === 0) return alert("該來源班別在此教室沒有設定座位。");
-
-            // 執行過濾：只複製「有報名目前子班別」的學生
-            let copyCount = 0;
-            seats.forEach(s => {
-                if(state.members.includes(s.student_name)) {
-                    state.studentSeating[`${s.row_index}-${s.col_index}`] = s.student_name;
-                    copyCount++;
-                }
-            });
-
-            closeModal('copy-modal');
-            updateSidebar();
-            renderGrid();
-            alert(`✅ 複製成功！共複製了 ${copyCount} 位學生的座位。(未報名本班別的學生已被自動略過)`);
-        }
-
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-        window.onload = init;
-    </script>
-</body>
-</html>
+        function renderGrid

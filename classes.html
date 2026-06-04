@@ -10,7 +10,6 @@
     <div class="max-w-5xl mx-auto">
         <header class="flex justify-between items-center mb-8">
             <h1 class="text-2xl font-black">班級組織與成員管理</h1>
-            <button onclick="alert('請至資料庫後台建立新班級')" class="bg-slate-800 text-white px-5 py-2 rounded-xl font-black">＋ 建立新班級</button>
         </header>
         <div id="classes-container" class="space-y-6"></div>
     </div>
@@ -20,11 +19,14 @@
             <h3 class="font-black mb-4">加入學生</h3>
             <select id="grade-filter" onchange="filterStudents()" class="w-full p-2 border rounded-lg mb-2 text-sm font-bold">
                 <option value="">全部年級</option>
-                <option value="1">小一</option><option value="7">國一</option><option value="10">高一</option>
+                <script>
+                    const grades = ['小一','小二','小三','小四','小五','小六','國一','國二','國三','高一','高二','高三'];
+                    grades.forEach((g,i) => document.write(`<option value="${i+1}">${g}</option>`));
+                </script>
             </select>
             <input type="text" id="stu-search" oninput="filterStudents()" placeholder="搜尋姓名..." class="w-full p-2 border rounded-lg text-sm mb-4">
             <div id="student-list-container" class="flex-1 overflow-y-auto space-y-1"></div>
-            <button onclick="document.getElementById('student-modal').classList.add('hidden')" class="w-full py-2 mt-4 bg-slate-100 rounded-xl font-bold">關閉</button>
+            <button onclick="document.getElementById('student-modal').classList.add('hidden')" class="w-full py-2 mt-4 bg-slate-100 rounded-xl">關閉</button>
         </div>
     </div>
 
@@ -45,15 +47,17 @@
                 <div class="bg-white p-6 rounded-2xl border shadow-sm">
                     <div class="flex justify-between mb-4">
                         <h4 class="font-black text-lg">${cls.name}</h4>
+                        <div class="flex gap-2">
+                            <button onclick="alert('請至資料庫管理界面編輯班級名稱')" class="text-[10px] bg-slate-100 px-3 py-1 rounded">編輯</button>
+                            <button onclick="deleteCls('${cls.id}')" class="text-[10px] bg-red-50 text-red-500 px-3 py-1 rounded">刪除</button>
+                        </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         ${(cls.sub_classes || []).map((sub, i) => `
                             <div class="p-3 bg-slate-50 rounded-xl border">
                                 <div class="flex justify-between mb-2">
                                     <span class="font-black text-sm">${sub.name}</span>
-                                    <div class="space-x-1">
-                                        <button onclick="openStudentModal('${cls.id}', ${i})" class="text-[10px] bg-blue-600 text-white px-2 py-1 rounded">＋加入</button>
-                                    </div>
+                                    <button onclick="openStudentModal('${cls.id}', ${i})" class="text-[9px] bg-blue-600 text-white px-2 py-1 rounded">＋加入</button>
                                 </div>
                                 <div class="flex flex-wrap gap-1">${(sub.members || []).map(m => `<span class="bg-white px-1.5 py-0.5 border text-[9px] rounded font-bold">${m}</span>`).join('')}</div>
                             </div>
@@ -63,13 +67,14 @@
             `).join('');
         }
 
-        function openStudentModal(id, i) { targetClassId = id; targetSubIdx = i; filterStudents(); document.getElementById('student-modal').classList.remove('hidden'); }
+        async function deleteCls(id) { if(confirm('確定刪除此班級?')) { await sb.from('classes').delete().eq('id', id); init(); } }
+        function openStudentModal(id, i) { targetClassId = id; targetSubIdx = i; document.getElementById('student-modal').classList.remove('hidden'); filterStudents(); }
         
         function filterStudents() {
-            const keyword = document.getElementById('stu-search').value.toLowerCase();
-            const grade = document.getElementById('grade-filter').value;
+            const k = document.getElementById('stu-search').value.toLowerCase();
+            const g = document.getElementById('grade-filter').value;
             document.getElementById('student-list-container').innerHTML = allStudents
-                .filter(s => s.name.toLowerCase().includes(keyword))
+                .filter(s => s.name.toLowerCase().includes(k))
                 .map(s => `<div class="p-2 border-b cursor-pointer hover:bg-slate-100" onclick="addStudent('${s.name}')">${s.name}</div>`).join('');
         }
 

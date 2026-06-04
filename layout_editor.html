@@ -5,9 +5,11 @@
     <title>座位排班管理 - 昊學行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; }
-        .grid-canvas { display: grid; gap: 8px; background: #fff; padding: 20px; border-radius: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: fit-content; }
+        .grid-canvas { display: grid; gap: 8px; background: #fff; padding: 20px; border-radius: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: fit-content; margin: 0 auto; }
         .slot { aspect-ratio: 1/1; width: 65px; background: white; border: 2px solid #e2e8f0; border-radius: 0.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.1s; }
         .slot:hover { border-color: #3b82f6; }
         .slot.is-hallway { background: #cbd5e1; border: none; cursor: default; }
@@ -15,10 +17,29 @@
         .slot.is-blocked::after { content: "XX"; }
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
+
+        /* 列印專用樣式 */
+        @media print {
+            body { background: white !important; padding: 0 !important; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .grid-canvas { box-shadow: none !important; border: 2px solid #333 !important; padding: 10px !important; margin: 0 auto !important; }
+            .slot { border: 2px solid #64748b !important; color: #000 !important; font-size: 16px !important; }
+            .slot.is-hallway { background: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .slot.is-blocked { background: #fca5a5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { margin: 1cm; size: landscape; } /* 預設橫向列印 */
+        }
     </style>
 </head>
 <body class="p-8">
-    <div class="max-w-6xl mx-auto">
+    
+    <div id="print-header" class="hidden print-only text-center mb-6 mt-4">
+        <h1 id="print-title" class="text-4xl font-black text-black">座位表</h1>
+        <p id="print-subtitle" class="text-xl font-bold text-gray-600 mt-2"></p>
+        <div class="mt-6 bg-gray-800 text-white w-48 mx-auto font-black py-1 rounded">黑板方向</div>
+    </div>
+
+    <div class="max-w-7xl mx-auto no-print">
         <header class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-black text-slate-800">座位排班管理</h1>
             <div class="flex gap-2">
@@ -26,29 +47,48 @@
             </div>
         </header>
 
-        <div class="flex gap-2 mb-6 items-center bg-white p-4 rounded-xl shadow-sm border">
+        <div class="flex gap-2 mb-6 items-center bg-white p-4 rounded-xl shadow-sm border flex-wrap">
             <select id="subclass-select" onchange="loadSubClass(this.value)" class="p-2 rounded-lg font-bold border outline-none cursor-pointer">
-                <option value="">1. 選擇子班別</option>
+                <option value="">1. 選擇子班別 (可不選，純印空白教室)</option>
             </select>
             <span class="text-slate-400 font-bold">▶</span>
-            <select id="room-select" onchange="bindRoom(this.value)" class="p-2 rounded-lg font-bold border outline-none cursor-pointer">
-                <option value="">2. 為此班選擇教室</option>
+            <select id="room-select" onchange="handleRoomSelect(this.value)" class="p-2 rounded-lg font-bold border outline-none cursor-pointer">
+                <option value="">2. 選擇教室</option>
             </select>
+            
+            <div class="flex gap-2 ml-4 pl-4 border-l-2 border-slate-200">
+                <button onclick="printSeatMap()" class="bg-slate-700 text-white px-4 py-2 rounded-lg font-black flex items-center gap-2 hover:bg-slate-800">
+                    🖨️ 列印
+                </button>
+                <button onclick="exportExcelSeatMap()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-black flex items-center gap-2 hover:bg-emerald-700">
+                    📥 匯出 Excel
+                </button>
+            </div>
+
             <div class="ml-auto flex gap-2">
-                <button onclick="openCopyModal()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-black">複製其他班座位</button>
-                <button onclick="openEditRoomModal()" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-black">修改教室排數</button>
-                <button onclick="toggleMode()" id="mode-btn" class="bg-amber-500 text-white px-4 py-2 rounded-lg font-black">目前模式: 排座位</button>
-                <button onclick="saveAll()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-black shadow-lg">儲存所有設定</button>
+                <button onclick="openCopyModal()" class="bg-teal-600 text-white px-4 py-2 rounded-lg font-black">複製其他班座位</button>
+                <button onclick="openEditRoomModal()" class="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-black">修改排數</button>
+                <button onclick="toggleMode()" id="mode-btn" class="bg-amber-500 text-white px-4 py-2 rounded-lg font-black">模式: 排座位</button>
+                <button onclick="saveAll()" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-black shadow-lg">儲存設定</button>
             </div>
         </div>
 
         <div class="flex gap-6">
-            <div id="unassigned-list" class="w-48 space-y-2 max-h-[600px] overflow-y-auto pr-2"></div>
-            <div id="editor-grid" class="grid-canvas"></div>
+            <div id="sidebar-container" class="w-56 shrink-0">
+                <div class="bg-white rounded-xl shadow-sm border p-3 mb-2 text-center text-xs font-black text-slate-500">黑板方向 ↑</div>
+                <div id="unassigned-list" class="space-y-2 max-h-[600px] overflow-y-auto pr-2"></div>
+            </div>
+            <div class="flex-1 flex justify-start">
+                <div id="editor-grid" class="grid-canvas">
+                    <div class="text-slate-400 font-bold p-10 flex h-full items-center justify-center col-span-full">
+                        請先從上方選擇子班別或教室
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div id="room-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
+    <div id="room-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4 no-print">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 id="room-modal-title" class="text-lg font-black mb-4">設定教室</h3>
             <input type="hidden" id="room-id">
@@ -71,20 +111,21 @@
         </div>
     </div>
 
-    <div id="copy-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
+    <div id="copy-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4 no-print">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 class="text-lg font-black mb-4">複製座位</h3>
             <p class="text-xs text-slate-400 font-bold mb-4">僅會複製「同時存在於來源班級與目前班級」的學生座位。</p>
             <select id="copy-source-select" class="w-full p-2 border rounded-lg mb-6 font-bold"></select>
             <div class="flex gap-2">
                 <button onclick="closeModal('copy-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold">取消</button>
-                <button onclick="executeCopy()" class="flex-1 py-2 bg-emerald-600 text-white rounded-xl font-bold">執行複製</button>
+                <button onclick="executeCopy()" class="flex-1 py-2 bg-teal-600 text-white rounded-xl font-bold">執行複製</button>
             </div>
         </div>
     </div>
 
     <script>
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
+        
         let state = { 
             mode: 'seating', 
             allClasses: [], allRooms: [],
@@ -100,7 +141,7 @@
             state.allRooms = rooms || [];
 
             const sSelect = document.getElementById('subclass-select');
-            sSelect.innerHTML = '<option value="">1. 選擇子班別</option>';
+            sSelect.innerHTML = '<option value="">1. 選擇子班別 (可不選，純印空白教室)</option>';
             state.allClasses.forEach(c => {
                 (c.sub_classes || []).forEach((sub, i) => {
                     sSelect.add(new Option(`${c.name} - ${sub.name}`, `${c.id}_${i}`));
@@ -112,12 +153,24 @@
 
         function refreshRoomSelect() {
             const rSelect = document.getElementById('room-select');
-            rSelect.innerHTML = '<option value="">2. 為此班選擇教室</option>';
+            rSelect.innerHTML = '<option value="">2. 選擇教室</option>';
             state.allRooms.forEach(r => rSelect.add(new Option(r.name, r.id)));
         }
 
         async function loadSubClass(val) {
-            if(!val) return;
+            if(!val) {
+                // 如果切換回不選，清空班級狀態，保留教室選擇狀態
+                state.currentClassId = null;
+                state.currentSubIdx = null;
+                state.members = [];
+                state.studentSeating = {};
+                if(state.currentRoomId) await loadRoom(state.currentRoomId);
+                else {
+                    document.getElementById('editor-grid').innerHTML = "<div class='text-slate-400 font-bold p-10 col-span-full'>請選擇教室或班別</div>";
+                    updateSidebar();
+                }
+                return;
+            }
             const [clsId, idx] = val.split('_');
             state.currentClassId = clsId;
             state.currentSubIdx = parseInt(idx);
@@ -131,16 +184,23 @@
                 await loadRoom(roomId);
             } else {
                 document.getElementById('room-select').value = "";
-                document.getElementById('editor-grid').innerHTML = "";
+                document.getElementById('editor-grid').innerHTML = "<div class='text-amber-500 font-bold p-10 col-span-full'>請為此子班別綁定一間教室</div>";
                 updateSidebar();
             }
         }
 
-        async function bindRoom(roomId) {
-            if(!state.currentClassId || !roomId) return;
-            const cls = state.allClasses.find(c => c.id === state.currentClassId);
-            cls.sub_classes[state.currentSubIdx].room_id = roomId;
-            await sb.from('classes').update({ sub_classes: cls.sub_classes }).eq('id', state.currentClassId);
+        // 修改：處理選擇教室的邏輯，若有選子班別則進行綁定，否則純載入空白教室
+        async function handleRoomSelect(roomId) {
+            if(!roomId) return;
+            
+            // 如果有選子班別，這代表要「綁定」教室
+            if(state.currentClassId && state.currentSubIdx !== null && !isNaN(state.currentSubIdx)) {
+                const cls = state.allClasses.find(c => c.id === state.currentClassId);
+                cls.sub_classes[state.currentSubIdx].room_id = roomId;
+                await sb.from('classes').update({ sub_classes: cls.sub_classes }).eq('id', state.currentClassId);
+            }
+            
+            // 載入教室配置
             await loadRoom(roomId);
         }
 
@@ -151,16 +211,18 @@
             state.rows = room.grid_size?.rows || 5;
             state.cols = room.grid_size?.cols || 8;
 
-            // 讀取座位 (關鍵修正：利用 seat_label 區分同一教室下的不同子班別)
-            const { data: seats, error } = await sb.from('class_seats').select('*')
-                .eq('class_id', state.currentClassId)
-                .eq('room_id', roomId)
-                .eq('seat_label', String(state.currentSubIdx));
-            
-            if(error) console.error("讀取座位失敗:", error);
-
             state.studentSeating = {};
-            seats?.forEach(s => state.studentSeating[`${s.row_index}-${s.col_index}`] = s.student_name);
+
+            // 只有在選擇了子班別時，才去資料庫讀取座位
+            if(state.currentClassId && state.currentSubIdx !== null && !isNaN(state.currentSubIdx)) {
+                const { data: seats, error } = await sb.from('class_seats').select('*')
+                    .eq('class_id', state.currentClassId)
+                    .eq('room_id', roomId)
+                    .eq('seat_label', String(state.currentSubIdx));
+                
+                if(error) console.error("讀取座位失敗:", error);
+                seats?.forEach(s => state.studentSeating[`${s.row_index}-${s.col_index}`] = s.student_name);
+            }
             
             updateSidebar();
             renderGrid();
@@ -174,7 +236,7 @@
                 btn.innerText = "目前模式: 排座位";
                 btn.className = "bg-amber-500 text-white px-4 py-2 rounded-lg font-black";
             } else {
-                btn.innerText = "目前模式: 點擊設定XX/走廊";
+                btn.innerText = "目前模式: 設定XX/走廊";
                 btn.className = "bg-rose-600 text-white px-4 py-2 rounded-lg font-black";
             }
             state.selectedStudent = null;
@@ -183,10 +245,17 @@
 
         function updateSidebar() {
             const list = document.getElementById('unassigned-list');
+            
+            if(!state.currentClassId) {
+                list.innerHTML = `<div class="p-4 bg-slate-50 text-slate-500 font-bold rounded-xl text-sm border border-slate-200">您目前未選擇子班別。<br><br>這表示您處於「純檢視 / 設定教室底圖」狀態。<br><br>可直接列印空白座位表。</div>`;
+                return;
+            }
+
             if(state.mode === 'edit') {
                 list.innerHTML = `<div class="p-4 bg-rose-50 text-rose-600 font-bold rounded-xl text-sm border border-rose-200">您現在處於教室設定模式。<br><br>請直接點擊右側格子來切換「正常 / XX(不可坐) / 走廊」。</div>`;
                 return;
             }
+
             const assigned = Object.values(state.studentSeating);
             list.innerHTML = state.members
                 .filter(m => !assigned.includes(m))
@@ -196,7 +265,8 @@
                         ${m}
                     </div>
                 `).join('');
-            if(list.innerHTML === '') list.innerHTML = `<div class="text-sm text-slate-400 font-bold p-2">所有學生皆已入座</div>`;
+            
+            if(list.innerHTML === '') list.innerHTML = `<div class="text-sm text-slate-400 font-bold p-2 text-center">所有學生皆已入座</div>`;
         }
 
         function selectStudent(name) { state.selectedStudent = name; updateSidebar(); }
@@ -215,7 +285,7 @@
                     div.className = `slot ${configState === 'hallway' ? 'is-hallway' : ''} ${configState === 'blocked' ? 'is-blocked' : ''}`;
                     
                     if (configState === 'normal' && state.studentSeating[key]) {
-                        div.innerHTML = `<span class="font-black text-xs text-slate-700">${state.studentSeating[key]}</span>`;
+                        div.innerHTML = `<span class="font-black text-xs text-slate-800 text-center w-full break-words px-1">${state.studentSeating[key]}</span>`;
                     }
 
                     div.onclick = () => handleSlotClick(key, configState);
@@ -234,7 +304,9 @@
                     delete state.studentSeating[key];
                 }
             } else {
+                if(!state.currentClassId) return alert("請先從上方選擇子班別，才能排座位");
                 if (configState !== 'normal') return;
+                
                 if (state.selectedStudent) {
                     state.studentSeating[key] = state.selectedStudent;
                     state.selectedStudent = null;
@@ -254,27 +326,30 @@
                 const { error: roomErr } = await sb.from('rooms').update({ layout_config: state.layoutConfig }).eq('id', state.currentRoomId);
                 if(roomErr) throw new Error("儲存教室配置失敗: " + roomErr.message);
                 
-                // 2. 刪除舊座位 (透過 class_id, room_id, seat_label 來定位子班別)
-                const { error: delErr } = await sb.from('class_seats').delete()
-                    .eq('class_id', state.currentClassId)
-                    .eq('room_id', state.currentRoomId)
-                    .eq('seat_label', String(state.currentSubIdx));
-                
-                if(delErr) throw new Error("清理舊座位失敗: " + delErr.message);
-                
-                // 3. 準備新座位資料
-                const insertData = Object.entries(state.studentSeating).map(([key, name]) => ({
-                    class_id: state.currentClassId, 
-                    room_id: state.currentRoomId, 
-                    student_name: name,
-                    row_index: parseInt(key.split('-')[0]), 
-                    col_index: parseInt(key.split('-')[1]),
-                    seat_label: String(state.currentSubIdx) // 將子班別索引存於此
-                }));
-                
-                if(insertData.length > 0) {
-                    const { error: insErr } = await sb.from('class_seats').insert(insertData);
-                    if(insErr) throw new Error("儲存新座位失敗: " + insErr.message);
+                // 如果有選子班別，才去存座位表
+                if(state.currentClassId && state.currentSubIdx !== null && !isNaN(state.currentSubIdx)) {
+                    // 2. 刪除舊座位
+                    const { error: delErr } = await sb.from('class_seats').delete()
+                        .eq('class_id', state.currentClassId)
+                        .eq('room_id', state.currentRoomId)
+                        .eq('seat_label', String(state.currentSubIdx));
+                    
+                    if(delErr) throw new Error("清理舊座位失敗: " + delErr.message);
+                    
+                    // 3. 準備新座位資料
+                    const insertData = Object.entries(state.studentSeating).map(([key, name]) => ({
+                        class_id: state.currentClassId, 
+                        room_id: state.currentRoomId, 
+                        student_name: name,
+                        row_index: parseInt(key.split('-')[0]), 
+                        col_index: parseInt(key.split('-')[1]),
+                        seat_label: String(state.currentSubIdx)
+                    }));
+                    
+                    if(insertData.length > 0) {
+                        const { error: insErr } = await sb.from('class_seats').insert(insertData);
+                        if(insErr) throw new Error("儲存新座位失敗: " + insErr.message);
+                    }
                 }
                 
                 alert("✅ 儲存成功！");
@@ -282,6 +357,90 @@
                 alert("儲存時發生錯誤：\n" + err.message);
             }
         }
+
+        // ================== 列印與匯出 Excel 模組 ==================
+        function getMapTitles() {
+            let title = "未命名的座位表";
+            let subtitle = "";
+            let fileName = "座位表";
+
+            const room = state.allRooms.find(r => r.id === state.currentRoomId);
+            const roomName = room ? room.name : "未知教室";
+
+            if (state.currentClassId && state.currentSubIdx !== null && !isNaN(state.currentSubIdx)) {
+                // 印子班別
+                const cls = state.allClasses.find(c => c.id === state.currentClassId);
+                const sub = cls.sub_classes[state.currentSubIdx];
+                title = `${cls.name} - ${sub.name}`;
+                subtitle = `使用教室：${roomName}`;
+                fileName = `${cls.name}_${sub.name}_座位表`;
+            } else {
+                // 空白教室
+                title = `${roomName} 空白座位表`;
+                subtitle = " ";
+                fileName = `${roomName}_空白座位表`;
+            }
+            return { title, subtitle, fileName };
+        }
+
+        function printSeatMap() {
+            if(!state.currentRoomId) return alert("請先選擇要列印的教室！");
+            const t = getMapTitles();
+            document.getElementById('print-title').innerText = t.title;
+            document.getElementById('print-subtitle').innerText = t.subtitle;
+            
+            // 觸發瀏覽器列印
+            window.print();
+        }
+
+        function exportExcelSeatMap() {
+            if(!state.currentRoomId) return alert("請先選擇要匯出的教室！");
+            const t = getMapTitles();
+            
+            // 建立 2D 陣列資料 (符合 Excel Row/Col 格式)
+            let aoa = [];
+            
+            // 表頭 (兩行)
+            aoa.push([t.title]);
+            if(t.subtitle.trim() !== "") aoa.push([t.subtitle]);
+            aoa.push([]); // 空行
+            
+            // 黑板方向標示
+            let boardRow = Array(state.cols).fill("");
+            boardRow[Math.floor((state.cols - 1) / 2)] = "【 黑板方向 ↑ 】";
+            aoa.push(boardRow);
+            aoa.push([]); // 空行
+            
+            // 讀取網格並轉換為文字
+            for (let r = 0; r < state.rows; r++) {
+                let rowData = [];
+                for (let c = 0; c < state.cols; c++) {
+                    const key = `${r}-${c}`;
+                    const configState = state.layoutConfig[key] || 'normal';
+                    let cellVal = "";
+                    
+                    if (configState === 'hallway') cellVal = "【走廊】";
+                    else if (configState === 'blocked') cellVal = "XX";
+                    else if (state.studentSeating[key]) cellVal = state.studentSeating[key];
+                    
+                    rowData.push(cellVal);
+                }
+                aoa.push(rowData);
+            }
+            
+            // 使用 SheetJS 產生 Excel
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            
+            // 設定第一列置中與欄寬
+            const wscols = Array(state.cols).fill({wch: 12}); // 設定欄寬
+            ws['!cols'] = wscols;
+
+            XLSX.utils.book_append_sheet(wb, ws, "座位表");
+            XLSX.writeFile(wb, `${t.fileName}.xlsx`);
+        }
+        // =======================================================
+
 
         // --- 教室 CRUD Modal ---
         function openRoomModal() {
@@ -299,7 +458,7 @@
             document.getElementById('room-name').value = r.name;
             document.getElementById('room-rows').value = state.rows;
             document.getElementById('room-cols').value = state.cols;
-            document.getElementById('room-modal-title').innerText = "修改目前教室";
+            document.getElementById('room-modal-title').innerText = "修改目前教室排數";
             document.getElementById('room-modal').classList.add('active');
         }
         async function saveRoomSetup() {
@@ -336,12 +495,13 @@
         }
 
         async function executeCopy() {
+            if(!state.currentClassId) return alert("請先在上方選擇您要操作的『目標子班別』！");
+            
             const sourceVal = document.getElementById('copy-source-select').value;
             if(!sourceVal) return alert("請選擇來源");
 
             const [sourceClassId, sourceSubIdx] = sourceVal.split('_');
 
-            // 利用 seat_label 過濾來源子班別
             const { data: seats, error } = await sb.from('class_seats').select('*')
                 .eq('class_id', sourceClassId)
                 .eq('room_id', state.currentRoomId)
@@ -361,7 +521,7 @@
             closeModal('copy-modal');
             updateSidebar();
             renderGrid();
-            alert(`✅ 複製成功！共複製了 ${copyCount} 位學生的座位。(未報名本班別的學生已被自動略過)`);
+            alert(`✅ 複製成功！共複製了 ${copyCount} 位學生的座位。\n(未報名本班別的學生已被自動略過，請記得按下右上角【儲存設定】)`);
         }
 
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }

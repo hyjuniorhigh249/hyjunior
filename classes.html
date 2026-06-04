@@ -31,25 +31,26 @@
     </div>
 
     <script>
-        const supabase = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
+        // 修改變數名稱為 supabaseClient 以避免與 CDN 衝突
+        const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
+        
         let allClassData = [], allStudents = [], targetClassId = '', targetSubIdx = 0;
 
         async function init() {
             try {
-                const { data: classes, error: cErr } = await supabase.from('classes').select('*');
-                const { data: students, error: sErr } = await supabase.from('students').select('*');
+                // 使用 supabaseClient
+                const { data: classes, error: cErr } = await supabaseClient.from('classes').select('*');
+                const { data: students, error: sErr } = await supabaseClient.from('students').select('*');
                 
                 if (cErr) throw cErr;
                 
                 allClassData = classes || [];
                 allStudents = students || [];
                 
-                if (allClassData.length === 0) {
-                    document.getElementById('debug-msg').innerText = "提示：目前資料庫中找不到班級資料。";
-                }
                 render();
             } catch (err) {
-                document.getElementById('debug-msg').innerText = "資料載入錯誤: " + err.message;
+                console.error("資料載入錯誤:", err);
+                document.getElementById('debug-msg').innerText = "資料載入失敗，請確認網路與權限。";
             }
         }
 
@@ -74,8 +75,11 @@
                 </div>
             `).join('');
         }
-        // [其餘函數維持原樣]
-        function openStudentModal(clsId, idx) { targetClassId = clsId; targetSubIdx = idx; document.getElementById('student-modal').classList.add('active'); }
+
+        function openStudentModal(clsId, idx) { 
+            targetClassId = clsId; targetSubIdx = idx; 
+            document.getElementById('student-modal').classList.add('active'); 
+        }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
         window.onload = init;
     </script>

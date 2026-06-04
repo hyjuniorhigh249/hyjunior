@@ -2,31 +2,63 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>班級組織與成員管理</title>
+    <title>班級組織與成員管理 - 昊學行政系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; }
+        .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
+        .modal.active { display: flex; }
+    </style>
 </head>
-<body class="p-8 bg-slate-50">
+<body class="p-8">
     <div class="max-w-5xl mx-auto">
         <header class="flex justify-between items-center mb-8">
-            <h1 class="text-2xl font-black">班級組織與成員管理</h1>
+            <h1 class="text-2xl font-black text-slate-800">班級組織與成員管理</h1>
+            <button onclick="alert('請至系統首頁或後台建立主班級')" class="bg-slate-800 text-white px-5 py-2 rounded-xl font-black">＋ 建立新主班級</button>
         </header>
         <div id="classes-container" class="space-y-6"></div>
     </div>
 
-    <div id="student-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl p-6 w-96 max-h-[90vh] flex flex-col">
-            <h3 class="font-black mb-4">加入學生</h3>
-            <select id="grade-filter" onchange="filterStudents()" class="w-full p-2 border rounded-lg mb-2 text-sm font-bold">
+    <div id="edit-class-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 class="text-lg font-black mb-4">編輯主班級</h3>
+            <input type="hidden" id="edit-cls-id">
+            <input type="text" id="edit-cls-name" placeholder="班級名稱" class="w-full p-2 border rounded-lg mb-4 font-bold">
+            <input type="text" id="edit-cls-note" placeholder="備註" class="w-full p-2 border rounded-lg mb-6 font-bold">
+            <div class="flex gap-2">
+                <button onclick="closeModal('edit-class-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold">取消</button>
+                <button onclick="saveClass()" class="flex-1 py-2 bg-slate-800 text-white rounded-xl font-bold">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-sub-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 class="text-lg font-black mb-4">編輯子班別</h3>
+            <input type="hidden" id="edit-sub-clsId">
+            <input type="hidden" id="edit-sub-idx">
+            <input type="text" id="edit-sub-name" placeholder="子班別名稱" class="w-full p-2 border rounded-lg mb-6 font-bold">
+            <div class="flex gap-2">
+                <button onclick="closeModal('edit-sub-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold">取消</button>
+                <button onclick="saveSubClass()" class="flex-1 py-2 bg-slate-800 text-white rounded-xl font-bold">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="student-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl flex flex-col max-h-[90vh]">
+            <h3 class="text-lg font-black mb-4">加入學生至子班別</h3>
+            <select id="grade-filter" onchange="filterStudents()" class="w-full p-2 border rounded-lg mb-2 font-bold text-sm">
                 <option value="">全部年級</option>
-                <script>
-                    const grades = ['小一','小二','小三','小四','小五','小六','國一','國二','國三','高一','高二','高三'];
-                    grades.forEach((g,i) => document.write(`<option value="${i+1}">${g}</option>`));
-                </script>
+                <option value="1">小一</option><option value="2">小二</option><option value="3">小三</option>
+                <option value="4">小四</option><option value="5">小五</option><option value="6">小六</option>
+                <option value="7">國一</option><option value="8">國二</option><option value="9">國三</option>
+                <option value="10">高一</option><option value="11">高二</option><option value="12">高三</option>
             </select>
-            <input type="text" id="stu-search" oninput="filterStudents()" placeholder="搜尋姓名..." class="w-full p-2 border rounded-lg text-sm mb-4">
+            <input type="text" id="stu-search" oninput="filterStudents()" placeholder="搜尋姓名..." class="w-full p-2 border rounded-lg text-sm font-bold mb-4">
             <div id="student-list-container" class="flex-1 overflow-y-auto space-y-1"></div>
-            <button onclick="document.getElementById('student-modal').classList.add('hidden')" class="w-full py-2 mt-4 bg-slate-100 rounded-xl">關閉</button>
+            <button onclick="closeModal('student-modal')" class="w-full py-2 mt-4 bg-slate-100 rounded-xl font-bold">完成</button>
         </div>
     </div>
 
@@ -35,7 +67,7 @@
         let allClassData = [], allStudents = [], targetClassId = '', targetSubIdx = 0;
 
         async function init() {
-            const { data: classes } = await sb.from('classes').select('*');
+            const { data: classes } = await sb.from('classes').select('*').order('created_at', { ascending: false });
             const { data: students } = await sb.from('students').select('*');
             allClassData = classes || [];
             allStudents = students || [];
@@ -45,21 +77,34 @@
         function render() {
             document.getElementById('classes-container').innerHTML = allClassData.map(cls => `
                 <div class="bg-white p-6 rounded-2xl border shadow-sm">
-                    <div class="flex justify-between mb-4">
-                        <h4 class="font-black text-lg">${cls.name}</h4>
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h4 class="font-black text-lg">${cls.name}</h4>
+                            <p class="text-[10px] text-slate-400 font-bold">備註: ${cls.note || '無'}</p>
+                        </div>
                         <div class="flex gap-2">
-                            <button onclick="alert('請至資料庫管理界面編輯班級名稱')" class="text-[10px] bg-slate-100 px-3 py-1 rounded">編輯</button>
-                            <button onclick="deleteCls('${cls.id}')" class="text-[10px] bg-red-50 text-red-500 px-3 py-1 rounded">刪除</button>
+                            <button onclick="openEditClass('${cls.id}')" class="text-[10px] bg-slate-100 px-3 py-1 rounded font-black">編輯班級</button>
+                            <button onclick="deleteClass('${cls.id}')" class="text-[10px] bg-red-50 text-red-500 px-3 py-1 rounded font-black">刪除班級</button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        ${(cls.sub_classes || []).map((sub, i) => `
-                            <div class="p-3 bg-slate-50 rounded-xl border">
-                                <div class="flex justify-between mb-2">
-                                    <span class="font-black text-sm">${sub.name}</span>
-                                    <button onclick="openStudentModal('${cls.id}', ${i})" class="text-[9px] bg-blue-600 text-white px-2 py-1 rounded">＋加入</button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${(cls.sub_classes || []).map((sub, idx) => `
+                            <div class="bg-slate-50 p-4 rounded-xl border relative group">
+                                <div class="flex justify-between items-center mb-2">
+                                    <p class="font-black text-sm">${sub.name}</p>
+                                    <div class="flex gap-1">
+                                        <button onclick="openEditSub('${cls.id}', ${idx})" class="text-[9px] bg-slate-200 px-2 py-1 rounded font-black">編輯</button>
+                                        <button onclick="deleteSub('${cls.id}', ${idx})" class="text-[9px] bg-red-200 text-red-700 px-2 py-1 rounded font-black">刪除</button>
+                                        <button onclick="openStudentModal('${cls.id}', ${idx})" class="text-[9px] bg-blue-600 text-white px-2 py-1 rounded font-black">＋ 加入</button>
+                                    </div>
                                 </div>
-                                <div class="flex flex-wrap gap-1">${(sub.members || []).map(m => `<span class="bg-white px-1.5 py-0.5 border text-[9px] rounded font-bold">${m}</span>`).join('')}</div>
+                                <div class="flex flex-wrap gap-1 mt-2">
+                                    ${(sub.members || []).map(m => `
+                                        <span class="bg-white px-2 py-0.5 rounded border text-[10px] font-bold flex items-center gap-1">
+                                            ${m} <span onclick="removeStudent('${cls.id}', ${idx}, '${m}')" class="text-red-400 cursor-pointer hover:text-red-600">×</span>
+                                        </span>
+                                    `).join('')}
+                                </div>
                             </div>
                         `).join('')}
                     </div>
@@ -67,15 +112,94 @@
             `).join('');
         }
 
-        async function deleteCls(id) { if(confirm('確定刪除此班級?')) { await sb.from('classes').delete().eq('id', id); init(); } }
-        function openStudentModal(id, i) { targetClassId = id; targetSubIdx = i; document.getElementById('student-modal').classList.remove('hidden'); filterStudents(); }
+        // --- 主班級功能 ---
+        function openEditClass(id) {
+            const cls = allClassData.find(c => c.id === id);
+            document.getElementById('edit-cls-id').value = cls.id;
+            document.getElementById('edit-cls-name').value = cls.name;
+            document.getElementById('edit-cls-note').value = cls.note || '';
+            document.getElementById('edit-class-modal').classList.add('active');
+        }
+        async function saveClass() {
+            const id = document.getElementById('edit-cls-id').value;
+            const name = document.getElementById('edit-cls-name').value;
+            const note = document.getElementById('edit-cls-note').value;
+            await sb.from('classes').update({ name, note }).eq('id', id);
+            closeModal('edit-class-modal'); init();
+        }
+        async function deleteClass(id) {
+            if(confirm("確定要刪除整個主班級嗎？這將會刪除其下的所有子班別。")) { await sb.from('classes').delete().eq('id', id); init(); }
+        }
+
+        // --- 子班別功能 ---
+        function openEditSub(clsId, idx) {
+            const cls = allClassData.find(c => c.id === clsId);
+            document.getElementById('edit-sub-clsId').value = clsId;
+            document.getElementById('edit-sub-idx').value = idx;
+            document.getElementById('edit-sub-name').value = cls.sub_classes[idx].name;
+            document.getElementById('edit-sub-modal').classList.add('active');
+        }
+        async function saveSubClass() {
+            const clsId = document.getElementById('edit-sub-clsId').value;
+            const idx = parseInt(document.getElementById('edit-sub-idx').value);
+            const name = document.getElementById('edit-sub-name').value;
+            const cls = allClassData.find(c => c.id === clsId);
+            let subs = [...cls.sub_classes];
+            subs[idx].name = name;
+            await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId);
+            closeModal('edit-sub-modal'); init();
+        }
+        async function deleteSub(clsId, idx) {
+            if(confirm("確定刪除此子班別嗎？")) {
+                const cls = allClassData.find(c => c.id === clsId);
+                let subs = [...cls.sub_classes];
+                subs.splice(idx, 1);
+                await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId);
+                init();
+            }
+        }
+
+        // --- 學生加入功能 ---
+        function getAcademicYear() {
+            const d = new Date(); return (d.getMonth() + 1) >= 7 ? d.getFullYear() : d.getFullYear() - 1;
+        }
+        function calculateDisplayGrade(baseYear) {
+            if (!baseYear) return null;
+            const grade = getAcademicYear() - baseYear + 1;
+            return grade > 12 ? 13 : grade;
+        }
+
+        function openStudentModal(clsId, idx) { 
+            targetClassId = clsId; targetSubIdx = idx; 
+            document.getElementById('stu-search').value = ''; 
+            document.getElementById('grade-filter').value = '';
+            filterStudents(); 
+            document.getElementById('student-modal').classList.add('active'); 
+        }
         
         function filterStudents() {
-            const k = document.getElementById('stu-search').value.toLowerCase();
-            const g = document.getElementById('grade-filter').value;
-            document.getElementById('student-list-container').innerHTML = allStudents
-                .filter(s => s.name.toLowerCase().includes(k))
-                .map(s => `<div class="p-2 border-b cursor-pointer hover:bg-slate-100" onclick="addStudent('${s.name}')">${s.name}</div>`).join('');
+            const keyword = document.getElementById('stu-search').value.toLowerCase();
+            const gradeFilter = document.getElementById('grade-filter').value;
+            const cls = allClassData.find(c => c.id === targetClassId);
+            const currentMembers = cls.sub_classes[targetSubIdx].members || [];
+            
+            const filtered = allStudents.filter(s => {
+                const matchName = s.name.toLowerCase().includes(keyword);
+                const sGrade = calculateDisplayGrade(s.grade_base_year);
+                const matchGrade = gradeFilter === "" || String(sGrade) === gradeFilter;
+                return matchName && matchGrade;
+            });
+
+            document.getElementById('student-list-container').innerHTML = filtered.map(s => {
+                const isAdded = currentMembers.includes(s.name);
+                return `
+                    <div class="p-2 border-b flex justify-between items-center ${isAdded ? 'bg-slate-50 opacity-50' : 'cursor-pointer hover:bg-slate-100'}" 
+                         onclick="${isAdded ? '' : `addStudent('${s.name}')`}">
+                        <span class="font-bold text-sm">${s.name}</span>
+                        ${isAdded ? '<span class="text-[9px] font-black">已加入</span>' : '<span class="text-[9px] font-black text-blue-500">點擊加入</span>'}
+                    </div>
+                `;
+            }).join('');
         }
 
         async function addStudent(name) {
@@ -83,8 +207,24 @@
             let subs = [...cls.sub_classes];
             subs[targetSubIdx].members = [...(subs[targetSubIdx].members || []), name];
             await sb.from('classes').update({ sub_classes: subs }).eq('id', targetClassId);
-            init();
+            
+            // 更新本機資料以反映變化，不重整網頁
+            cls.sub_classes = subs; 
+            filterStudents();
+            render();
         }
+
+        async function removeStudent(clsId, idx, name) {
+            if(confirm(`確定要將 ${name} 從班別移除嗎？`)) {
+                const cls = allClassData.find(c => c.id === clsId);
+                let subs = [...cls.sub_classes];
+                subs[idx].members = subs[idx].members.filter(m => m !== name);
+                await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId);
+                init();
+            }
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
         window.onload = init;
     </script>
 </body>

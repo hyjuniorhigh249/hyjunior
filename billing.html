@@ -301,7 +301,6 @@
             const rsn = document.getElementById(`rsn-${cId}-${sIdx}`).value.trim();
             
             try {
-                // 絕對寫入邏輯：先精確查詢是否存在
                 const { data: existing, error: findErr } = await sb.from('student_bills')
                     .select('id').eq('student_name', currentStudent).eq('class_id', cId).eq('sub_idx', sIdx).maybeSingle();
                 if (findErr) throw findErr;
@@ -342,9 +341,13 @@
                 if (error) throw error;
                 
                 closeModal('pay-modal'); 
-                loadStudentData(currentStudent);
                 
-                if(confirm("✅ 繳費入帳成功！\n\n請問是否要立即為家長列印收據？")) printDoc('receipt', serial);
+                // 關鍵修正：加入 await 等待最新繳費紀錄從資料庫取回，再進行列印確認
+                await loadStudentData(currentStudent);
+                
+                if(confirm("✅ 繳費入帳成功！\n\n請問是否要立即為家長列印收據？")) {
+                    printDoc('receipt', serial);
+                }
             } catch (error) {
                 alert("入帳失敗：" + error.message);
             }

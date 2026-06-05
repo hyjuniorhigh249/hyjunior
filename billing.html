@@ -10,26 +10,41 @@
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
         
-        /* 專屬列印排版 (完美對應Word檔) */
+        /* ========================================================= */
+        /* 專屬彩色專業列印排版 (支援 Logo 與多色系)                     */
+        /* ========================================================= */
         @media print {
             body { background: white !important; font-family: "Microsoft JhengHei", sans-serif; padding: 0 !important; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             
-            .print-wrapper { width: 100%; max-width: 850px; margin: 0 auto; padding: 20px 40px; color: black; font-size: 15px; }
-            .p-title { text-align: center; font-size: 28px; font-weight: 900; letter-spacing: 2px; margin-bottom: 5px; }
-            .p-header { display: flex; justify-content: space-between; border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 15px; font-weight: bold; }
-            .p-info { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; }
+            .print-wrapper { width: 100%; max-width: 850px; margin: 0 auto; padding: 20px 40px; color: #1e293b; font-size: 15px; }
             
-            .p-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-            .p-table th, .p-table td { border: 1px solid black; padding: 10px; text-align: center; vertical-align: middle; }
-            .p-table th { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: 900; }
+            /* 表頭區塊 (深藍色系) */
+            .p-title-container { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 12px; border-bottom: 3px solid #1e3a8a; padding-bottom: 12px; }
+            .p-logo { height: 50px; object-fit: contain; }
+            .p-title { font-size: 28px; font-weight: 900; letter-spacing: 2px; color: #1e3a8a; }
             
-            .p-footer-note { font-size: 13px; line-height: 1.6; }
+            .p-header { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; color: #475569; }
+            
+            /* 學生資訊區塊 (柔和青綠色系) */
+            .p-info { display: flex; justify-content: space-between; margin-bottom: 15px; font-weight: bold; background-color: #f0fdf4 !important; padding: 12px 16px; border-radius: 8px; border-left: 5px solid #16a34a; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #14532d; }
+            
+            /* 表格區塊 (質感淺灰色系) */
+            .p-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 2px solid #cbd5e1; }
+            .p-table th, .p-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: center; vertical-align: middle; }
+            .p-table th { background-color: #f1f5f9 !important; color: #0f172a; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: 900; }
+            
+            /* 須知與說明區塊 (質感淺灰色背景) */
+            .p-footer-note { font-size: 13px; line-height: 1.6; background-color: #f8fafc !important; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin-top: 20px; }
+            .p-section-title { color: #1e3a8a; font-size: 15px; font-weight: 900; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 6px; margin-top: 8px; }
+            
             .p-bold { font-weight: 900; }
+            /* 醒目胭脂紅色系 (重點標示) */
+            .p-highlight { color: #be123c !important; font-weight: 900; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             
-            /* 讓繳費期限特別明顯 */
-            .deadline-box { font-size: 20px; font-weight: 900; border: 2px solid black; padding: 6px 10px; display: inline-block; margin-top: 8px; background-color: #fff1f2 !important; color: #e11d48 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            /* 繳費期限框 */
+            .deadline-box { font-size: 18px; font-weight: 900; border: 2px dashed #be123c; padding: 6px 12px; display: inline-block; margin-top: 8px; background-color: #fff1f2 !important; color: #be123c !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-radius: 6px; }
             
             @page { margin: 1cm; size: portrait; }
         }
@@ -38,6 +53,7 @@
 <body class="p-8">
 
     <div class="max-w-6xl mx-auto no-print flex gap-6">
+        <!-- 搜尋學生 -->
         <div class="w-80 shrink-0 bg-white p-5 rounded-2xl shadow-sm border h-[calc(100vh-4rem)] flex flex-col">
             <h2 class="font-black text-xl mb-4 text-slate-800">學費結算與沖銷</h2>
             <input type="text" id="stu-search" placeholder="輸入姓名快速搜尋..." class="w-full p-2 border rounded-lg mb-4 font-bold outline-none focus:ring-2 focus:ring-slate-800 bg-slate-50">
@@ -46,6 +62,7 @@
             </div>
         </div>
 
+        <!-- 帳單詳情 -->
         <div class="flex-1 bg-white p-6 rounded-2xl shadow-sm border h-[calc(100vh-4rem)] overflow-y-auto" id="billing-panel" style="display:none;">
             <div class="flex justify-between items-center mb-6 border-b pb-4">
                 <h2 class="font-black text-2xl text-slate-800">學生：<span id="b-stu-name" class="text-blue-600"></span></h2>
@@ -59,6 +76,7 @@
                 </div>
             </div>
 
+            <!-- 應繳明細表 -->
             <h3 class="font-black text-lg mb-3 text-slate-700">📋 報名班別與費用明細</h3>
             <div class="overflow-x-auto mb-8 bg-white border rounded-xl shadow-sm">
                 <table class="w-full text-left border-collapse">
@@ -76,6 +94,7 @@
                 </table>
             </div>
 
+            <!-- 歷史紀錄 -->
             <h3 class="font-black text-lg mb-3 mt-4 border-t pt-6 text-emerald-700">📜 歷史繳費紀錄 (沖銷明細)</h3>
             <div class="overflow-x-auto bg-white border rounded-xl shadow-sm">
                 <table class="w-full text-left border-collapse mb-4 text-sm">
@@ -97,6 +116,7 @@
         </div>
     </div>
 
+    <!-- 繳費 Modal -->
     <div id="pay-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4 no-print">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl border">
             <h3 class="text-xl font-black mb-4 text-slate-800">入帳 / 沖銷作業</h3>
@@ -112,8 +132,12 @@
         </div>
     </div>
 
+    <!-- ================= 列印版面 (彩色與 Logo 版) ================= -->
     <div id="print-area" class="hidden print-only print-wrapper">
-        <div class="p-title" id="p-title">昊學文教   繳費通知單</div>
+        <div class="p-title-container">
+            <img src="昊學_工作區域 1.png" alt="昊學Logo" class="p-logo" onerror="this.style.display='none'">
+            <div class="p-title" id="p-title">昊學文教   繳費通知單</div>
+        </div>
         <div class="p-header">
             <span>班址:竹北市十興路一段373號</span>
             <span>電話:(03)6670820</span>
@@ -123,28 +147,34 @@
             <span id="p-serial-info">流水編號: NO.XXXXXXXXX</span>
         </div>
         
-        <div class="p-bold mb-2">課程收費明細 ：</div>
+        <div class="p-bold mb-2" style="color: #0f172a;">課程收費明細 ：</div>
         <table class="p-table" id="p-table"></table>
 
         <div id="p-footer-notice" class="p-footer-note mt-6">
-            <div class="p-bold">【匯款資訊】戶名：昊學文教股份有限公司，台北富邦（012）一竹北分行</div>
-            <div>帳號：8212-0000-174151 ‧匯款後請您協助回傳以下資訊：1、學生姓名 2、帳號末5碼</div>
-            <div class="p-bold mt-2">【請假需知】</div>
+            <div class="p-section-title">【匯款資訊】</div>
+            <div>戶名：昊學文教股份有限公司，台北富邦（012）一竹北分行</div>
+            <div>帳號：<span class="p-highlight">8212-0000-174151</span> ‧匯款後請您協助回傳以下資訊：1、學生姓名 2、帳號末5碼</div>
+            
+            <div class="p-section-title mt-4">【請假需知】</div>
             <div>(一) 無故請勿請假，事/病假需家長證明，不接受國中小學生自行請假，每月請假乙次為限。</div>
             <div>(二) 事請請於三天前(寒暑假出國或返鄉長假請於半個月前)，病假請於1小時前；個別指導學生病假請於2小時前，若授課老師已在路上，仍需計該堂費用。</div>
-            <div class="p-bold mt-2">【補課需知】</div>
+            
+            <div class="p-section-title mt-4">【補課需知】</div>
             <div>(一) 2人以上班級，請假需補課看影片，且需在下次上課前完成。</div>
             <div>(二) 1對1請假，以提前補實體課或往後補實體課為主，特殊情況才可順延，以防教學進度延誤。</div>
         </div>
 
         <div id="p-footer-receipt" class="p-footer-note mt-6 hidden">
-            <div class="p-bold">【退費規定說明】</div>
+            <div class="p-section-title">【退費規定說明】</div>
             <div>補習班學生繳納費用後離班者,補習班應依下列規定辦理退費 ：</div>
             <div>一、 學生於實際開課日前提出退費申請者,應退還當期開班約定繳納費用總額百分之九十,但所收取之百分之十部分逾新臺幣一千元部分,仍應退還 。</div>
             <div>二、 學生於實際開課日起一週內提出退費申請者,應退還當期開班約定繳納費用總額百分之七十 。</div>
-            <div>三、 學生於實際開課日起算逾一週且未達全期或總課程時數之三分之一期間內提出退費申請者,應退還當期開班約定繳納費用總額之二分之一。 四、學生於達全期或總課程時數之三分之一以上者,不予退費。</div>
+            <div>三、 學生於實際開課日起算逾一週且未達全期或總課程時數之三分之一期間內提出退費申請者,應退還當期開班約定繳納費用總額之二分之一。</div>
+            <div>四、 學生於達全期或總課程時數之三分之一以上期間提出退費申請者,所收取之當期開班約定繳納費用得全數不予退還 。</div>
         </div>
     </div>
+    <!-- ============================================================= -->
+
     <script>
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
         
@@ -153,20 +183,20 @@
         
         function getAcademicYear() { const d = new Date(); return (d.getMonth() + 1) >= 7 ? d.getFullYear() : d.getFullYear() - 1; }
         function numToChinese(num) {
+            if(num === 0) return '零元整';
             const chars = ['零','壹','貳','參','肆','伍','陸','柒','捌','玖'];
-            const units = ['','拾','佰','仟','萬'];
+            const units = ['','拾','佰','仟','萬','拾萬','佰萬'];
             let str = num.toString(), res = '';
             for(let i=0; i<str.length; i++) {
                 let n = parseInt(str[i]), u = str.length - 1 - i;
                 if(n !== 0) res += chars[n] + units[u];
-                else if(res[res.length-1] !== '零') res += '零';
+                else if(res[res.length-1] !== '零' && u !== 0) res += '零';
             }
             return res.replace(/零$/, '') + '元整';
         }
 
         async function init() {
             try {
-                // 設定繳費期限預設值為 今日 + 3天
                 const deadlineDate = new Date();
                 deadlineDate.setDate(deadlineDate.getDate() + 3);
                 document.getElementById('notice-deadline').value = deadlineDate.toISOString().split('T')[0];
@@ -180,7 +210,6 @@
                 
                 document.getElementById('stu-search').addEventListener('input', renderStuList);
                 renderStuList();
-                
             } catch (error) {
                 document.getElementById('stu-list').innerHTML = `<div class="p-4 text-center text-red-500 font-bold text-sm bg-red-50 rounded-lg border border-red-200">讀取資料失敗：<br>${error.message}</div>`;
             }
@@ -342,7 +371,6 @@
                 
                 closeModal('pay-modal'); 
                 
-                // 關鍵修正：加入 await 等待最新繳費紀錄從資料庫取回，再進行列印確認
                 await loadStudentData(currentStudent);
                 
                 if(confirm("✅ 繳費入帳成功！\n\n請問是否要立即為家長列印收據？")) {
@@ -371,9 +399,9 @@
                 totalPayable += finalFee;
 
                 html += `<tr>
-                    <td>班級: ${en.main_name}<br>班別: ${en.sub_name}</td>
+                    <td class="p-bold" style="color: #1e3a8a;">${en.main_name}<br>(${en.sub_name})</td>
                     <td style="text-align:left;">學費: ${en.fee}<br>雜費: ${en.m_fee}<br>教材費: ${en.tb_fee}<br>總價: ${subTotal}</td>
-                    <td>${b.discount_reason}<br>折 ${b.discount_amount} 元<br>折扣後金額:<br>${finalFee}</td>
+                    <td>${b.discount_reason}<br>折 ${b.discount_amount} 元<br>折扣後金額:<br><span class="p-highlight">${finalFee}</span></td>
                     <td>${en.start ? en.start.replace(/-/g,'/') : '未定'}<br>至<br>${en.end ? en.end.replace(/-/g,'/') : '未定'}</td>
                 </tr>`;
             });
@@ -386,7 +414,7 @@
                 
                 html += `<tr>
                     <td colspan="2" class="p-bold">實收總金額<br>${numToChinese(totalPayable)}</td>
-                    <td colspan="2" class="p-bold text-lg">${totalPayable} 元<br>
+                    <td colspan="2" class="p-bold" style="font-size: 18px;"><span class="p-highlight">${totalPayable} 元</span><br>
                         <div class="deadline-box">繳費期限: ${deadlineStr.replace(/-/g,'/')} 前</div>
                     </td>
                 </tr>`;
@@ -400,7 +428,10 @@
                 document.getElementById('p-serial-info').innerText = `流水編號: ${p.serial_no}`;
                 
                 const debt = totalPayable - payments.reduce((sum, curr) => sum + curr.amount, 0); 
-                html += `<tr><td colspan="2" class="p-bold text-left">本日繳費: ${p.amount} 元<br>尚欠: ${debt} 元</td><td colspan="2" class="p-bold text-left">繳費方式: ${p.pay_method === '現金' ? '☑現金 ☐轉帳' : '☐現金 ☑轉帳'}</td></tr>`;
+                html += `<tr>
+                    <td colspan="2" class="p-bold text-left">${p.pay_date.replace(/-/g, '/')} 繳費: <span class="p-highlight">${p.amount} 元</span><br>尚欠: ${debt} 元</td>
+                    <td colspan="2" class="p-bold text-left">繳費方式: ${p.pay_method === '現金' ? '☑現金 ☐轉帳' : '☐現金 ☑轉帳'}</td>
+                </tr>`;
                 
                 document.getElementById('p-footer-notice').style.display = 'none';
                 document.getElementById('p-footer-receipt').style.display = 'block';

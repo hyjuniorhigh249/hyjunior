@@ -27,6 +27,10 @@
             
             .p-footer-note { font-size: 13px; line-height: 1.6; }
             .p-bold { font-weight: 900; }
+            
+            /* 讓繳費期限特別明顯 */
+            .deadline-box { font-size: 20px; font-weight: 900; border: 2px solid black; padding: 6px 10px; display: inline-block; margin-top: 8px; background-color: #fff1f2 !important; color: #e11d48 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            
             @page { margin: 1cm; size: portrait; }
         }
     </style>
@@ -45,7 +49,11 @@
         <div class="flex-1 bg-white p-6 rounded-2xl shadow-sm border h-[calc(100vh-4rem)] overflow-y-auto" id="billing-panel" style="display:none;">
             <div class="flex justify-between items-center mb-6 border-b pb-4">
                 <h2 class="font-black text-2xl text-slate-800">學生：<span id="b-stu-name" class="text-blue-600"></span></h2>
-                <div class="flex gap-2">
+                <div class="flex gap-2 items-center">
+                    <div class="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg border mr-2">
+                        <span class="text-xs font-black text-slate-600">繳費期限</span>
+                        <input type="date" id="notice-deadline" class="p-1 border rounded text-xs font-bold outline-none">
+                    </div>
                     <button onclick="printDoc('notice')" class="bg-slate-700 text-white px-4 py-2 rounded-lg font-black hover:bg-slate-800 transition">🖨️ 印繳費通知單</button>
                     <button onclick="openPaymentModal()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-black shadow-lg hover:bg-emerald-700 transition">💰 進行繳費 (沖銷)</button>
                 </div>
@@ -120,11 +128,13 @@
 
         <div id="p-footer-notice" class="p-footer-note mt-6">
             <div class="p-bold">【匯款資訊】戶名：昊學文教股份有限公司，台北富邦（012）一竹北分行</div>
-            <div>帳號：8212-0000-17415 ‧匯款後請您協助回傳以下資訊：1、學生姓名 2、帳號末5碼</div>
+            <div>帳號：8212-0000-174151 ‧匯款後請您協助回傳以下資訊：1、學生姓名 2、帳號末5碼</div>
             <div class="p-bold mt-2">【請假需知】</div>
-            <div>無故請勿請假，事/病假需家長證明，不接受國中小學生自行請假，每月請假乙次為限。事請請於三天前(寒暑假出國或返鄉長假請於半個月前)，病假請於1小時前；個別指導學生病假請於2小時前，若授課老師已在路上，仍需計該堂費用。</div>
+            <div>(一) 無故請勿請假，事/病假需家長證明，不接受國中小學生自行請假，每月請假乙次為限。</div>
+            <div>(二) 事請請於三天前(寒暑假出國或返鄉長假請於半個月前)，病假請於1小時前；個別指導學生病假請於2小時前，若授課老師已在路上，仍需計該堂費用。</div>
             <div class="p-bold mt-2">【補課需知】</div>
-            <div>1. 學生請假後，請主動與老師預約補課時間，未補課視同放棄權益。</div>
+            <div>(一) 2人以上班級，請假需補課看影片，且需在下次上課前完成。</div>
+            <div>(二) 1對1請假，以提前補實體課或往後補實體課為主，特殊情況才可順延，以防教學進度延誤。</div>
         </div>
 
         <div id="p-footer-receipt" class="p-footer-note mt-6 hidden">
@@ -156,22 +166,22 @@
 
         async function init() {
             try {
-                // 1. 取得學生清單
+                // 設定繳費期限預設值為 今日 + 3天
+                const deadlineDate = new Date();
+                deadlineDate.setDate(deadlineDate.getDate() + 3);
+                document.getElementById('notice-deadline').value = deadlineDate.toISOString().split('T')[0];
+                document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
+
                 const { data: stus, error: stuErr } = await sb.from('students').select('*');
                 if (stuErr) throw stuErr;
                 
                 allStudentsData = stus || [];
-                // 過濾掉名字可能是 null 或空值的異常資料
                 students = allStudentsData.map(s => s.name).filter(n => n && n.trim() !== '');
                 
                 document.getElementById('stu-search').addEventListener('input', renderStuList);
                 renderStuList();
                 
-                // 預設今日
-                document.getElementById('pay-date').value = new Date().toISOString().split('T')[0];
-                
             } catch (error) {
-                console.error(error);
                 document.getElementById('stu-list').innerHTML = `<div class="p-4 text-center text-red-500 font-bold text-sm bg-red-50 rounded-lg border border-red-200">讀取資料失敗：<br>${error.message}</div>`;
             }
         }
@@ -179,7 +189,6 @@
         function renderStuList() {
             const k = document.getElementById('stu-search').value.toLowerCase().trim();
             const listContainer = document.getElementById('stu-list');
-            
             const filtered = students.filter(s => s.toLowerCase().includes(k));
             
             if (filtered.length === 0) {
@@ -198,13 +207,10 @@
             try {
                 currentStudent = name; 
                 document.getElementById('b-stu-name').innerText = name;
-                
-                // 切換右側畫面
                 document.getElementById('empty-panel').style.display = 'none';
                 document.getElementById('billing-panel').style.display = 'block'; 
-                renderStuList(); // 讓左側列表反白剛點選的學生
+                renderStuList(); 
 
-                // 2. 取得班級與報名資料
                 const { data: clsData, error: clsErr } = await sb.from('classes').select('*'); 
                 if (clsErr) throw clsErr;
                 classes = clsData || [];
@@ -220,18 +226,14 @@
                     }
                 }));
 
-                // 3. 取得專屬優惠
                 const { data: bData } = await sb.from('student_bills').select('*').eq('student_name', name); 
                 bills = bData || [];
-                
-                // 4. 取得歷史繳費
                 const { data: pData } = await sb.from('payment_logs').select('*').eq('student_name', name).order('pay_date', { ascending: false }); 
                 payments = pData || [];
                 
                 renderBillingTable();
-                
             } catch (error) {
-                alert("載入該學生的帳單資料時發生錯誤：\n" + error.message);
+                alert("載入帳單資料失敗：" + error.message);
             }
         }
 
@@ -290,7 +292,6 @@
                         </tr>`;
                 }).join('');
             }
-            
             currentTotalDebt = totalPayable - totalPaid;
             document.getElementById('b-total-debt').innerText = `$${currentTotalDebt}`;
         }
@@ -298,15 +299,25 @@
         async function saveDiscount(cId, sIdx) {
             const amt = parseInt(document.getElementById(`amt-${cId}-${sIdx}`).value) || 0;
             const rsn = document.getElementById(`rsn-${cId}-${sIdx}`).value.trim();
+            
             try {
-                const exist = bills.find(b => b.class_id === cId && b.sub_idx === sIdx);
-                if(exist) await sb.from('student_bills').update({ discount_amount: amt, discount_reason: rsn }).eq('id', exist.id);
-                else await sb.from('student_bills').insert([{ student_name: currentStudent, class_id: cId, sub_idx: sIdx, discount_amount: amt, discount_reason: rsn }]);
+                // 絕對寫入邏輯：先精確查詢是否存在
+                const { data: existing, error: findErr } = await sb.from('student_bills')
+                    .select('id').eq('student_name', currentStudent).eq('class_id', cId).eq('sub_idx', sIdx).maybeSingle();
+                if (findErr) throw findErr;
+
+                if (existing) {
+                    const { error: updErr } = await sb.from('student_bills').update({ discount_amount: amt, discount_reason: rsn }).eq('id', existing.id);
+                    if (updErr) throw updErr;
+                } else {
+                    const { error: insErr } = await sb.from('student_bills').insert([{ student_name: currentStudent, class_id: cId, sub_idx: sIdx, discount_amount: amt, discount_reason: rsn }]);
+                    if (insErr) throw insErr;
+                }
                 
-                alert("優惠折扣已成功儲存！"); 
+                alert("✅ 優惠折扣已成功儲存！"); 
                 loadStudentData(currentStudent);
             } catch (error) {
-                alert("儲存失敗：" + error.message);
+                alert("儲存失敗，請檢查資料庫連線：" + error.message);
             }
         }
 
@@ -333,9 +344,7 @@
                 closeModal('pay-modal'); 
                 loadStudentData(currentStudent);
                 
-                if(confirm("✅ 繳費入帳成功！\n\n請問是否要立即為家長列印收據？")) {
-                    printDoc('receipt', serial);
-                }
+                if(confirm("✅ 繳費入帳成功！\n\n請問是否要立即為家長列印收據？")) printDoc('receipt', serial);
             } catch (error) {
                 alert("入帳失敗：" + error.message);
             }
@@ -368,9 +377,16 @@
 
             if(type === 'notice') {
                 document.getElementById('p-title').innerText = "昊學文教   繳費通知單";
-                const d = new Date(); d.setDate(d.getDate() + 7); 
-                document.getElementById('p-serial-info').innerText = `流水編號: NO. SYSTEM (繳費後產生)`;
-                html += `<tr><td colspan="2" class="p-bold">實收總金額<br>${numToChinese(totalPayable)}</td><td colspan="2" class="p-bold text-lg">${totalPayable} 元<br><span style="font-size:12px;font-weight:normal;">繳費期限: ${d.toISOString().split('T')[0].replace(/-/g,'/')} 前</span></td></tr>`;
+                const deadlineStr = document.getElementById('notice-deadline').value;
+                const noticeSerial = `NO.${new Date().toISOString().split('T')[0].replace(/-/g,'')}${Math.floor(1000+Math.random()*9000)}`;
+                document.getElementById('p-serial-info').innerText = `流水編號: ${noticeSerial}`;
+                
+                html += `<tr>
+                    <td colspan="2" class="p-bold">實收總金額<br>${numToChinese(totalPayable)}</td>
+                    <td colspan="2" class="p-bold text-lg">${totalPayable} 元<br>
+                        <div class="deadline-box">繳費期限: ${deadlineStr.replace(/-/g,'/')} 前</div>
+                    </td>
+                </tr>`;
                 
                 document.getElementById('p-footer-notice').style.display = 'block';
                 document.getElementById('p-footer-receipt').style.display = 'none';

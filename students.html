@@ -12,19 +12,35 @@
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
         
-        /* 表格與滾動軸設定 */
-        .table-container { height: calc(100vh - 150px); overflow: auto; background: white; border-radius: 1rem; border: 1px solid #e2e8f0; width: 100%; }
-        table { border-collapse: separate; border-spacing: 0; min-width: 1600px; }
-        th { position: sticky; top: 0; z-index: 20; background-color: #f1f5f9; padding: 12px; border-bottom: 2px solid #cbd5e1; cursor: pointer; user-select: none; }
-        th:hover { background-color: #e2e8f0; }
-        td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+        /* 表格與滾動軸設定 (Excel 網格版) */
+        .table-container { height: calc(100vh - 150px); overflow: auto; background: white; border-radius: 1rem; border: 1px solid #e2e8f0; width: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; table-layout: fixed; }
         
+        /* 表頭 (帶有調整寬度的拉柄) */
+        th { 
+            position: sticky; top: 0; z-index: 20; background-color: #f1f5f9; 
+            border-bottom: 2px solid #cbd5e1; border-right: 1px solid #cbd5e1; 
+            user-select: none; position: relative; padding: 0; 
+        }
+        th:hover { background-color: #e2e8f0; }
+        .th-content { padding: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; }
+        
+        /* 表格資料單元格 */
+        td { 
+            padding: 12px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; 
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap; 
+        }
+        
+        /* 拖曳調整寬度的拉柄區塊 */
+        .resizer { position: absolute; top: 0; right: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 21; }
+        .resizer:hover, .resizer:active { background-color: #3b82f6; opacity: 0.5; }
+        body.resizing * { cursor: col-resize !important; user-select: none !important; }
+
         ::-webkit-scrollbar { width: 12px; height: 12px; }
         ::-webkit-scrollbar-track { background: #f8fafc; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; border: 3px solid #f8fafc; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        /* 列印排版設定 (QR Code 點名卡) */
         @media print {
             body { background: white !important; overflow: visible !important; height: auto !important; }
             .no-print { display: none !important; }
@@ -52,7 +68,7 @@
         </header>
 
         <div class="table-container shadow-sm">
-            <table class="w-full text-left text-sm whitespace-nowrap">
+            <table class="w-full text-left text-sm whitespace-nowrap" id="students-table">
                 <thead><tr id="table-header" class="text-slate-600 font-black"></tr></thead>
                 <tbody id="students-tbody" class="text-slate-700 font-bold"></tbody>
             </table>
@@ -148,7 +164,7 @@
         
         let allStudents = [];
         
-        // 系統所有支援的欄位定義
+        // 所有支援的欄位定義
         const colDefs = [
             { id: 'photo', label: '照片', sortable: false },
             { id: 'student_id', label: '學號', sortable: true },
@@ -167,6 +183,13 @@
             { id: 'created_date', label: '建檔日期', sortable: true },
             { id: 'note', label: '備註', sortable: false }
         ];
+
+        // 預設欄寬
+        const defaultWidths = {
+            'photo': 60, 'student_id': 120, 'name': 120, 'gender': 80, 'grade': 80, 'school': 150, 
+            'tel_o': 120, 'tel_m': 120, 'tel_p': 120, 'source': 100, 'line_type': 100, 
+            'prospect_course': 180, 'siblings': 120, 'addr': 200, 'created_date': 120, 'note': 180, 'action': 150
+        };
 
         let visibleCols = ['photo', 'student_id', 'name', 'gender', 'grade', 'school', 'tel_o', 'tel_m', 'prospect_course'];
         let currentSortCol = 'created_date';
@@ -208,6 +231,50 @@
             renderStudents();
         }
 
+        // ==========================================
+        // 拖拉調整欄寬核心邏輯 (Excel 網格體驗)
+        // ==========================================
+        let isResizing = false;
+        let currentResizerCol = null;
+        let startX = 0;
+        let startWidth = 0;
+
+        function initResize(e, colId) {
+            e.stopPropagation(); e.preventDefault();
+            isResizing = true; currentResizerCol = colId; startX = e.clientX;
+            const th = document.querySelector(`th[data-col-id="${colId}"]`);
+            startWidth = th.offsetWidth;
+            document.documentElement.addEventListener('mousemove', doResize);
+            document.documentElement.addEventListener('mouseup', stopResize);
+            document.body.classList.add('resizing');
+        }
+
+        function doResize(e) {
+            if (!isResizing || !currentResizerCol) return;
+            const currentWidth = Math.max(50, startWidth + (e.clientX - startX)); // 最小寬度 50px
+            const th = document.querySelector(`th[data-col-id="${currentResizerCol}"]`);
+            if (th) {
+                th.style.width = currentWidth + 'px';
+                th.style.minWidth = currentWidth + 'px';
+                th.style.maxWidth = currentWidth + 'px';
+            }
+        }
+
+        function stopResize(e) {
+            if (!isResizing) return;
+            const th = document.querySelector(`th[data-col-id="${currentResizerCol}"]`);
+            if (th) {
+                let colWidths = JSON.parse(localStorage.getItem('haoxue_col_widths')) || {};
+                colWidths[currentResizerCol] = th.offsetWidth;
+                localStorage.setItem('haoxue_col_widths', JSON.stringify(colWidths)); // 記憶寬度
+            }
+            isResizing = false; currentResizerCol = null;
+            document.documentElement.removeEventListener('mousemove', doResize);
+            document.documentElement.removeEventListener('mouseup', stopResize);
+            document.body.classList.remove('resizing');
+        }
+        // ==========================================
+
         function renderStudents() {
             const keyword = document.getElementById('search-input').value.toLowerCase().trim();
             const headerRow = document.getElementById('table-header');
@@ -218,6 +285,7 @@
                 return s.name.toLowerCase().includes(keyword) || fullId.includes(keyword);
             });
 
+            // 排序邏輯
             filtered.sort((a, b) => {
                 let valA = '', valB = '';
                 if(currentSortCol === 'student_id') {
@@ -236,13 +304,29 @@
                 return 0;
             });
 
+            // 取得已存檔的欄寬
+            let colWidths = JSON.parse(localStorage.getItem('haoxue_col_widths')) || {};
+
+            // 渲染表頭 (帶有拖拉把手與直向格線)
             let headerHTML = '';
             visibleCols.forEach(colId => {
                 const col = colDefs.find(c => c.id === colId);
                 const arrow = currentSortCol === colId ? (isSortAsc ? ' ▲' : ' ▼') : '';
-                headerHTML += `<th onclick="sortBy('${colId}')">${col.label}${col.sortable ? arrow : ''}</th>`;
+                const w = colWidths[colId] || defaultWidths[colId] || 120;
+                headerHTML += `
+                    <th style="width: ${w}px; min-width: ${w}px; max-width: ${w}px;" data-col-id="${colId}">
+                        <div class="th-content cursor-pointer" onclick="sortBy('${colId}')" title="點擊排序">
+                            ${col.label}${col.sortable ? arrow : ''}
+                        </div>
+                        <div class="resizer" onmousedown="initResize(event, '${colId}')" title="調整寬度"></div>
+                    </th>`;
             });
-            headerHTML += `<th class="text-center">操作功能</th>`;
+            const wAction = colWidths['action'] || defaultWidths['action'];
+            headerHTML += `
+                <th style="width: ${wAction}px; min-width: ${wAction}px; max-width: ${wAction}px;" data-col-id="action" class="text-center">
+                    <div class="th-content flex justify-center">操作功能</div>
+                    <div class="resizer" onmousedown="initResize(event, 'action')" title="調整寬度"></div>
+                </th>`;
             headerRow.innerHTML = headerHTML;
 
             if (filtered.length === 0) {
@@ -250,6 +334,7 @@
                 return;
             }
 
+            // 渲染資料 (文字過長自動省略)
             tbody.innerHTML = filtered.map(s => {
                 const fullId = (s.student_id_prefix && s.student_id_suffix) ? `${s.student_id_prefix}${s.student_id_suffix}` : '無';
                 let rowHTML = `<tr class="hover:bg-slate-50 transition">`;
@@ -263,7 +348,8 @@
                         case 'tel_o': cellData = s.tel_o || s.phone || ''; break;
                         default: cellData = s[colId] || ''; break;
                     }
-                    rowHTML += `<td>${cellData}</td>`;
+                    const titleText = (colId !== 'photo' && cellData) ? cellData.toString().replace(/<[^>]*>?/gm, '') : '';
+                    rowHTML += `<td title="${titleText}">${cellData}</td>`;
                 });
 
                 rowHTML += `
@@ -276,6 +362,7 @@
             }).join('');
         }
 
+        // 自訂欄位選單
         function initColSelector() {
             document.getElementById('col-checkboxes').innerHTML = colDefs.map(col => `
                 <label class="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded border">
@@ -297,6 +384,7 @@
             renderStudents();
         }
 
+        // 照片上傳壓縮
         function handlePhotoUpload(e) {
             const file = e.target.files[0];
             if(!file) return;
@@ -323,6 +411,7 @@
             reader.readAsDataURL(file);
         }
 
+        // 開啟編輯表單
         function openModal(id = null) {
             document.getElementById('stu-id').value = id || '';
             document.getElementById('photo-upload').value = '';
@@ -375,6 +464,7 @@
 
         function closeModal() { document.getElementById('student-modal').classList.remove('active'); }
 
+        // 學號末三碼自動分配
         async function getNextSuffix(prefix) {
             if(!prefix) return '';
             const { data } = await sb.from('students').select('student_id_suffix').eq('student_id_prefix', prefix);
@@ -388,6 +478,7 @@
             return String(next).padStart(3, '0');
         }
 
+        // 儲存資料
         async function saveStudent() {
             const id = document.getElementById('stu-id').value;
             const name = document.getElementById('stu-name').value.trim();
@@ -442,6 +533,7 @@
             }
         }
 
+        // 刪除資料
         async function deleteStudent(id, name) {
             if(confirm(`確定要刪除學生「${name}」嗎？\n\n警告：刪除後，他的學號末三碼將會空出，並自動讓給下一位建立的同屆學生。`)) {
                 await sb.from('students').delete().eq('id', id);
@@ -449,6 +541,7 @@
             }
         }
 
+        // 單獨顯示 QR 碼
         function showSingleQR(name, fullId) {
             if(fullId === '無') return alert("該名學生尚未設定學號，無法產生 QR 碼。");
             const overlay = document.createElement('div');
@@ -470,6 +563,7 @@
             new QRCode(document.getElementById("temp-qr"), { text: fullId, width: 200, height: 200, colorDark : "#1e293b", colorLight : "#ffffff" });
         }
 
+        // 批次列印 QR 碼
         function printQRCodes() {
             const validStudents = allStudents.filter(s => s.student_id_prefix && s.student_id_suffix);
             if(validStudents.length === 0) return alert("目前沒有建立學號的學生資料。");

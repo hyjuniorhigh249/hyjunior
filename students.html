@@ -52,15 +52,17 @@
     </div>
 
     <div id="student-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4 no-print overflow-y-auto">
-        <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden my-8">
-            <div class="bg-slate-800 p-4 text-white flex justify-between items-center sticky top-0 z-10">
+        <div class="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden my-8 max-h-[90vh] flex flex-col">
+            <div class="bg-slate-800 p-4 text-white flex justify-between items-center shrink-0">
                 <h3 id="modal-title" class="text-lg font-black tracking-wider">新增學生資料</h3>
                 <button onclick="closeModal()" class="text-slate-300 hover:text-white text-xl font-black">&times;</button>
             </div>
             
-            <div class="p-6">
+            <div class="p-6 overflow-y-auto flex-1">
                 <input type="hidden" id="stu-id">
-                <input type="hidden" id="stu-photo-url"> <div class="flex gap-6 mb-6 pb-6 border-b">
+                <input type="hidden" id="stu-photo-url">
+                
+                <div class="flex flex-col md:flex-row gap-6 mb-6 pb-6 border-b">
                     <div class="w-32 shrink-0 flex flex-col items-center gap-2">
                         <div class="w-24 h-24 rounded-full border-2 border-dashed border-slate-300 overflow-hidden bg-slate-50 flex items-center justify-center relative group">
                             <img id="photo-preview" src="" class="w-full h-full object-cover hidden">
@@ -70,40 +72,47 @@
                         <span class="text-[10px] font-bold text-slate-400 text-center">點擊上傳照片<br>(系統自動壓縮)</span>
                     </div>
 
-                    <div class="flex-1 grid grid-cols-2 gap-4">
-                        <div>
+                    <div class="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="col-span-2">
                             <label class="block text-xs font-bold text-slate-500 mb-1">姓名 *</label>
                             <input type="text" id="stu-name" class="w-full p-2 border rounded-lg font-black text-lg bg-slate-50 focus:ring-2 outline-none">
                         </div>
-                        <div>
+                        <div class="col-span-2">
                             <label class="block text-xs font-bold text-slate-500 mb-1">性別</label>
                             <select id="stu-gender" class="w-full p-2.5 border rounded-lg font-bold bg-slate-50 outline-none">
                                 <option value="男">男</option><option value="女">女</option>
                             </select>
                         </div>
-                        <div>
+                        <div class="col-span-2">
                             <label class="block text-xs font-bold text-slate-500 mb-1">學號前三碼 (入學年) *</label>
                             <input type="text" id="stu-prefix" placeholder="例如: 112" class="w-full p-2 border rounded-lg font-black text-blue-600 bg-blue-50 focus:ring-2 outline-none tracking-widest">
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">學號後三碼 (系統自動補位)</label>
-                            <input type="text" id="stu-suffix" placeholder="儲存後自動產生" readonly class="w-full p-2 border border-transparent rounded-lg font-black text-slate-400 bg-slate-100 outline-none tracking-widest text-center cursor-not-allowed">
+                        <div class="col-span-2">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">學號後三碼 (自動補位)</label>
+                            <input type="text" id="stu-suffix" placeholder="儲存後產生" readonly class="w-full p-2 border border-transparent rounded-lg font-black text-slate-400 bg-slate-100 outline-none tracking-widest text-center cursor-not-allowed">
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">年級基準年 (國一入學年) *</label><input type="number" id="stu-base-year" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">就讀學校</label><input type="text" id="stu-school" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">家長姓名</label><input type="text" id="stu-parent" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">聯絡電話</label><input type="text" id="stu-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    <div class="col-span-2"><label class="block text-[10px] font-bold text-slate-400 mb-1">聯絡地址</label><input type="text" id="stu-address" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">兄弟姐妹</label><input type="text" id="stu-siblings" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50" placeholder="例如: 王小明(哥)"></div>
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">建檔日期</label><input type="date" id="stu-created" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    <div class="col-span-2"><label class="block text-[10px] font-bold text-slate-400 mb-1">備註說明</label><input type="text" id="stu-note" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    
+                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">本人手機</label><input type="text" id="stu-student-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">爸爸手機</label><input type="text" id="stu-dad-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">媽媽手機</label><input type="text" id="stu-mom-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    
+                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">來源</label><input type="text" id="stu-source" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">線別</label><input type="text" id="stu-line" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">展望科目</label><input type="text" id="stu-subjects" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+
+                    <div class="col-span-1 md:col-span-3"><label class="block text-[10px] font-bold text-slate-400 mb-1">兄弟姐妹</label><input type="text" id="stu-siblings" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50" placeholder="例如: 王小明(哥)"></div>
+                    <div class="col-span-1 md:col-span-3"><label class="block text-[10px] font-bold text-slate-400 mb-1">聯絡地址</label><input type="text" id="stu-address" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div class="col-span-1 md:col-span-3"><label class="block text-[10px] font-bold text-slate-400 mb-1">備註說明</label><input type="text" id="stu-note" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
                 </div>
 
-                <div class="flex gap-3 mt-8">
+                <div class="flex gap-3 mt-6">
                     <button onclick="closeModal()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-black hover:bg-slate-200 transition">取消返回</button>
                     <button onclick="saveStudent()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 shadow-md transition text-lg tracking-wider">💾 儲存資料</button>
                 </div>
@@ -116,17 +125,22 @@
         <div id="qr-print-grid" class="qr-grid"></div>
     </div>
     <script>
-        // Supabase 初始化
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
         let allStudents = [];
 
-        // 頁面載入
         async function init() {
             document.getElementById('stu-created').value = new Date().toISOString().split('T')[0];
+            
+            // 系統自動防呆：如果資料庫還沒有這些新欄位，嘗試靜默補充 (這一步不一定需要，但保險起見)
+            try {
+                await sb.from('students').select('line_type, source, dad_phone, mom_phone, student_phone, prospective_subjects').limit(1);
+            } catch(e) {
+                console.warn("部分欄位尚未建立，請確認 Supabase 中已建立好對應欄位。");
+            }
+
             await fetchStudents();
         }
 
-        // 取得資料
         async function fetchStudents() {
             try {
                 const { data, error } = await sb.from('students').select('*').order('created_at', { ascending: false });
@@ -139,7 +153,6 @@
             }
         }
 
-        // 計算年級顯示
         function getAcademicYear() { const d = new Date(); return (d.getMonth() + 1) >= 7 ? d.getFullYear() : d.getFullYear() - 1; }
         function calculateDisplayGrade(baseYear) {
             if (!baseYear) return '未定';
@@ -148,7 +161,6 @@
             return grade >= 1 && grade <= 12 ? grades[grade - 1] : '已畢業';
         }
 
-        // 渲染學生清單
         function renderStudents() {
             const keyword = document.getElementById('search-input').value.toLowerCase().trim();
             const grid = document.getElementById('students-grid');
@@ -161,6 +173,9 @@
             grid.innerHTML = filtered.map(s => {
                 const fullId = (s.student_id_prefix && s.student_id_suffix) ? `${s.student_id_prefix}${s.student_id_suffix}` : '無學號';
                 const photoSrc = s.photo_url || '';
+                
+                // 為了兼容舊版資料的寫法
+                const showStudentPhone = s.student_phone || s.phone || '無';
                 
                 return `
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition relative flex flex-col">
@@ -177,7 +192,18 @@
                     <div class="grid grid-cols-2 gap-y-2 text-xs font-bold text-slate-500 bg-slate-50 p-3 rounded-xl border mb-4">
                         <div class="truncate">🏫 ${s.school || '未登錄'}</div>
                         <div>📚 ${calculateDisplayGrade(s.grade_base_year)}</div>
-                        <div class="truncate col-span-2">📞 ${s.parent_name || '家長'} - ${s.phone || '無電話'}</div>
+                        
+                        <div class="col-span-2 text-[10px] text-slate-600 flex flex-wrap gap-x-3 gap-y-1 mt-1 border-t pt-2">
+                            <span>📞 本: <span class="font-black text-slate-700">${showStudentPhone}</span></span>
+                            <span>媽: <span class="font-black text-slate-700">${s.mom_phone || '無'}</span></span>
+                            <span>爸: <span class="font-black text-slate-700">${s.dad_phone || '無'}</span></span>
+                        </div>
+                        
+                        <div class="col-span-2 text-[10px] text-slate-600 flex flex-wrap gap-x-3 gap-y-1 mt-1 border-t pt-2">
+                            <span>🎯 展望: <span class="font-black text-blue-700">${s.prospective_subjects || '無'}</span></span>
+                            <span>來源: <span class="font-black text-slate-700">${s.source || '無'}</span></span>
+                            <span>線別: <span class="font-black text-slate-700">${s.line_type || '無'}</span></span>
+                        </div>
                     </div>
 
                     <div class="mt-auto pt-3 border-t flex justify-between items-center">
@@ -194,7 +220,6 @@
             }).join('');
         }
 
-        // 處理照片上傳與自動壓縮 (Base64)
         function handlePhotoUpload(e) {
             const file = e.target.files[0];
             if(!file) return;
@@ -203,7 +228,6 @@
             reader.onload = function(evt) {
                 const img = new Image();
                 img.onload = function() {
-                    // 壓縮設定：最大寬度 300px
                     const canvas = document.createElement('canvas');
                     const MAX_WIDTH = 300;
                     const scaleSize = MAX_WIDTH / img.width;
@@ -213,7 +237,6 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     
-                    // 轉為較低畫質的 JPEG 減少資料庫負擔
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                     
                     document.getElementById('photo-preview').src = dataUrl;
@@ -226,7 +249,6 @@
             reader.readAsDataURL(file);
         }
 
-        // 開啟與填寫表單
         function openModal(id = null) {
             document.getElementById('stu-id').value = id || '';
             document.getElementById('photo-upload').value = '';
@@ -240,14 +262,20 @@
                 document.getElementById('stu-suffix').value = s.student_id_suffix || '';
                 document.getElementById('stu-base-year').value = s.grade_base_year || '';
                 document.getElementById('stu-school').value = s.school || '';
-                document.getElementById('stu-parent').value = s.parent_name || '';
-                document.getElementById('stu-phone').value = s.phone || '';
+                
+                // 恢復遺失的欄位資料對應
+                document.getElementById('stu-student-phone').value = s.student_phone || s.phone || '';
+                document.getElementById('stu-dad-phone').value = s.dad_phone || '';
+                document.getElementById('stu-mom-phone').value = s.mom_phone || '';
+                document.getElementById('stu-source').value = s.source || '';
+                document.getElementById('stu-line').value = s.line_type || '';
+                document.getElementById('stu-subjects').value = s.prospective_subjects || '';
+                
                 document.getElementById('stu-address').value = s.address || '';
                 document.getElementById('stu-siblings').value = s.siblings || '';
                 document.getElementById('stu-created').value = s.created_date || new Date().toISOString().split('T')[0];
                 document.getElementById('stu-note').value = s.note || '';
                 
-                // 照片處理
                 document.getElementById('stu-photo-url').value = s.photo_url || '';
                 if(s.photo_url) {
                     document.getElementById('photo-preview').src = s.photo_url;
@@ -260,7 +288,7 @@
                 }
             } else {
                 document.getElementById('modal-title').innerText = '新增學生資料';
-                ['stu-name','stu-prefix','stu-suffix','stu-base-year','stu-school','stu-parent','stu-phone','stu-address','stu-siblings','stu-note','stu-photo-url'].forEach(id => document.getElementById(id).value = '');
+                ['stu-name','stu-prefix','stu-suffix','stu-base-year','stu-school','stu-student-phone','stu-dad-phone','stu-mom-phone','stu-source','stu-line','stu-subjects','stu-address','stu-siblings','stu-note','stu-photo-url'].forEach(id => document.getElementById(id).value = '');
                 document.getElementById('stu-gender').value = '男';
                 document.getElementById('stu-created').value = new Date().toISOString().split('T')[0];
                 
@@ -272,32 +300,25 @@
             document.getElementById('student-modal').classList.add('active');
         }
 
-        // 關閉表單
         function closeModal() {
             document.getElementById('student-modal').classList.remove('active');
         }
 
-        // 取得最小空缺後置碼 (核心演算法)
         async function getNextSuffix(prefix) {
             if(!prefix) return '';
-            // 取出所有同 prefix 的 suffix
             const { data } = await sb.from('students').select('student_id_suffix').eq('student_id_prefix', prefix);
             if(!data || data.length === 0) return '001';
             
-            // 轉為數字並排序
             const existing = data.map(d => parseInt(d.student_id_suffix, 10)).filter(n => !isNaN(n)).sort((a, b) => a - b);
             
             let next = 1;
             for(let num of existing) {
-                if(num === next) next++;      // 連續，繼續找下一個
-                else if(num > next) break;    // 發現斷層空缺！直接跳出迴圈
+                if(num === next) next++;      
+                else if(num > next) break;    
             }
-            
-            // 將數字補零至 3 碼
             return String(next).padStart(3, '0');
         }
 
-        // 儲存資料
         async function saveStudent() {
             const id = document.getElementById('stu-id').value;
             const name = document.getElementById('stu-name').value.trim();
@@ -308,11 +329,11 @@
             if(!name || !prefix || !baseYear) return alert("姓名、學號前三碼、年級基準年 為必填欄位！");
 
             try {
-                // 如果是新增，或是 prefix 被改動過，重新取號
                 if(!id || (id && allStudents.find(s=>s.id===id).student_id_prefix !== prefix)) {
                     suffix = await getNextSuffix(prefix);
                 }
 
+                // 將表單的欄位封裝進 Payload
                 const payload = {
                     name, 
                     gender: document.getElementById('stu-gender').value,
@@ -320,13 +341,19 @@
                     student_id_suffix: suffix,
                     grade_base_year: parseInt(baseYear),
                     school: document.getElementById('stu-school').value.trim(),
-                    parent_name: document.getElementById('stu-parent').value.trim(),
-                    phone: document.getElementById('stu-phone').value.trim(),
+                    
+                    student_phone: document.getElementById('stu-student-phone').value.trim(),
+                    dad_phone: document.getElementById('stu-dad-phone').value.trim(),
+                    mom_phone: document.getElementById('stu-mom-phone').value.trim(),
+                    source: document.getElementById('stu-source').value.trim(),
+                    line_type: document.getElementById('stu-line').value.trim(),
+                    prospective_subjects: document.getElementById('stu-subjects').value.trim(),
+                    
                     address: document.getElementById('stu-address').value.trim(),
                     siblings: document.getElementById('stu-siblings').value.trim(),
                     created_date: document.getElementById('stu-created').value,
                     note: document.getElementById('stu-note').value.trim(),
-                    photo_url: document.getElementById('stu-photo-url').value // 儲存 Base64 照片
+                    photo_url: document.getElementById('stu-photo-url').value 
                 };
 
                 if(id) {
@@ -342,10 +369,13 @@
                 
             } catch (err) {
                 alert("儲存失敗：" + err.message);
+                // 防呆：如果欄位不存在的錯誤，提醒需要補齊
+                if(err.message.includes("column")) {
+                    alert("⚠️ 錯誤：資料庫中似乎缺少部分新欄位 (例如: dad_phone, mom_phone...)，請確認 Supabase 的 SQL 指令是否皆已正確建立。");
+                }
             }
         }
 
-        // 刪除學生
         async function deleteStudent(id, name) {
             if(confirm(`確定要刪除學生「${name}」嗎？\n\n警告：刪除後，他的學號末三碼將會空出，並自動讓給下一位建立的同屆學生。`)) {
                 await sb.from('students').delete().eq('id', id);
@@ -353,11 +383,9 @@
             }
         }
 
-        // 顯示單一 QR Code 預覽 (SweetAlert 風格)
         function showSingleQR(name, fullId) {
             if(fullId === '無學號') return alert("該名學生尚未設定學號，無法產生 QR 碼。");
             
-            // 建立一個臨時覆蓋層顯示大 QR 碼
             const overlay = document.createElement('div');
             overlay.className = 'fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center';
             overlay.onclick = () => document.body.removeChild(overlay);
@@ -376,19 +404,17 @@
             overlay.appendChild(card);
             document.body.appendChild(overlay);
             
-            // 產生 QR 碼
             new QRCode(document.getElementById("temp-qr"), {
                 text: fullId, width: 200, height: 200, colorDark : "#1e293b", colorLight : "#ffffff"
             });
         }
 
-        // 合併列印全班 QR 碼
         function printQRCodes() {
             const validStudents = allStudents.filter(s => s.student_id_prefix && s.student_id_suffix);
             if(validStudents.length === 0) return alert("目前沒有建立學號的學生資料。");
             
             const grid = document.getElementById('qr-print-grid');
-            grid.innerHTML = ''; // 清空
+            grid.innerHTML = ''; 
             
             validStudents.forEach(s => {
                 const fullId = `${s.student_id_prefix}${s.student_id_suffix}`;
@@ -401,17 +427,14 @@
                 `;
                 grid.appendChild(card);
                 
-                // 產生 QR 碼 (尺寸縮小適合列印)
                 new QRCode(document.getElementById(`print-qr-${s.id}`), {
                     text: fullId, width: 100, height: 100
                 });
             });
 
-            // 等待 QR 碼渲染完成後再觸發列印
             setTimeout(() => { window.print(); }, 500);
         }
 
-        // 啟動
         window.onload = init;
     </script>
 </body>

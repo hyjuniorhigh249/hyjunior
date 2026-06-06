@@ -378,6 +378,7 @@ th {
             document.getElementById('photo-upload').value = '';
             
             if(id) {
+                document.getElementById('stu-grade-select').value = s.grade_level || '';
                 const s = allStudents.find(x => x.id === id);
                 document.getElementById('modal-title').innerText = '編輯學生資料';
                 document.getElementById('stu-name').value = s.name;
@@ -409,6 +410,7 @@ th {
                     document.getElementById('photo-placeholder').classList.remove('hidden');
                 }
             } else {
+                document.getElementById('stu-grade-select').value = '';
                 document.getElementById('modal-title').innerText = '新增學生資料';
                 ['stu-name','stu-prefix','stu-suffix','stu-school','stu-student-phone','stu-dad-phone','stu-mom-phone','stu-source','stu-line','stu-subjects','stu-address','stu-siblings','stu-note','stu-photo-url'].forEach(id => document.getElementById(id).value = '');
                 document.getElementById('stu-gender').value = '男';

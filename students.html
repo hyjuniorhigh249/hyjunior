@@ -62,7 +62,7 @@
             <div class="flex gap-3">
                 <input type="text" id="search-input" oninput="renderStudents()" placeholder="搜尋姓名或學號..." class="p-2 border rounded-xl font-bold bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none w-64">
                 <button onclick="openColSelector()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-slate-200 transition">⚙️ 自訂欄位</button>
-                <button onclick="printQRCodes()" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-indigo-200 transition">🖨️ 印點名卡</button>
+                <button onclick="printQRCodes()" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-indigo-200 transition">🖨️ 列印勾選的點名卡</button>
                 <button onclick="openModal()" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-black shadow-lg hover:bg-blue-700 transition">＋ 新增學生</button>
             </div>
         </header>
@@ -163,6 +163,7 @@
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
         
         let allStudents = [];
+        let selectedPrintIds = new Set(); // 儲存使用者勾選要列印的學生 ID
         
         // 所有支援的欄位定義
         const colDefs = [
@@ -232,6 +233,23 @@
         }
 
         // ==========================================
+        // 勾選列印邏輯
+        // ==========================================
+        function toggleSelect(id) {
+            if (selectedPrintIds.has(id)) selectedPrintIds.delete(id);
+            else selectedPrintIds.add(id);
+        }
+
+        function toggleSelectAll(elem) {
+            const chks = document.querySelectorAll('.stu-print-chk');
+            chks.forEach(chk => {
+                chk.checked = elem.checked;
+                if(elem.checked) selectedPrintIds.add(chk.value);
+                else selectedPrintIds.delete(chk.value);
+            });
+        }
+
+        // ==========================================
         // 拖拉調整欄寬核心邏輯 (Excel 網格體驗)
         // ==========================================
         let isResizing = false;
@@ -251,7 +269,7 @@
 
         function doResize(e) {
             if (!isResizing || !currentResizerCol) return;
-            const currentWidth = Math.max(50, startWidth + (e.clientX - startX)); // 最小寬度 50px
+            const currentWidth = Math.max(50, startWidth + (e.clientX - startX)); 
             const th = document.querySelector(`th[data-col-id="${currentResizerCol}"]`);
             if (th) {
                 th.style.width = currentWidth + 'px';
@@ -266,7 +284,7 @@
             if (th) {
                 let colWidths = JSON.parse(localStorage.getItem('haoxue_col_widths')) || {};
                 colWidths[currentResizerCol] = th.offsetWidth;
-                localStorage.setItem('haoxue_col_widths', JSON.stringify(colWidths)); // 記憶寬度
+                localStorage.setItem('haoxue_col_widths', JSON.stringify(colWidths)); 
             }
             isResizing = false; currentResizerCol = null;
             document.documentElement.removeEventListener('mousemove', doResize);
@@ -285,7 +303,6 @@
                 return s.name.toLowerCase().includes(keyword) || fullId.includes(keyword);
             });
 
-            // 排序邏輯
             filtered.sort((a, b) => {
                 let valA = '', valB = '';
                 if(currentSortCol === 'student_id') {
@@ -304,11 +321,14 @@
                 return 0;
             });
 
-            // 取得已存檔的欄寬
             let colWidths = JSON.parse(localStorage.getItem('haoxue_col_widths')) || {};
 
-            // 渲染表頭 (帶有拖拉把手與直向格線)
-            let headerHTML = '';
+            // 渲染表頭 (加入全選 Checkbox)
+            let headerHTML = `
+                <th style="width: 50px; min-width: 50px; max-width: 50px;" class="text-center" data-col-id="checkbox">
+                    <div class="th-content flex justify-center"><input type="checkbox" id="chk-all" onclick="toggleSelectAll(this)" class="w-4 h-4 text-blue-600 rounded cursor-pointer"></div>
+                </th>`;
+                
             visibleCols.forEach(colId => {
                 const col = colDefs.find(c => c.id === colId);
                 const arrow = currentSortCol === colId ? (isSortAsc ? ' ▲' : ' ▼') : '';
@@ -330,14 +350,20 @@
             headerRow.innerHTML = headerHTML;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="${visibleCols.length + 1}" class="text-center text-slate-400">找不到學生</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${visibleCols.length + 2}" class="text-center text-slate-400">找不到學生</td></tr>`;
                 return;
             }
 
-            // 渲染資料 (文字過長自動省略)
+            // 渲染資料 (加入個別 Checkbox)
             tbody.innerHTML = filtered.map(s => {
                 const fullId = (s.student_id_prefix && s.student_id_suffix) ? `${s.student_id_prefix}${s.student_id_suffix}` : '無';
                 let rowHTML = `<tr class="hover:bg-slate-50 transition">`;
+                
+                // 每列前方的勾選框
+                rowHTML += `
+                    <td class="text-center">
+                        <input type="checkbox" class="stu-print-chk w-4 h-4 text-blue-600 rounded cursor-pointer" value="${s.id}" ${selectedPrintIds.has(s.id) ? 'checked' : ''} onchange="toggleSelect('${s.id}')">
+                    </td>`;
                 
                 visibleCols.forEach(colId => {
                     let cellData = '';
@@ -425,7 +451,6 @@
                 document.getElementById('stu-suffix').value = s.student_id_suffix || '';
                 document.getElementById('stu-school').value = s.school || '';
                 
-                // 自動帶入選單的年級
                 document.getElementById('stu-grade-select').value = s.grade_base_year ? (getAcademicYear() - s.grade_base_year + 1) : '';
                 
                 document.getElementById('stu-student-phone').value = s.tel_o || s.phone || '';
@@ -464,7 +489,6 @@
 
         function closeModal() { document.getElementById('student-modal').classList.remove('active'); }
 
-        // 學號末三碼自動分配
         async function getNextSuffix(prefix) {
             if(!prefix) return '';
             const { data } = await sb.from('students').select('student_id_suffix').eq('student_id_prefix', prefix);
@@ -478,7 +502,6 @@
             return String(next).padStart(3, '0');
         }
 
-        // 儲存資料
         async function saveStudent() {
             const id = document.getElementById('stu-id').value;
             const name = document.getElementById('stu-name').value.trim();
@@ -533,15 +556,14 @@
             }
         }
 
-        // 刪除資料
         async function deleteStudent(id, name) {
             if(confirm(`確定要刪除學生「${name}」嗎？\n\n警告：刪除後，他的學號末三碼將會空出，並自動讓給下一位建立的同屆學生。`)) {
                 await sb.from('students').delete().eq('id', id);
                 await fetchStudents();
+                selectedPrintIds.delete(id); // 刪除時也一併從列印名單移除
             }
         }
 
-        // 單獨顯示 QR 碼
         function showSingleQR(name, fullId) {
             if(fullId === '無') return alert("該名學生尚未設定學號，無法產生 QR 碼。");
             const overlay = document.createElement('div');
@@ -563,10 +585,17 @@
             new QRCode(document.getElementById("temp-qr"), { text: fullId, width: 200, height: 200, colorDark : "#1e293b", colorLight : "#ffffff" });
         }
 
-        // 批次列印 QR 碼
+        // 修改後的：只列印「有勾選」的學生
         function printQRCodes() {
-            const validStudents = allStudents.filter(s => s.student_id_prefix && s.student_id_suffix);
-            if(validStudents.length === 0) return alert("目前沒有建立學號的學生資料。");
+            if(selectedPrintIds.size === 0) {
+                return alert("請先在表格最左側勾選要列印 QR 點名卡的學生！");
+            }
+            
+            const validStudents = allStudents.filter(s => selectedPrintIds.has(s.id) && s.student_id_prefix && s.student_id_suffix);
+            
+            if(validStudents.length === 0) {
+                return alert("您勾選的學生中，沒有人已設定學號，無法產生 QR 碼。");
+            }
             
             const grid = document.getElementById('qr-print-grid');
             grid.innerHTML = ''; 

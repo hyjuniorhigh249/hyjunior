@@ -167,7 +167,9 @@
             grid.innerHTML = filtered.map(s => {
                 const fullId = (s.student_id_prefix && s.student_id_suffix) ? `${s.student_id_prefix}${s.student_id_suffix}` : '無學號';
                 const photoSrc = s.photo_url || '';
-                const showStudentPhone = s.student_phone || s.phone || '無';
+                
+                // 使用真實欄位名稱對應舊資料
+                const showStudentPhone = s.tel_o || s.phone || '無';
                 
                 return `
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 hover:shadow-md transition relative flex flex-col">
@@ -187,12 +189,12 @@
                         
                         <div class="col-span-2 text-[10px] text-slate-600 flex flex-wrap gap-x-3 gap-y-1 mt-1 border-t pt-2">
                             <span>📞 本: <span class="font-black text-slate-700">${showStudentPhone}</span></span>
-                            <span>媽: <span class="font-black text-slate-700">${s.mom_phone || '無'}</span></span>
-                            <span>爸: <span class="font-black text-slate-700">${s.dad_phone || '無'}</span></span>
+                            <span>媽: <span class="font-black text-slate-700">${s.tel_m || '無'}</span></span>
+                            <span>爸: <span class="font-black text-slate-700">${s.tel_p || '無'}</span></span>
                         </div>
                         
                         <div class="col-span-2 text-[10px] text-slate-600 flex flex-wrap gap-x-3 gap-y-1 mt-1 border-t pt-2">
-                            <span>🎯 展望: <span class="font-black text-blue-700">${s.prospective_subjects || '無'}</span></span>
+                            <span>🎯 展望: <span class="font-black text-blue-700">${s.prospect_course || '無'}</span></span>
                             <span>來源: <span class="font-black text-slate-700">${s.source || '無'}</span></span>
                             <span>線別: <span class="font-black text-slate-700">${s.line_type || '無'}</span></span>
                         </div>
@@ -254,14 +256,15 @@
                 document.getElementById('stu-suffix').value = s.student_id_suffix || '';
                 document.getElementById('stu-school').value = s.school || '';
                 
-                document.getElementById('stu-student-phone').value = s.student_phone || s.phone || '';
-                document.getElementById('stu-dad-phone').value = s.dad_phone || '';
-                document.getElementById('stu-mom-phone').value = s.mom_phone || '';
+                // 替換為真實欄位名稱
+                document.getElementById('stu-student-phone').value = s.tel_o || s.phone || '';
+                document.getElementById('stu-dad-phone').value = s.tel_p || '';
+                document.getElementById('stu-mom-phone').value = s.tel_m || '';
                 document.getElementById('stu-source').value = s.source || '';
                 document.getElementById('stu-line').value = s.line_type || '';
-                document.getElementById('stu-subjects').value = s.prospective_subjects || '';
+                document.getElementById('stu-subjects').value = s.prospect_course || '';
                 
-                document.getElementById('stu-address').value = s.address || '';
+                document.getElementById('stu-address').value = s.addr || '';
                 document.getElementById('stu-siblings').value = s.siblings || '';
                 document.getElementById('stu-created').value = s.created_date || new Date().toISOString().split('T')[0];
                 document.getElementById('stu-note').value = s.note || '';
@@ -317,8 +320,6 @@
 
             if(!name || !prefix) return alert("姓名 與 學號前三碼 為必填欄位！");
             
-            // 核心邏輯：國七入學年(例如112) -> 推算小一入學西元年
-            // 國七是 7 年級，112年入學代表 112+1911=2023 讀國七。那小一就是 2023 - 6 = 2017
             const parsedPrefix = parseInt(prefix);
             if(isNaN(parsedPrefix)) return alert("學號前三碼必須為數字 (例如: 112)！");
             const calculatedBaseYear = parsedPrefix + 1911 - 6; 
@@ -328,22 +329,23 @@
                     suffix = await getNextSuffix(prefix);
                 }
 
+                // 替換為真實欄位名稱寫入資料庫
                 const payload = {
                     name, 
                     gender: document.getElementById('stu-gender').value,
                     student_id_prefix: prefix,
                     student_id_suffix: suffix,
-                    grade_base_year: calculatedBaseYear, // 系統自動推算，不再讓行政人員手填
+                    grade_base_year: calculatedBaseYear,
                     school: document.getElementById('stu-school').value.trim(),
                     
-                    student_phone: document.getElementById('stu-student-phone').value.trim(),
-                    dad_phone: document.getElementById('stu-dad-phone').value.trim(),
-                    mom_phone: document.getElementById('stu-mom-phone').value.trim(),
+                    tel_o: document.getElementById('stu-student-phone').value.trim(),
+                    tel_p: document.getElementById('stu-dad-phone').value.trim(),
+                    tel_m: document.getElementById('stu-mom-phone').value.trim(),
                     source: document.getElementById('stu-source').value.trim(),
                     line_type: document.getElementById('stu-line').value.trim(),
-                    prospective_subjects: document.getElementById('stu-subjects').value.trim(),
+                    prospect_course: document.getElementById('stu-subjects').value.trim(),
                     
-                    address: document.getElementById('stu-address').value.trim(),
+                    addr: document.getElementById('stu-address').value.trim(),
                     siblings: document.getElementById('stu-siblings').value.trim(),
                     created_date: document.getElementById('stu-created').value,
                     note: document.getElementById('stu-note').value.trim(),
@@ -351,12 +353,10 @@
                 };
 
                 if(id) {
-                    // 加入錯誤捕捉
                     const { error } = await sb.from('students').update(payload).eq('id', id);
                     if(error) throw error;
                     alert("更新成功！");
                 } else {
-                    // 加入錯誤捕捉
                     const { error } = await sb.from('students').insert([payload]);
                     if(error) throw error;
                     alert(`新增成功！\n\n系統已自動配發學號：${prefix}${suffix}`);
@@ -366,7 +366,6 @@
                 await fetchStudents();
                 
             } catch (err) {
-                // 明確跳出錯誤訊息供除錯
                 alert("儲存失敗，請檢查網路或資料庫狀態：\n" + err.message);
             }
         }

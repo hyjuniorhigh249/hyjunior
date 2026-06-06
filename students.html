@@ -8,41 +8,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; height: 100vh; overflow: hidden; }
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
         
-        /* 自訂捲軸 */
-.table-wrapper {
-    height: calc(100vh - 200px) !important; /* 強制設定可見高度 */
-    overflow: auto !important;             /* 關鍵：強制顯示橫向與縱向滾軸 */
-    background: white;
-    border-radius: 1rem;
-    border: 1px solid #e2e8f0;
-    width: 100%;
-}
-
-table { 
-    border-collapse: separate; 
-    border-spacing: 0; 
-    min-width: 1200px; /* 確保表格寬度足夠，超過時就會觸發橫向滾軸 */
-}
-
-th { 
-    position: sticky; top: 0; z-index: 20; 
-    background-color: #f1f5f9; 
-    padding: 12px; border-bottom: 2px solid #cbd5e1;
-    cursor: pointer; user-select: none;
-}
-        
-        /* 表格樣式優化 */
-        .table-container { max-height: calc(100vh - 200px); overflow-y: auto; overflow-x: auto; }
-        th { position: sticky; top: 0; z-index: 10; background-color: #f1f5f9; cursor: pointer; user-select: none; }
+        /* 表格與滾動軸設定 */
+        .table-container { height: calc(100vh - 150px); overflow: auto; background: white; border-radius: 1rem; border: 1px solid #e2e8f0; width: 100%; }
+        table { border-collapse: separate; border-spacing: 0; min-width: 1600px; }
+        th { position: sticky; top: 0; z-index: 20; background-color: #f1f5f9; padding: 12px; border-bottom: 2px solid #cbd5e1; cursor: pointer; user-select: none; }
         th:hover { background-color: #e2e8f0; }
+        td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+        
+        ::-webkit-scrollbar { width: 12px; height: 12px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; border: 3px solid #f8fafc; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
         /* 列印排版設定 (QR Code 點名卡) */
         @media print {
-            body { background: white !important; }
+            body { background: white !important; overflow: visible !important; height: auto !important; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             @page { margin: 1cm; size: A4 portrait; }
@@ -51,36 +35,28 @@ th {
         }
     </style>
 </head>
-<body class="p-8">
+<body class="p-6">
 
-    <div class="max-w-7xl mx-auto no-print">
-        <header class="flex justify-between items-center mb-6 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+    <div class="max-w-full mx-auto h-full flex flex-col no-print">
+        <header class="flex justify-between items-center mb-4 bg-white p-5 rounded-2xl shadow-sm border border-slate-200 shrink-0">
             <div>
                 <h1 class="text-2xl font-black text-slate-800">學生總檔管理</h1>
                 <p class="text-sm font-bold text-slate-500 mt-1" id="student-count">共 0 位學生</p>
             </div>
             <div class="flex gap-3">
                 <input type="text" id="search-input" oninput="renderStudents()" placeholder="搜尋姓名或學號..." class="p-2 border rounded-xl font-bold bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none w-64">
-                <button onclick="openColSelector()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-slate-200 transition flex items-center gap-2">
-                    ⚙️ 自訂欄位
-                </button>
-                <button onclick="printQRCodes()" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-indigo-200 transition flex items-center gap-2">
-                    🖨️ 印點名卡
-                </button>
-                <button onclick="openModal()" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-black shadow-lg hover:bg-blue-700 transition flex items-center gap-2">
-                    ＋ 新增學生
-                </button>
+                <button onclick="openColSelector()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-slate-200 transition">⚙️ 自訂欄位</button>
+                <button onclick="printQRCodes()" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-indigo-200 transition">🖨️ 印點名卡</button>
+                <button onclick="openModal()" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-black shadow-lg hover:bg-blue-700 transition">＋ 新增學生</button>
             </div>
         </header>
 
-        <div class="table-wrapper shadow-sm">
-    <table class="w-full text-left text-sm">
-        <thead>
-            <tr id="table-header" class="text-slate-700 font-black"></tr>
-        </thead>
-        <tbody id="students-tbody" class="text-slate-700 font-bold"></tbody>
-    </table>
-</div>
+        <div class="table-container shadow-sm">
+            <table class="w-full text-left text-sm whitespace-nowrap">
+                <thead><tr id="table-header" class="text-slate-600 font-black"></tr></thead>
+                <tbody id="students-tbody" class="text-slate-700 font-bold"></tbody>
+            </table>
+        </div>
     </div>
 
     <div id="col-selector-modal" class="modal fixed inset-0 z-[60] items-center justify-center p-4 no-print">
@@ -90,16 +66,15 @@ th {
                 <button onclick="closeColSelector()" class="text-slate-300 hover:text-white text-xl font-black">&times;</button>
             </div>
             <div class="p-6">
-                <p class="text-xs text-slate-500 font-bold mb-4">勾選您希望在表格中顯示的欄位 (系統將自動記憶您的設定)：</p>
-                <div id="col-checkboxes" class="grid grid-cols-2 gap-3 mb-6">
-                    </div>
-                <button onclick="saveColSelection()" class="w-full py-3 bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 shadow-md transition text-lg tracking-wider">💾 確認並套用</button>
+                <p class="text-xs text-slate-500 font-bold mb-4">勾選您希望在表格中顯示的欄位 (系統將自動記憶)：</p>
+                <div id="col-checkboxes" class="grid grid-cols-2 gap-3 mb-6"></div>
+                <button onclick="saveColSelection()" class="w-full py-3 bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 shadow-md">💾 確認並套用</button>
             </div>
         </div>
     </div>
 
     <div id="student-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4 no-print overflow-y-auto">
-        <div class="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden my-8 max-h-[90vh] flex flex-col">
+        <div class="bg-white rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden my-4 max-h-[95vh] flex flex-col">
             <div class="bg-slate-800 p-4 text-white flex justify-between items-center shrink-0">
                 <h3 id="modal-title" class="text-lg font-black tracking-wider">新增學生資料</h3>
                 <button onclick="closeModal()" class="text-slate-300 hover:text-white text-xl font-black">&times;</button>
@@ -113,7 +88,7 @@ th {
                     <div class="w-32 shrink-0 flex flex-col items-center gap-2">
                         <div class="w-24 h-24 rounded-full border-2 border-dashed border-slate-300 overflow-hidden bg-slate-50 flex items-center justify-center relative group">
                             <img id="photo-preview" src="" class="w-full h-full object-cover hidden">
-                            <span id="photo-placeholder" class="text-3xl text-slate-300 group-hover:text-slate-400 transition">👤</span>
+                            <span id="photo-placeholder" class="text-3xl text-slate-300 group-hover:text-slate-400">👤</span>
                             <input type="file" id="photo-upload" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="handlePhotoUpload(event)">
                         </div>
                         <span class="text-[10px] font-bold text-slate-400 text-center">點擊上傳照片<br>(系統自動壓縮)</span>
@@ -121,42 +96,42 @@ th {
 
                     <div class="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">姓名 *</label><input type="text" id="stu-name" class="w-full p-2 border rounded-lg font-black text-lg bg-slate-50 focus:ring-2 outline-none"></div>
-                        <div class="col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">性別</label><select id="stu-gender" class="w-full p-2.5 border rounded-lg font-bold bg-slate-50 outline-none"><option value="男">男</option><option value="女">女</option></select></div>
-                       <div class="col-span-2">
-    <label class="block text-xs font-bold text-slate-500 mb-1">選擇年級</label>
-    <select id="stu-grade-select" class="w-full p-2.5 border rounded-lg font-bold bg-slate-50 outline-none">
-        <option value="">請選擇年級</option>
-        <option value="1">小一</option><option value="2">小二</option><option value="3">小三</option>
-        <option value="4">小四</option><option value="5">小五</option><option value="6">小六</option>
-        <option value="7">國一</option><option value="8">國二</option><option value="9">國三</option>
-        <option value="10">高一</option><option value="11">高二</option><option value="12">高三</option>
-    </select>
-</div>
-                        <div class="col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">學號前三碼 (國一入學民國年) *</label><input type="text" id="stu-prefix" placeholder="例如: 112" class="w-full p-2 border rounded-lg font-black text-blue-600 bg-blue-50 focus:ring-2 outline-none tracking-widest"></div>
+                        <div class="col-span-1"><label class="block text-xs font-bold text-slate-500 mb-1">性別</label><select id="stu-gender" class="w-full p-2 border rounded-lg font-bold bg-slate-50"><option value="男">男</option><option value="女">女</option></select></div>
+                        <div class="col-span-1">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">目前年級</label>
+                            <select id="stu-grade-select" class="w-full p-2 border rounded-lg font-bold bg-slate-50">
+                                <option value="">請選擇</option>
+                                <option value="1">小一</option><option value="2">小二</option><option value="3">小三</option>
+                                <option value="4">小四</option><option value="5">小五</option><option value="6">小六</option>
+                                <option value="7">國一</option><option value="8">國二</option><option value="9">國三</option>
+                                <option value="10">高一</option><option value="11">高二</option><option value="12">高三</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">學號前三碼 (入學年) *</label><input type="text" id="stu-prefix" placeholder="例如: 112" class="w-full p-2 border rounded-lg font-black text-blue-600 bg-blue-50 focus:ring-2 outline-none tracking-widest"></div>
                         <div class="col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">學號後三碼 (自動補位)</label><input type="text" id="stu-suffix" placeholder="儲存後產生" readonly class="w-full p-2 border border-transparent rounded-lg font-black text-slate-400 bg-slate-100 outline-none tracking-widest text-center cursor-not-allowed"></div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">就讀學校</label><input type="text" id="stu-school" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">本人手機 (tel_o)</label><input type="text" id="stu-student-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">建檔日期</label><input type="date" id="stu-created" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">本人手機</label><input type="text" id="stu-student-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
                     
-                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">爸爸手機</label><input type="text" id="stu-dad-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">媽媽手機</label><input type="text" id="stu-mom-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">來源</label><input type="text" id="stu-source" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">爸爸手機 (tel_p)</label><input type="text" id="stu-dad-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">媽媽手機 (tel_m)</label><input type="text" id="stu-mom-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">來源 (source)</label><input type="text" id="stu-source" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
                     
-                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">線別</label><input type="text" id="stu-line" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    <div class="col-span-2"><label class="block text-[10px] font-bold text-slate-400 mb-1">展望科目</label><input type="text" id="stu-subjects" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">線別 (line_type)</label><input type="text" id="stu-line" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div class="col-span-2"><label class="block text-[10px] font-bold text-slate-400 mb-1">展望科目 (prospect_course)</label><input type="text" id="stu-subjects" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
 
                     <div class="col-span-1 md:col-span-3"><label class="block text-[10px] font-bold text-slate-400 mb-1">兄弟姐妹</label><input type="text" id="stu-siblings" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50" placeholder="例如: 王小明(哥)"></div>
-                    <div class="col-span-1 md:col-span-3"><label class="block text-[10px] font-bold text-slate-400 mb-1">聯絡地址</label><input type="text" id="stu-address" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div class="col-span-1 md:col-span-3"><label class="block text-[10px] font-bold text-slate-400 mb-1">聯絡地址 (addr)</label><input type="text" id="stu-address" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
                     <div class="col-span-1 md:col-span-3"><label class="block text-[10px] font-bold text-slate-400 mb-1">備註說明</label><input type="text" id="stu-note" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
                 </div>
 
                 <div class="flex gap-3 mt-6">
-                    <button onclick="closeModal()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-black hover:bg-slate-200 transition">取消返回</button>
-                    <button onclick="saveStudent()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 shadow-md transition text-lg tracking-wider">💾 儲存資料</button>
+                    <button onclick="closeModal()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-black hover:bg-slate-200">取消返回</button>
+                    <button onclick="saveStudent()" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-black hover:bg-blue-700 shadow-md">💾 儲存資料</button>
                 </div>
             </div>
         </div>
@@ -168,10 +143,12 @@ th {
     </div>
 
     <script>
+        // Supabase 初始化
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
+        
         let allStudents = [];
         
-        // 定義所有可顯示的欄位配置
+        // 系統所有支援的欄位定義
         const colDefs = [
             { id: 'photo', label: '照片', sortable: false },
             { id: 'student_id', label: '學號', sortable: true },
@@ -191,20 +168,17 @@ th {
             { id: 'note', label: '備註', sortable: false }
         ];
 
-        // 預設顯示欄位 (如果 LocalStorage 沒有記錄的話)
-        let visibleCols = ['photo', 'student_id', 'name', 'gender', 'grade', 'school', 'tel_o', 'tel_m'];
+        let visibleCols = ['photo', 'student_id', 'name', 'gender', 'grade', 'school', 'tel_o', 'tel_m', 'prospect_course'];
         let currentSortCol = 'created_date';
         let isSortAsc = false;
 
         async function init() {
             document.getElementById('stu-created').value = new Date().toISOString().split('T')[0];
-            
-            // 從 LocalStorage 載入使用者自訂的欄位設定
             const savedCols = localStorage.getItem('haoxue_student_cols');
             if(savedCols) visibleCols = JSON.parse(savedCols);
             
-            await fetchStudents();
             initColSelector();
+            await fetchStudents();
         }
 
         async function fetchStudents() {
@@ -227,17 +201,10 @@ th {
             return grade >= 1 && grade <= 12 ? grades[grade - 1] : '已畢業';
         }
 
-        // 點擊表頭排序邏輯
         function sortBy(colId) {
             const col = colDefs.find(c => c.id === colId);
             if(!col || !col.sortable) return;
-
-            if(currentSortCol === colId) {
-                isSortAsc = !isSortAsc; // 切換正反向
-            } else {
-                currentSortCol = colId;
-                isSortAsc = true;
-            }
+            if(currentSortCol === colId) { isSortAsc = !isSortAsc; } else { currentSortCol = colId; isSortAsc = true; }
             renderStudents();
         }
 
@@ -246,20 +213,17 @@ th {
             const headerRow = document.getElementById('table-header');
             const tbody = document.getElementById('students-tbody');
             
-            // 1. 搜尋過濾
             let filtered = allStudents.filter(s => {
                 const fullId = (s.student_id_prefix || '') + (s.student_id_suffix || '');
                 return s.name.toLowerCase().includes(keyword) || fullId.includes(keyword);
             });
 
-            // 2. 欄位排序
             filtered.sort((a, b) => {
                 let valA = '', valB = '';
                 if(currentSortCol === 'student_id') {
                     valA = (a.student_id_prefix||'') + (a.student_id_suffix||'');
                     valB = (b.student_id_prefix||'') + (b.student_id_suffix||'');
                 } else if(currentSortCol === 'grade') {
-                    // 年級基準年越小，年級越高，因此邏輯稍微反轉以符合直覺
                     valA = a.grade_base_year || 9999;
                     valB = b.grade_base_year || 9999;
                     return isSortAsc ? valB - valA : valA - valB;
@@ -267,67 +231,55 @@ th {
                     valA = a[currentSortCol] || '';
                     valB = b[currentSortCol] || '';
                 }
-                
                 if (valA < valB) return isSortAsc ? -1 : 1;
                 if (valA > valB) return isSortAsc ? 1 : -1;
                 return 0;
             });
 
-            // 3. 渲染表頭 (依照可見欄位)
             let headerHTML = '';
             visibleCols.forEach(colId => {
                 const col = colDefs.find(c => c.id === colId);
-                const isSorted = currentSortCol === colId;
-                const arrow = isSorted ? (isSortAsc ? ' ▲' : ' ▼') : '';
-                headerHTML += `<th class="p-3 border-b border-slate-300" onclick="sortBy('${colId}')">${col.label}${col.sortable ? arrow : ''}</th>`;
+                const arrow = currentSortCol === colId ? (isSortAsc ? ' ▲' : ' ▼') : '';
+                headerHTML += `<th onclick="sortBy('${colId}')">${col.label}${col.sortable ? arrow : ''}</th>`;
             });
-            headerHTML += `<th class="p-3 border-b border-slate-300 text-center">操作功能</th>`; // 固定操作欄
+            headerHTML += `<th class="text-center">操作功能</th>`;
             headerRow.innerHTML = headerHTML;
 
-            // 4. 渲染資料內容
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="${visibleCols.length + 1}" class="p-6 text-center text-slate-400">找不到符合條件的學生</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="${visibleCols.length + 1}" class="text-center text-slate-400">找不到學生</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = filtered.map(s => {
                 const fullId = (s.student_id_prefix && s.student_id_suffix) ? `${s.student_id_prefix}${s.student_id_suffix}` : '無';
-                
-                let rowHTML = `<tr class="border-b border-slate-200 hover:bg-slate-50 transition">`;
+                let rowHTML = `<tr class="hover:bg-slate-50 transition">`;
                 
                 visibleCols.forEach(colId => {
                     let cellData = '';
                     switch(colId) {
-                        case 'photo': 
-                            cellData = s.photo_url ? `<img src="${s.photo_url}" class="w-8 h-8 rounded-full object-cover">` : '👤'; break;
-                        case 'student_id': 
-                            cellData = `<span class="text-blue-600 tracking-wider">${fullId}</span>`; break;
-                        case 'grade': 
-                            cellData = calculateDisplayGrade(s.grade_base_year); break;
+                        case 'photo': cellData = s.photo_url ? `<img src="${s.photo_url}" class="w-8 h-8 rounded-full object-cover">` : '👤'; break;
+                        case 'student_id': cellData = `<span class="text-blue-600 tracking-wider">${fullId}</span>`; break;
+                        case 'grade': cellData = calculateDisplayGrade(s.grade_base_year); break;
                         case 'tel_o': cellData = s.tel_o || s.phone || ''; break;
                         default: cellData = s[colId] || ''; break;
                     }
-                    rowHTML += `<td class="p-3 text-slate-700">${cellData}</td>`;
+                    rowHTML += `<td>${cellData}</td>`;
                 });
 
-                // 固定操作欄位
                 rowHTML += `
-                    <td class="p-2 text-center whitespace-nowrap">
-                        <button onclick="showSingleQR('${s.name}', '${fullId}')" class="text-indigo-600 hover:bg-indigo-100 p-2 rounded-lg transition" title="顯示 QR 碼">📱</button>
-                        <button onclick="openModal('${s.id}')" class="text-slate-600 hover:bg-slate-200 p-2 rounded-lg transition" title="編輯">✏️</button>
-                        <button onclick="deleteStudent('${s.id}', '${s.name}')" class="text-red-500 hover:bg-red-100 p-2 rounded-lg transition" title="刪除">🗑️</button>
-                    </td>
-                </tr>`;
+                    <td class="text-center whitespace-nowrap">
+                        <button onclick="showSingleQR('${s.name}', '${fullId}')" class="text-indigo-600 hover:bg-indigo-100 p-2 rounded-lg" title="顯示 QR 碼">📱</button>
+                        <button onclick="openModal('${s.id}')" class="text-slate-600 hover:bg-slate-200 p-2 rounded-lg" title="編輯">✏️</button>
+                        <button onclick="deleteStudent('${s.id}', '${s.name}')" class="text-red-500 hover:bg-red-100 p-2 rounded-lg" title="刪除">🗑️</button>
+                    </td></tr>`;
                 return rowHTML;
             }).join('');
         }
 
-        // 自訂欄位選單操作
         function initColSelector() {
-            const container = document.getElementById('col-checkboxes');
-            container.innerHTML = colDefs.map(col => `
+            document.getElementById('col-checkboxes').innerHTML = colDefs.map(col => `
                 <label class="flex items-center gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded border">
-                    <input type="checkbox" value="${col.id}" class="col-chk w-4 h-4 text-blue-600 focus:ring-blue-500 rounded" ${visibleCols.includes(col.id) ? 'checked' : ''}>
+                    <input type="checkbox" value="${col.id}" class="col-chk w-4 h-4 text-blue-600 rounded" ${visibleCols.includes(col.id) ? 'checked' : ''}>
                     <span class="text-sm font-bold text-slate-700">${col.label}</span>
                 </label>
             `).join('');
@@ -340,8 +292,6 @@ th {
             const checkboxes = document.querySelectorAll('.col-chk');
             visibleCols = Array.from(checkboxes).filter(chk => chk.checked).map(chk => chk.value);
             if(visibleCols.length === 0) return alert("請至少選擇一個顯示欄位！");
-            
-            // 儲存至 LocalStorage
             localStorage.setItem('haoxue_student_cols', JSON.stringify(visibleCols));
             closeColSelector();
             renderStudents();
@@ -378,14 +328,16 @@ th {
             document.getElementById('photo-upload').value = '';
             
             if(id) {
-                document.getElementById('stu-grade-select').value = s.grade_level || '';
                 const s = allStudents.find(x => x.id === id);
                 document.getElementById('modal-title').innerText = '編輯學生資料';
-                document.getElementById('stu-name').value = s.name;
+                document.getElementById('stu-name').value = s.name || '';
                 document.getElementById('stu-gender').value = s.gender || '男';
                 document.getElementById('stu-prefix').value = s.student_id_prefix || '';
                 document.getElementById('stu-suffix').value = s.student_id_suffix || '';
                 document.getElementById('stu-school').value = s.school || '';
+                
+                // 自動帶入選單的年級
+                document.getElementById('stu-grade-select').value = s.grade_base_year ? (getAcademicYear() - s.grade_base_year + 1) : '';
                 
                 document.getElementById('stu-student-phone').value = s.tel_o || s.phone || '';
                 document.getElementById('stu-dad-phone').value = s.tel_p || '';
@@ -393,7 +345,6 @@ th {
                 document.getElementById('stu-source').value = s.source || '';
                 document.getElementById('stu-line').value = s.line_type || '';
                 document.getElementById('stu-subjects').value = s.prospect_course || '';
-                
                 document.getElementById('stu-address').value = s.addr || '';
                 document.getElementById('stu-siblings').value = s.siblings || '';
                 document.getElementById('stu-created').value = s.created_date || new Date().toISOString().split('T')[0];
@@ -410,9 +361,8 @@ th {
                     document.getElementById('photo-placeholder').classList.remove('hidden');
                 }
             } else {
-                document.getElementById('stu-grade-select').value = '';
                 document.getElementById('modal-title').innerText = '新增學生資料';
-                ['stu-name','stu-prefix','stu-suffix','stu-school','stu-student-phone','stu-dad-phone','stu-mom-phone','stu-source','stu-line','stu-subjects','stu-address','stu-siblings','stu-note','stu-photo-url'].forEach(id => document.getElementById(id).value = '');
+                ['stu-name','stu-prefix','stu-suffix','stu-school','stu-grade-select','stu-student-phone','stu-dad-phone','stu-mom-phone','stu-source','stu-line','stu-subjects','stu-address','stu-siblings','stu-note','stu-photo-url'].forEach(id => document.getElementById(id).value = '');
                 document.getElementById('stu-gender').value = '男';
                 document.getElementById('stu-created').value = new Date().toISOString().split('T')[0];
                 
@@ -420,7 +370,6 @@ th {
                 document.getElementById('photo-preview').classList.add('hidden');
                 document.getElementById('photo-placeholder').classList.remove('hidden');
             }
-            
             document.getElementById('student-modal').classList.add('active');
         }
 
@@ -430,9 +379,7 @@ th {
             if(!prefix) return '';
             const { data } = await sb.from('students').select('student_id_suffix').eq('student_id_prefix', prefix);
             if(!data || data.length === 0) return '001';
-            
             const existing = data.map(d => parseInt(d.student_id_suffix, 10)).filter(n => !isNaN(n)).sort((a, b) => a - b);
-            
             let next = 1;
             for(let num of existing) {
                 if(num === next) next++;      
@@ -442,67 +389,56 @@ th {
         }
 
         async function saveStudent() {
-            async function saveStudent() {
-    const id = document.getElementById('stu-id').value;
-    const name = document.getElementById('stu-name').value.trim();
-    let prefix = document.getElementById('stu-prefix').value.trim();
-    let suffix = document.getElementById('stu-suffix').value;
-    
-    // 取得選單的值
-    const gradeLevel = document.getElementById('stu-grade-select').value;
-    
-    if(!name || !prefix) return alert("姓名 與 學號前三碼 為必填欄位！");
-    
-    // 計算基準年：若有選年級，自動推算；若無則預設為空
-    let calculatedBaseYear = '';
-    if(gradeLevel) {
-        calculatedBaseYear = getAcademicYear() - parseInt(gradeLevel) + 1;
-    }
+            const id = document.getElementById('stu-id').value;
+            const name = document.getElementById('stu-name').value.trim();
+            let prefix = document.getElementById('stu-prefix').value.trim();
+            let suffix = document.getElementById('stu-suffix').value;
+            const gradeLevel = document.getElementById('stu-grade-select').value;
 
-    try {
-        if(!id || (id && allStudents.find(s=>s.id===id).student_id_prefix !== prefix)) {
-            suffix = await getNextSuffix(prefix);
-        }
-
-        const payload = {
-            name, 
-            gender: document.getElementById('stu-gender').value,
-            student_id_prefix: prefix,
-            student_id_suffix: suffix,
-            grade_base_year: calculatedBaseYear, // 存入自動推算的年級
-            school: document.getElementById('stu-school').value.trim(),
+            if(!name || !prefix) return alert("姓名 與 學號前三碼 為必填欄位！");
             
-            tel_o: document.getElementById('stu-student-phone').value.trim(),
-            tel_p: document.getElementById('stu-dad-phone').value.trim(),
-            tel_m: document.getElementById('stu-mom-phone').value.trim(),
-            source: document.getElementById('stu-source').value.trim(),
-            line_type: document.getElementById('stu-line').value.trim(),
-            prospect_course: document.getElementById('stu-subjects').value.trim(),
-            
-            addr: document.getElementById('stu-address').value.trim(),
-            siblings: document.getElementById('stu-siblings').value.trim(),
-            created_date: document.getElementById('stu-created').value,
-            note: document.getElementById('stu-note').value.trim(),
-            photo_url: document.getElementById('stu-photo-url').value 
-        };
+            let calculatedBaseYear = null;
+            if(gradeLevel) { calculatedBaseYear = getAcademicYear() - parseInt(gradeLevel) + 1; }
 
-        if(id) {
-            const { error } = await sb.from('students').update(payload).eq('id', id);
-            if(error) throw error;
-            alert("更新成功！");
-        } else {
-            const { error } = await sb.from('students').insert([payload]);
-            if(error) throw error;
-            alert(`新增成功！\n\n系統已自動配發學號：${prefix}${suffix}`);
-        }
-        
-        closeModal();
-        await fetchStudents();
-        
-    } catch (err) {
-        alert("儲存失敗，請檢查網路或資料庫狀態：\n" + err.message);
-    }
-}
+            try {
+                if(!id || (id && allStudents.find(s=>s.id===id).student_id_prefix !== prefix)) {
+                    suffix = await getNextSuffix(prefix);
+                }
+
+                const payload = {
+                    name, 
+                    gender: document.getElementById('stu-gender').value,
+                    student_id_prefix: prefix,
+                    student_id_suffix: suffix,
+                    grade_base_year: calculatedBaseYear,
+                    school: document.getElementById('stu-school').value.trim(),
+                    
+                    tel_o: document.getElementById('stu-student-phone').value.trim(),
+                    tel_p: document.getElementById('stu-dad-phone').value.trim(),
+                    tel_m: document.getElementById('stu-mom-phone').value.trim(),
+                    source: document.getElementById('stu-source').value.trim(),
+                    line_type: document.getElementById('stu-line').value.trim(),
+                    prospect_course: document.getElementById('stu-subjects').value.trim(),
+                    
+                    addr: document.getElementById('stu-address').value.trim(),
+                    siblings: document.getElementById('stu-siblings').value.trim(),
+                    created_date: document.getElementById('stu-created').value,
+                    note: document.getElementById('stu-note').value.trim(),
+                    photo_url: document.getElementById('stu-photo-url').value 
+                };
+
+                if(id) {
+                    await sb.from('students').update(payload).eq('id', id);
+                    alert("更新成功！");
+                } else {
+                    await sb.from('students').insert([payload]);
+                    alert(`新增成功！\n\n系統已自動配發學號：${prefix}${suffix}`);
+                }
+                
+                closeModal();
+                await fetchStudents();
+            } catch (err) {
+                alert("儲存失敗，請檢查網路或資料庫狀態：\n" + err.message);
             }
         }
 
@@ -514,8 +450,7 @@ th {
         }
 
         function showSingleQR(name, fullId) {
-            if(fullId === '無學號') return alert("該名學生尚未設定學號，無法產生 QR 碼。");
-            
+            if(fullId === '無') return alert("該名學生尚未設定學號，無法產生 QR 碼。");
             const overlay = document.createElement('div');
             overlay.className = 'fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center';
             overlay.onclick = () => document.body.removeChild(overlay);
@@ -523,7 +458,6 @@ th {
             const card = document.createElement('div');
             card.className = 'bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center';
             card.onclick = (e) => e.stopPropagation();
-            
             card.innerHTML = `
                 <h3 class="text-2xl font-black text-slate-800 mb-2">${name}</h3>
                 <p class="text-sm font-bold text-slate-500 mb-6 tracking-widest">學號: ${fullId}</p>
@@ -533,10 +467,7 @@ th {
             
             overlay.appendChild(card);
             document.body.appendChild(overlay);
-            
-            new QRCode(document.getElementById("temp-qr"), {
-                text: fullId, width: 200, height: 200, colorDark : "#1e293b", colorLight : "#ffffff"
-            });
+            new QRCode(document.getElementById("temp-qr"), { text: fullId, width: 200, height: 200, colorDark : "#1e293b", colorLight : "#ffffff" });
         }
 
         function printQRCodes() {
@@ -545,23 +476,14 @@ th {
             
             const grid = document.getElementById('qr-print-grid');
             grid.innerHTML = ''; 
-            
             validStudents.forEach(s => {
                 const fullId = `${s.student_id_prefix}${s.student_id_suffix}`;
                 const card = document.createElement('div');
                 card.className = 'qr-card';
-                card.innerHTML = `
-                    <div class="font-black text-xl mb-1">${s.name}</div>
-                    <div class="text-xs text-slate-500 font-bold mb-3 tracking-wider">ID: ${fullId}</div>
-                    <div id="print-qr-${s.id}" class="flex justify-center"></div>
-                `;
+                card.innerHTML = `<div class="font-black text-xl mb-1">${s.name}</div><div class="text-xs text-slate-500 font-bold mb-3 tracking-wider">ID: ${fullId}</div><div id="print-qr-${s.id}" class="flex justify-center"></div>`;
                 grid.appendChild(card);
-                
-                new QRCode(document.getElementById(`print-qr-${s.id}`), {
-                    text: fullId, width: 100, height: 100
-                });
+                new QRCode(document.getElementById(`print-qr-${s.id}`), { text: fullId, width: 100, height: 100 });
             });
-
             setTimeout(() => { window.print(); }, 500);
         }
 

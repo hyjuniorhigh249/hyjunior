@@ -122,6 +122,16 @@ th {
                     <div class="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">姓名 *</label><input type="text" id="stu-name" class="w-full p-2 border rounded-lg font-black text-lg bg-slate-50 focus:ring-2 outline-none"></div>
                         <div class="col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">性別</label><select id="stu-gender" class="w-full p-2.5 border rounded-lg font-bold bg-slate-50 outline-none"><option value="男">男</option><option value="女">女</option></select></div>
+                       <div class="col-span-2">
+    <label class="block text-xs font-bold text-slate-500 mb-1">選擇年級</label>
+    <select id="stu-grade-select" class="w-full p-2.5 border rounded-lg font-bold bg-slate-50 outline-none">
+        <option value="">請選擇年級</option>
+        <option value="1">小一</option><option value="2">小二</option><option value="3">小三</option>
+        <option value="4">小四</option><option value="5">小五</option><option value="6">小六</option>
+        <option value="7">國一</option><option value="8">國二</option><option value="9">國三</option>
+        <option value="10">高一</option><option value="11">高二</option><option value="12">高三</option>
+    </select>
+</div>
                         <div class="col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">學號前三碼 (國一入學民國年) *</label><input type="text" id="stu-prefix" placeholder="例如: 112" class="w-full p-2 border rounded-lg font-black text-blue-600 bg-blue-50 focus:ring-2 outline-none tracking-widest"></div>
                         <div class="col-span-2"><label class="block text-xs font-bold text-slate-500 mb-1">學號後三碼 (自動補位)</label><input type="text" id="stu-suffix" placeholder="儲存後產生" readonly class="w-full p-2 border border-transparent rounded-lg font-black text-slate-400 bg-slate-100 outline-none tracking-widest text-center cursor-not-allowed"></div>
                     </div>

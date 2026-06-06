@@ -13,9 +13,27 @@
         .modal.active { display: flex; }
         
         /* 自訂捲軸 */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.table-wrapper {
+    height: calc(100vh - 200px) !important; /* 強制設定可見高度 */
+    overflow: auto !important;             /* 關鍵：強制顯示橫向與縱向滾軸 */
+    background: white;
+    border-radius: 1rem;
+    border: 1px solid #e2e8f0;
+    width: 100%;
+}
+
+table { 
+    border-collapse: separate; 
+    border-spacing: 0; 
+    min-width: 1200px; /* 確保表格寬度足夠，超過時就會觸發橫向滾軸 */
+}
+
+th { 
+    position: sticky; top: 0; z-index: 20; 
+    background-color: #f1f5f9; 
+    padding: 12px; border-bottom: 2px solid #cbd5e1;
+    cursor: pointer; user-select: none;
+}
         
         /* 表格樣式優化 */
         .table-container { max-height: calc(100vh - 200px); overflow-y: auto; overflow-x: auto; }
@@ -55,16 +73,14 @@
             </div>
         </header>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden table-container">
-            <table class="w-full text-left border-collapse whitespace-nowrap text-sm">
-                <thead>
-                    <tr id="table-header" class="text-slate-600 font-black border-b border-slate-300 shadow-sm">
-                        </tr>
-                </thead>
-                <tbody id="students-tbody" class="text-slate-700 font-bold">
-                    </tbody>
-            </table>
-        </div>
+        <div class="table-wrapper shadow-sm">
+    <table class="w-full text-left text-sm">
+        <thead>
+            <tr id="table-header" class="text-slate-700 font-black"></tr>
+        </thead>
+        <tbody id="students-tbody" class="text-slate-700 font-bold"></tbody>
+    </table>
+</div>
     </div>
 
     <div id="col-selector-modal" class="modal fixed inset-0 z-[60] items-center justify-center p-4 no-print">

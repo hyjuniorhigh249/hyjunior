@@ -442,59 +442,67 @@ th {
         }
 
         async function saveStudent() {
-            const id = document.getElementById('stu-id').value;
-            const name = document.getElementById('stu-name').value.trim();
-            let prefix = document.getElementById('stu-prefix').value.trim();
-            let suffix = document.getElementById('stu-suffix').value;
+            async function saveStudent() {
+    const id = document.getElementById('stu-id').value;
+    const name = document.getElementById('stu-name').value.trim();
+    let prefix = document.getElementById('stu-prefix').value.trim();
+    let suffix = document.getElementById('stu-suffix').value;
+    
+    // 取得選單的值
+    const gradeLevel = document.getElementById('stu-grade-select').value;
+    
+    if(!name || !prefix) return alert("姓名 與 學號前三碼 為必填欄位！");
+    
+    // 計算基準年：若有選年級，自動推算；若無則預設為空
+    let calculatedBaseYear = '';
+    if(gradeLevel) {
+        calculatedBaseYear = getAcademicYear() - parseInt(gradeLevel) + 1;
+    }
 
-            if(!name || !prefix) return alert("姓名 與 學號前三碼 為必填欄位！");
+    try {
+        if(!id || (id && allStudents.find(s=>s.id===id).student_id_prefix !== prefix)) {
+            suffix = await getNextSuffix(prefix);
+        }
+
+        const payload = {
+            name, 
+            gender: document.getElementById('stu-gender').value,
+            student_id_prefix: prefix,
+            student_id_suffix: suffix,
+            grade_base_year: calculatedBaseYear, // 存入自動推算的年級
+            school: document.getElementById('stu-school').value.trim(),
             
-            const parsedPrefix = parseInt(prefix);
-            if(isNaN(parsedPrefix)) return alert("學號前三碼必須為數字 (例如: 112)！");
-            const calculatedBaseYear = parsedPrefix + 1911 - 6; 
+            tel_o: document.getElementById('stu-student-phone').value.trim(),
+            tel_p: document.getElementById('stu-dad-phone').value.trim(),
+            tel_m: document.getElementById('stu-mom-phone').value.trim(),
+            source: document.getElementById('stu-source').value.trim(),
+            line_type: document.getElementById('stu-line').value.trim(),
+            prospect_course: document.getElementById('stu-subjects').value.trim(),
+            
+            addr: document.getElementById('stu-address').value.trim(),
+            siblings: document.getElementById('stu-siblings').value.trim(),
+            created_date: document.getElementById('stu-created').value,
+            note: document.getElementById('stu-note').value.trim(),
+            photo_url: document.getElementById('stu-photo-url').value 
+        };
 
-            try {
-                if(!id || (id && allStudents.find(s=>s.id===id).student_id_prefix !== prefix)) {
-                    suffix = await getNextSuffix(prefix);
-                }
-
-                const payload = {
-                    name, 
-                    gender: document.getElementById('stu-gender').value,
-                    student_id_prefix: prefix,
-                    student_id_suffix: suffix,
-                    grade_base_year: calculatedBaseYear,
-                    school: document.getElementById('stu-school').value.trim(),
-                    
-                    tel_o: document.getElementById('stu-student-phone').value.trim(),
-                    tel_p: document.getElementById('stu-dad-phone').value.trim(),
-                    tel_m: document.getElementById('stu-mom-phone').value.trim(),
-                    source: document.getElementById('stu-source').value.trim(),
-                    line_type: document.getElementById('stu-line').value.trim(),
-                    prospect_course: document.getElementById('stu-subjects').value.trim(),
-                    
-                    addr: document.getElementById('stu-address').value.trim(),
-                    siblings: document.getElementById('stu-siblings').value.trim(),
-                    created_date: document.getElementById('stu-created').value,
-                    note: document.getElementById('stu-note').value.trim(),
-                    photo_url: document.getElementById('stu-photo-url').value 
-                };
-
-                if(id) {
-                    const { error } = await sb.from('students').update(payload).eq('id', id);
-                    if(error) throw error;
-                    alert("更新成功！");
-                } else {
-                    const { error } = await sb.from('students').insert([payload]);
-                    if(error) throw error;
-                    alert(`新增成功！\n\n系統已自動配發學號：${prefix}${suffix}`);
-                }
-                
-                closeModal();
-                await fetchStudents();
-                
-            } catch (err) {
-                alert("儲存失敗，請檢查網路或資料庫狀態：\n" + err.message);
+        if(id) {
+            const { error } = await sb.from('students').update(payload).eq('id', id);
+            if(error) throw error;
+            alert("更新成功！");
+        } else {
+            const { error } = await sb.from('students').insert([payload]);
+            if(error) throw error;
+            alert(`新增成功！\n\n系統已自動配發學號：${prefix}${suffix}`);
+        }
+        
+        closeModal();
+        await fetchStudents();
+        
+    } catch (err) {
+        alert("儲存失敗，請檢查網路或資料庫狀態：\n" + err.message);
+    }
+}
             }
         }
 

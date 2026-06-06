@@ -84,7 +84,7 @@
                             </select>
                         </div>
                         <div class="col-span-2">
-                            <label class="block text-xs font-bold text-slate-500 mb-1">學號前三碼 (入學年) *</label>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">學號前三碼 (國一入學民國年) *</label>
                             <input type="text" id="stu-prefix" placeholder="例如: 112" class="w-full p-2 border rounded-lg font-black text-blue-600 bg-blue-50 focus:ring-2 outline-none tracking-widest">
                         </div>
                         <div class="col-span-2">
@@ -95,17 +95,16 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">年級基準年 (國一入學年) *</label><input type="number" id="stu-base-year" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">就讀學校</label><input type="text" id="stu-school" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">建檔日期</label><input type="date" id="stu-created" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">本人手機</label><input type="text" id="stu-student-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">爸爸手機</label><input type="text" id="stu-dad-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">媽媽手機</label><input type="text" id="stu-mom-phone" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">來源</label><input type="text" id="stu-source" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    
                     <div><label class="block text-[10px] font-bold text-slate-400 mb-1">線別</label><input type="text" id="stu-line" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-400 mb-1">展望科目</label><input type="text" id="stu-subjects" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
+                    <div class="col-span-2"><label class="block text-[10px] font-bold text-slate-400 mb-1">展望科目</label><input type="text" id="stu-subjects" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
 
                     <div class="col-span-1 md:col-span-3"><label class="block text-[10px] font-bold text-slate-400 mb-1">兄弟姐妹</label><input type="text" id="stu-siblings" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50" placeholder="例如: 王小明(哥)"></div>
                     <div class="col-span-1 md:col-span-3"><label class="block text-[10px] font-bold text-slate-400 mb-1">聯絡地址</label><input type="text" id="stu-address" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50"></div>
@@ -130,14 +129,6 @@
 
         async function init() {
             document.getElementById('stu-created').value = new Date().toISOString().split('T')[0];
-            
-            // 系統自動防呆：如果資料庫還沒有這些新欄位，嘗試靜默補充 (這一步不一定需要，但保險起見)
-            try {
-                await sb.from('students').select('line_type, source, dad_phone, mom_phone, student_phone, prospective_subjects').limit(1);
-            } catch(e) {
-                console.warn("部分欄位尚未建立，請確認 Supabase 中已建立好對應欄位。");
-            }
-
             await fetchStudents();
         }
 
@@ -153,9 +144,12 @@
             }
         }
 
-        function getAcademicYear() { const d = new Date(); return (d.getMonth() + 1) >= 7 ? d.getFullYear() : d.getFullYear() - 1; }
+        // 計算目前學年度 (8月為分界)
+        function getAcademicYear() { const d = new Date(); return (d.getMonth() + 1) >= 8 ? d.getFullYear() : d.getFullYear() - 1; }
+        
+        // 依據小一入學西元年計算目前的年級
         function calculateDisplayGrade(baseYear) {
-            if (!baseYear) return '未定';
+            if (!baseYear || isNaN(baseYear)) return '未定';
             const grade = getAcademicYear() - baseYear + 1;
             const grades = ['小一','小二','小三','小四','小五','小六','國一','國二','國三','高一','高二','高三'];
             return grade >= 1 && grade <= 12 ? grades[grade - 1] : '已畢業';
@@ -173,8 +167,6 @@
             grid.innerHTML = filtered.map(s => {
                 const fullId = (s.student_id_prefix && s.student_id_suffix) ? `${s.student_id_prefix}${s.student_id_suffix}` : '無學號';
                 const photoSrc = s.photo_url || '';
-                
-                // 為了兼容舊版資料的寫法
                 const showStudentPhone = s.student_phone || s.phone || '無';
                 
                 return `
@@ -260,10 +252,8 @@
                 document.getElementById('stu-gender').value = s.gender || '男';
                 document.getElementById('stu-prefix').value = s.student_id_prefix || '';
                 document.getElementById('stu-suffix').value = s.student_id_suffix || '';
-                document.getElementById('stu-base-year').value = s.grade_base_year || '';
                 document.getElementById('stu-school').value = s.school || '';
                 
-                // 恢復遺失的欄位資料對應
                 document.getElementById('stu-student-phone').value = s.student_phone || s.phone || '';
                 document.getElementById('stu-dad-phone').value = s.dad_phone || '';
                 document.getElementById('stu-mom-phone').value = s.mom_phone || '';
@@ -288,7 +278,7 @@
                 }
             } else {
                 document.getElementById('modal-title').innerText = '新增學生資料';
-                ['stu-name','stu-prefix','stu-suffix','stu-base-year','stu-school','stu-student-phone','stu-dad-phone','stu-mom-phone','stu-source','stu-line','stu-subjects','stu-address','stu-siblings','stu-note','stu-photo-url'].forEach(id => document.getElementById(id).value = '');
+                ['stu-name','stu-prefix','stu-suffix','stu-school','stu-student-phone','stu-dad-phone','stu-mom-phone','stu-source','stu-line','stu-subjects','stu-address','stu-siblings','stu-note','stu-photo-url'].forEach(id => document.getElementById(id).value = '');
                 document.getElementById('stu-gender').value = '男';
                 document.getElementById('stu-created').value = new Date().toISOString().split('T')[0];
                 
@@ -324,22 +314,26 @@
             const name = document.getElementById('stu-name').value.trim();
             let prefix = document.getElementById('stu-prefix').value.trim();
             let suffix = document.getElementById('stu-suffix').value;
-            const baseYear = document.getElementById('stu-base-year').value;
 
-            if(!name || !prefix || !baseYear) return alert("姓名、學號前三碼、年級基準年 為必填欄位！");
+            if(!name || !prefix) return alert("姓名 與 學號前三碼 為必填欄位！");
+            
+            // 核心邏輯：國七入學年(例如112) -> 推算小一入學西元年
+            // 國七是 7 年級，112年入學代表 112+1911=2023 讀國七。那小一就是 2023 - 6 = 2017
+            const parsedPrefix = parseInt(prefix);
+            if(isNaN(parsedPrefix)) return alert("學號前三碼必須為數字 (例如: 112)！");
+            const calculatedBaseYear = parsedPrefix + 1911 - 6; 
 
             try {
                 if(!id || (id && allStudents.find(s=>s.id===id).student_id_prefix !== prefix)) {
                     suffix = await getNextSuffix(prefix);
                 }
 
-                // 將表單的欄位封裝進 Payload
                 const payload = {
                     name, 
                     gender: document.getElementById('stu-gender').value,
                     student_id_prefix: prefix,
                     student_id_suffix: suffix,
-                    grade_base_year: parseInt(baseYear),
+                    grade_base_year: calculatedBaseYear, // 系統自動推算，不再讓行政人員手填
                     school: document.getElementById('stu-school').value.trim(),
                     
                     student_phone: document.getElementById('stu-student-phone').value.trim(),
@@ -357,10 +351,14 @@
                 };
 
                 if(id) {
-                    await sb.from('students').update(payload).eq('id', id);
+                    // 加入錯誤捕捉
+                    const { error } = await sb.from('students').update(payload).eq('id', id);
+                    if(error) throw error;
                     alert("更新成功！");
                 } else {
-                    await sb.from('students').insert([payload]);
+                    // 加入錯誤捕捉
+                    const { error } = await sb.from('students').insert([payload]);
+                    if(error) throw error;
                     alert(`新增成功！\n\n系統已自動配發學號：${prefix}${suffix}`);
                 }
                 
@@ -368,11 +366,8 @@
                 await fetchStudents();
                 
             } catch (err) {
-                alert("儲存失敗：" + err.message);
-                // 防呆：如果欄位不存在的錯誤，提醒需要補齊
-                if(err.message.includes("column")) {
-                    alert("⚠️ 錯誤：資料庫中似乎缺少部分新欄位 (例如: dad_phone, mom_phone...)，請確認 Supabase 的 SQL 指令是否皆已正確建立。");
-                }
+                // 明確跳出錯誤訊息供除錯
+                alert("儲存失敗，請檢查網路或資料庫狀態：\n" + err.message);
             }
         }
 

@@ -135,13 +135,17 @@
         
         let state = { 
             mode: 'seating', 
-            allClasses: [], allRooms: [],
+            allClasses: [], allRooms: [], allStudents: [], // ✅ 新增 allStudents 存放姓名與 ID 對照表
             currentClassId: null, currentSubIdx: null, currentRoomId: null, 
             studentSeating: {}, layoutConfig: {}, members: [], selectedStudent: null,
             rows: 5, cols: 8
         };
 
         async function init() {
+            // ✅ 啟動時多抓一個「學生名冊」，用來做 ID 與姓名的自動翻譯
+            const { data: students } = await sb.from('students').select('id, name');
+            state.allStudents = students || [];
+
             const { data: classes } = await sb.from('classes').select('*');
             const { data: rooms } = await sb.from('rooms').select('*');
             state.allClasses = classes || [];
@@ -221,7 +225,14 @@
                     .eq('seat_label', String(state.currentSubIdx));
                 
                 if(error) console.error("讀取座位失敗:", error);
-                seats?.forEach(s => state.studentSeating[`${s.row_index}-${s.col_index}`] = s.student_name);
+                
+                // ✅ 讀取資料庫時：把 UUID 翻譯回「學生名字」顯示在畫面上
+                seats?.forEach(s => {
+                    const studentObj = state.allStudents.find(stu => stu.id === s.student_id);
+                    if(studentObj) {
+                        state.studentSeating[`${s.row_index}-${s.col_index}`] = studentObj.name;
+                    }
+                });
             }
             
             updateSidebar();
@@ -333,14 +344,21 @@
                     
                     if(delErr) throw new Error("清理舊座位失敗: " + delErr.message);
                     
-                    const insertData = Object.entries(state.studentSeating).map(([key, name]) => ({
-                        class_id: state.currentClassId, 
-                        room_id: state.currentRoomId, 
-                        student_name: name,
-                        row_index: parseInt(key.split('-')[0]), 
-                        col_index: parseInt(key.split('-')[1]),
-                        seat_label: String(state.currentSubIdx)
-                    }));
+                    // ✅ 寫入資料庫時：把畫面上的「學生名字」翻譯成 UUID
+                    const insertData = [];
+                    Object.entries(state.studentSeating).forEach(([key, name]) => {
+                        const studentObj = state.allStudents.find(stu => stu.name === name);
+                        if(studentObj) {
+                            insertData.push({
+                                class_id: state.currentClassId, 
+                                room_id: state.currentRoomId, 
+                                student_id: studentObj.id, // 改為送出 student_id
+                                row_index: parseInt(key.split('-')[0]), 
+                                col_index: parseInt(key.split('-')[1]),
+                                seat_label: String(state.currentSubIdx)
+                            });
+                        }
+                    });
                     
                     if(insertData.length > 0) {
                         const { error: insErr } = await sb.from('class_seats').insert(insertData);
@@ -353,7 +371,6 @@
             }
         }
 
-        // ================== 列印與匯出 Excel 模組 ==================
         function getMapTitles() {
             let title = "未命名的座位表";
             let subtitle = "";
@@ -424,7 +441,6 @@
             XLSX.writeFile(wb, `${t.fileName}.xlsx`);
         }
 
-        // --- 教室 CRUD Modal ---
         function openRoomModal() {
             document.getElementById('room-id').value = '';
             document.getElementById('room-name').value = '';
@@ -460,7 +476,6 @@
             window.location.reload(); 
         }
 
-        // --- 複製座位功能 ---
         function openCopyModal() {
             if(!state.currentRoomId) return alert("請先設定本班別的教室！");
             const select = document.getElementById('copy-source-select');
@@ -493,9 +508,11 @@
             if(!seats || seats.length === 0) return alert("該來源班別在此教室沒有設定座位。");
 
             let copyCount = 0;
+            // ✅ 複製座位時：一樣先把來源的 ID 翻譯成名字
             seats.forEach(s => {
-                if(state.members.includes(s.student_name)) {
-                    state.studentSeating[`${s.row_index}-${s.col_index}`] = s.student_name;
+                const studentObj = state.allStudents.find(stu => stu.id === s.student_id);
+                if(studentObj && state.members.includes(studentObj.name)) {
+                    state.studentSeating[`${s.row_index}-${s.col_index}`] = studentObj.name;
                     copyCount++;
                 }
             });

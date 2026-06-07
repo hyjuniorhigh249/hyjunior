@@ -2,20 +2,27 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>昊學行政系統 - 點名系統</title>
+    <title>昊學文教行政系統 - 點名系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
-        body { font-family: "Inter", "Microsoft JhengHei", sans-serif; background: #f1f5f9; }
+        body { font-family: "Inter", "Microsoft JhengHei", sans-serif; background: #f1f5f9; overflow: hidden; }
         .main-grid { display: grid; grid-template-columns: 320px 1fr; height: 100vh; gap: 1px; background: #cbd5e1; }
         .pane { background: white; display: flex; flex-direction: column; overflow: hidden; position: relative; }
         .grid-container { background: #f8fafc; border: 2px solid #475569; border-radius: 20px; padding: 40px; margin: 30px; display: grid; gap: 12px; width: fit-content; }
-        .slot { width: 85px; height: 85px; border-radius: 12px; font-weight: 800; font-size: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; cursor: pointer; border: 1px solid #e2e8f0; }
-        .slot.disabled { cursor: not-allowed; opacity: 0.6; pointer-events: none; }
-        .status-in { background: #10b981 !important; color: white !important; }
-        .status-out { background: #3b82f6 !important; color: white !important; }
-        .status-leave { background: #f59e0b !important; color: white !important; }
+        .slot { width: 85px; height: 85px; border-radius: 12px; font-weight: 800; font-size: 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; cursor: pointer; border: 1px solid #e2e8f0; transition: all 0.2s; }
+        .slot:hover:not(.disabled) { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .slot.disabled { cursor: not-allowed; opacity: 0.5; pointer-events: none; }
+        .status-in { background: #10b981 !important; color: white !important; border-color: #059669; }
+        .status-out { background: #3b82f6 !important; color: white !important; border-color: #2563eb; }
+        .status-leave { background: #f59e0b !important; color: white !important; border-color: #d97706; }
+        
+        /* Modal & Toast */
+        .modal { display: none; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 100; position: fixed; inset: 0; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 50px; font-weight: 900; color: white; opacity: 0; transition: opacity 0.3s, top 0.3s; z-index: 999; pointer-events: none; }
+        .toast.show { opacity: 1; top: 80px; }
     </style>
 </head>
 <body>
@@ -27,21 +34,25 @@
             
             <input type="date" id="date-selector" onchange="loadDateData()" class="w-full bg-slate-100 p-2 rounded-lg font-bold text-sm outline-none">
             <select id="class-switcher" onchange="switchClass(this.value)" class="w-full bg-slate-800 text-white font-black text-sm px-4 py-2 rounded-lg outline-none">
-                <option value="">載入中...</option>
+                <option value="">請先選擇日期...</option>
             </select>
 
             <div id="attendance-mode-toggle" class="flex rounded-lg overflow-hidden border border-slate-200 p-1 bg-slate-50">
-                <button id="btn-mode-in" onclick="setMode('in')" class="flex-1 py-1 text-sm font-bold rounded-md bg-emerald-500 text-white shadow">進班打卡</button>
-                <button id="btn-mode-out" onclick="setMode('out')" class="flex-1 py-1 text-sm font-bold rounded-md text-slate-500 hover:bg-slate-200">離班打卡</button>
+                <button id="btn-mode-in" onclick="setMode('in')" class="flex-1 py-1 text-sm font-bold rounded-md bg-emerald-500 text-white shadow transition-all">進班打卡</button>
+                <button id="btn-mode-out" onclick="setMode('out')" class="flex-1 py-1 text-sm font-bold rounded-md text-slate-500 hover:bg-slate-200 transition-all">離班打卡</button>
             </div>
-            <p id="date-warning" class="text-xs font-bold text-red-500 hidden text-center">⚠️ 非今日，無法進行進/離班打卡操作</p>
+            <p id="date-warning" class="text-xs font-bold text-red-500 hidden text-center">⚠️ 非今日，無法進行進/離班打卡</p>
         </div>
 
         <div id="student-list" class="flex-1 overflow-y-auto p-2 space-y-2 bg-slate-50">
-            </div>
+            <div class="p-4 text-center text-slate-400 font-bold text-sm">請選擇上方班級</div>
+        </div>
         
-        <div class="p-3 border-t bg-white">
+        <div class="p-3 border-t bg-white space-y-2">
             <button onclick="openLeaveStatsModal()" class="w-full bg-orange-100 text-orange-700 font-bold py-2 rounded-lg hover:bg-orange-200 transition">📊 查看請假統計</button>
+            <p class="text-[10px] font-black text-slate-400 tracking-widest leading-relaxed text-center mt-2">
+                用心精進筆尖下的成績<br>以情深耕內心裡的孝善
+            </p>
         </div>
     </div>
 
@@ -49,26 +60,68 @@
         <div class="absolute top-0 w-full bg-white/90 backdrop-blur px-6 py-3 border-b flex justify-between items-center z-20">
             <div class="flex items-center gap-3">
                 <div class="relative w-72">
-                    <input type="text" id="global-search" placeholder="輸入學號/姓名 (Enter)" class="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full font-bold text-sm outline-none">
+                    <input type="text" id="global-search" placeholder="輸入學號 或 姓名 (按Enter)" class="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full font-bold text-sm outline-none focus:ring-2 ring-emerald-500 transition-all">
                     <span class="absolute left-3.5 top-2">🔍</span>
                 </div>
                 <button id="btn-qr" onclick="openQRScanner()" class="bg-blue-600 text-white font-black text-sm px-4 py-2 rounded-full shadow-md hover:bg-blue-700 transition">
                     📷 掃碼點名
                 </button>
             </div>
-            <div id="class-info-display" class="text-sm font-black text-slate-600">
-                授課老師：載入中 | 時間：載入中
+            <div id="class-info-display" class="text-sm font-black text-slate-600 bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200">
+                請選擇班級...
             </div>
         </div>
 
+        <div id="toast-msg" class="toast bg-slate-800 shadow-xl border-2 border-white/20"></div>
+
         <div id="seat-grid" class="grid-container mt-12">
-            <div class="text-slate-400 font-bold p-8 text-center col-span-full">請選擇日期與班別</div>
+            <div class="text-slate-400 font-bold p-8 text-center col-span-full">座位表準備就緒</div>
+        </div>
+    </div>
+</div>
+
+<div id="qr-modal" class="modal">
+    <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md flex flex-col items-center relative">
+        <button onclick="closeQRScanner()" class="absolute top-4 right-4 w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 font-black text-xl flex items-center justify-center transition">&times;</button>
+        <h2 class="text-2xl font-black text-slate-800 mb-2">📷 掃碼點名</h2>
+        <p class="text-xs text-slate-400 font-bold mb-4 tracking-widest">請將學生的點名卡對準鏡頭</p>
+        <div id="qr-reader" class="w-full rounded-2xl overflow-hidden border-4 border-slate-100 bg-black min-h-[250px]"></div>
+        <p id="qr-status-text" class="mt-4 font-black text-lg text-center text-blue-600 h-6"></p>
+    </div>
+</div>
+
+<div id="leave-stats-modal" class="modal">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl flex flex-col relative max-h-[80vh]">
+        <button onclick="closeLeaveStatsModal()" class="absolute top-4 right-4 w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 font-black text-xl flex items-center justify-center transition">&times;</button>
+        <h2 class="text-xl font-black text-slate-800 mb-4 border-b pb-2">📊 請假紀錄查詢</h2>
+        
+        <div class="flex gap-2 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <input type="date" id="stat-start-date" class="bg-white border p-2 rounded text-sm font-bold outline-none">
+            <span class="py-2 text-slate-400 font-bold">至</span>
+            <input type="date" id="stat-end-date" class="bg-white border p-2 rounded text-sm font-bold outline-none">
+            <button onclick="fetchLeaveStats()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-bold transition">查詢</button>
+        </div>
+        
+        <div class="overflow-y-auto flex-1 border rounded-lg bg-slate-50">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-200 sticky top-0 text-slate-600">
+                    <tr>
+                        <th class="p-3 font-black">日期</th>
+                        <th class="p-3 font-black">學生姓名</th>
+                        <th class="p-3 font-black">假別</th>
+                        <th class="p-3 font-black">事由</th>
+                    </tr>
+                </thead>
+                <tbody id="leave-stats-body" class="divide-y divide-slate-200 bg-white">
+                    <tr><td colspan="4" class="p-4 text-center text-slate-400 font-bold">請設定區間並點擊查詢</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
 <script>
-    // Supabase 初始化 (保留您原有的金鑰)
+    // Supabase 參數
     const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
 
     let db = { 
@@ -77,19 +130,28 @@
         currentRoom: null, currentSeats: [], currentAttendance: []
     };
 
-    let currentMode = 'in'; // 'in' (進班) 或 'out' (離班)
+    let currentMode = 'in'; 
     let isToday = true;
+    let html5QrcodeScanner = null;
+    let isProcessingScan = false;
 
-    // 取得今天日期與現在時間
+    // 工具函數
     function getLocalToday() {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
     function getNowTimeStr() {
-        return new Date().toLocaleTimeString('en-GB'); // HH:MM:SS
+        return new Date().toLocaleTimeString('en-GB'); 
+    }
+    function showToast(msg, isSuccess = true) {
+        const toast = document.getElementById('toast-msg');
+        toast.innerHTML = msg;
+        toast.className = `toast ${isSuccess ? 'bg-emerald-600' : 'bg-red-500'} shadow-xl border-2 border-white/20`;
+        void toast.offsetWidth; 
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
-    // 初始化網頁：設定今天日期並拉取基本資料
     window.onload = async () => {
         document.getElementById('date-selector').value = getLocalToday();
         
@@ -101,49 +163,24 @@
         db.allClasses = classes || [];
         db.allRooms = rooms || [];
         
-        // 建立學生查找表
         (students || []).forEach(s => {
             db.studentDetails[s.name] = s;
             const fullId = (s.student_id_prefix || '') + (s.student_id_suffix || '');
             if(fullId) db.idToName[fullId] = s.name;
         });
 
-        // 產生班級下拉選單
-        const switcher = document.getElementById('class-switcher');
-        switcher.innerHTML = '<option value="">請選擇子班別...</option>';
-        let firstVal = null;
-        
-        db.allClasses.forEach(c => {
-            (c.sub_classes || []).forEach((sub, idx) => {
-                const val = `${c.id}_${idx}`;
-                if (!firstVal) firstVal = val;
-                switcher.add(new Option(`${c.name} - ${sub.name}`, val));
-            });
+        // 綁定搜尋框 Enter 事件
+        document.getElementById('global-search').addEventListener('keypress', e => {
+            if (e.key === 'Enter') {
+                processCheckInByInput(e.target.value.trim());
+                e.target.value = '';
+            }
         });
 
-        if (firstVal) {
-            switcher.value = firstVal;
-            loadDateData(); // 觸發資料載入
-        }
+        loadDateData(); // 觸發首次載入
     };
 
-    // 切換進/離班打卡模式
-    function setMode(mode) {
-        if (!isToday) return;
-        currentMode = mode;
-        const btnIn = document.getElementById('btn-mode-in');
-        const btnOut = document.getElementById('btn-mode-out');
-        
-        if(mode === 'in') {
-            btnIn.className = "flex-1 py-1 text-sm font-bold rounded-md bg-emerald-500 text-white shadow";
-            btnOut.className = "flex-1 py-1 text-sm font-bold rounded-md text-slate-500 hover:bg-slate-200";
-        } else {
-            btnOut.className = "flex-1 py-1 text-sm font-bold rounded-md bg-blue-500 text-white shadow";
-            btnIn.className = "flex-1 py-1 text-sm font-bold rounded-md text-slate-500 hover:bg-slate-200";
-        }
-    }
-
-    // 當日期改變時觸發
+    // 依據選擇的日期，篩選出當天有課的子班別
     function loadDateData() {
         const selectedDate = document.getElementById('date-selector').value;
         isToday = (selectedDate === getLocalToday());
@@ -152,7 +189,7 @@
         const qrBtn = document.getElementById('btn-qr');
         const warning = document.getElementById('date-warning');
         
-        // 防呆：非今日禁止打卡
+        // 防呆控制
         if (!isToday) {
             searchInput.disabled = true;
             qrBtn.disabled = true;
@@ -165,14 +202,57 @@
             warning.classList.add('hidden');
         }
 
-        switchClass(document.getElementById('class-switcher').value);
+        // 取得選擇日期的星期幾 (0=日, 1=一 ... 6=六)
+        // 備註：若您的資料庫沒有 class_days 欄位，這段預設會顯示所有班級。
+        const targetDayOfWeek = new Date(selectedDate).getDay();
+        const switcher = document.getElementById('class-switcher');
+        switcher.innerHTML = '';
+        let firstVal = null;
+        let classCount = 0;
+
+        db.allClasses.forEach(c => {
+            (c.sub_classes || []).forEach((sub, idx) => {
+                // 假設 sub_classes 裡有儲存星期幾上課的陣列，例如 class_days: [1, 3] 代表週一週三
+                // 如果沒有這個陣列屬性，就暫時全部開放顯示以免選不到
+                const hasSchedule = sub.class_days && Array.isArray(sub.class_days) && sub.class_days.length > 0;
+                
+                if (!hasSchedule || sub.class_days.includes(targetDayOfWeek)) {
+                    const val = `${c.id}_${idx}`;
+                    if (!firstVal) firstVal = val;
+                    switcher.add(new Option(`${c.name} - ${sub.name}`, val));
+                    classCount++;
+                }
+            });
+        });
+
+        if (classCount === 0) {
+            switcher.add(new Option('當日無排定班級', ''));
+            document.getElementById('seat-grid').innerHTML = '<div class="text-slate-400 font-bold p-8 col-span-full">當日無排定課程</div>';
+            document.getElementById('student-list').innerHTML = '';
+            document.getElementById('class-info-display').innerText = `目前無排課資料`;
+        } else {
+            switcher.value = firstVal;
+            switchClass(firstVal);
+        }
     }
 
-    // 切換班級時，讀取對應的座位表與點名紀錄
+    function setMode(mode) {
+        if (!isToday) return showToast('只能對「今日」切換打卡模式', false);
+        currentMode = mode;
+        const btnIn = document.getElementById('btn-mode-in');
+        const btnOut = document.getElementById('btn-mode-out');
+        
+        if(mode === 'in') {
+            btnIn.className = "flex-1 py-1 text-sm font-bold rounded-md bg-emerald-500 text-white shadow transition-all";
+            btnOut.className = "flex-1 py-1 text-sm font-bold rounded-md text-slate-500 hover:bg-slate-200 transition-all";
+        } else {
+            btnOut.className = "flex-1 py-1 text-sm font-bold rounded-md bg-blue-500 text-white shadow transition-all";
+            btnIn.className = "flex-1 py-1 text-sm font-bold rounded-md text-slate-500 hover:bg-slate-200 transition-all";
+        }
+    }
+
     async function switchClass(val) {
         if (!val) return;
-        document.getElementById('seat-grid').innerHTML = '<div class="p-8 text-center text-slate-400 font-bold col-span-full">載入資料中...</div>';
-        
         const [mainId, subIdx] = val.split('_');
         db.activeClassId = mainId;
         db.activeSubIdx = parseInt(subIdx);
@@ -182,18 +262,22 @@
         const roomId = sub.room_id;
         const selectedDate = document.getElementById('date-selector').value;
 
+        // 更新上方授課師與時間
+        const teacherName = sub.teacher_name || sub.teacher || '未設定';
+        const classTime = (sub.start_time && sub.end_time) ? `${sub.start_time} ~ ${sub.end_time}` : '未設定時間';
+        document.getElementById('class-info-display').innerHTML = `👨‍🏫 授課師：<span class="text-blue-700">${teacherName}</span> &nbsp;|&nbsp; ⏱️ 時間：<span class="text-emerald-700">${classTime}</span>`;
+
         // 取得該日期的點名紀錄
         const { data: attendanceData } = await supabaseClient.from('attendance')
             .select('*')
             .eq('check_date', selectedDate);
         db.currentAttendance = attendanceData || [];
 
-        // 渲染左側清單
         const membersObjects = (sub.members || []).map(name => db.studentDetails[name]).filter(s => s);
         renderStudentList(membersObjects);
 
         if (!roomId) {
-            document.getElementById('seat-grid').innerHTML = "<div class='text-slate-400 font-bold col-span-full'>此子班別尚未綁定教室</div>";
+            document.getElementById('seat-grid').innerHTML = "<div class='text-slate-400 font-bold col-span-full'>此子班別尚未綁定教室座位表</div>";
             document.getElementById('seat-grid').style.gridTemplateColumns = "1fr";
             return;
         }
@@ -206,7 +290,6 @@
         renderSeats(db.currentRoom, db.currentSeats);
     }
 
-    // 渲染右側座位表
     function renderSeats(room, seats) {
         if(!room) return;
         const container = document.getElementById('seat-grid');
@@ -237,7 +320,6 @@
                         const record = db.currentAttendance.find(a => a.student_id === student?.id) || {};
                         
                         let statusClass = '';
-                        // 判斷視覺狀態
                         if (record.leave_type && record.leave_type !== 'none') statusClass = 'status-leave';
                         else if (record.check_out_time) statusClass = 'status-out';
                         else if (record.check_in_time) statusClass = 'status-in';
@@ -245,7 +327,8 @@
                         div.className = `slot ${statusClass} ${!isToday ? 'disabled' : ''}`;
                         div.innerHTML = `<span class="leading-none text-center font-bold break-words w-full px-1">${seat.student_name}</span>`;
                         
-                        div.onclick = () => handleSeatClick(student);
+                        // 綁定點擊事件
+                        div.onclick = () => executeCheckInDB(student);
                     } else {
                         div.className = "slot border-dashed border-slate-300 bg-slate-50 cursor-default opacity-50";
                     }
@@ -255,7 +338,6 @@
         }
     }
 
-    // 渲染左側學生清單與請假選單
     function renderStudentList(students) {
         const list = document.getElementById('student-list');
         list.innerHTML = '';
@@ -270,7 +352,7 @@
                         <span class="text-[11px] text-slate-400">進:${record.check_in_time || '--'} | 離:${record.check_out_time || '--'}</span>
                     </div>
                     <div class="flex gap-2">
-                        <select onchange="updateLeaveStatus('${stu.id}', this.value)" class="bg-slate-100 rounded px-2 py-1 outline-none font-bold text-xs text-slate-700">
+                        <select onchange="updateLeaveStatus('${stu.id}', this.value)" class="bg-slate-100 border border-slate-200 rounded px-2 py-1 outline-none font-bold text-xs text-slate-700">
                             <option value="none" ${!record.leave_type || record.leave_type==='none' ? 'selected' : ''}>正常</option>
                             <option value="事假" ${record.leave_type==='事假' ? 'selected' : ''}>事假</option>
                             <option value="病假" ${record.leave_type==='病假' ? 'selected' : ''}>病假</option>
@@ -278,7 +360,7 @@
                         </select>
                         <input type="text" placeholder="請假事由..." value="${record.leave_reason || ''}" 
                                onchange="updateLeaveReason('${stu.id}', this.value)"
-                               class="flex-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs outline-none">
+                               class="flex-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:border-blue-400">
                     </div>
                 </div>
             `;
@@ -286,9 +368,13 @@
         });
     }
 
-    // 點擊座位執行進/離班打卡
-    async function handleSeatClick(student) {
-        if (!isToday || !student) return;
+    // 核心打卡邏輯：接受學生物件並寫入 DB
+    async function executeCheckInDB(student) {
+        if (!isToday) {
+            showToast('⚠️ 只能針對「今日」進行打卡', false);
+            return;
+        }
+        if (!student) return;
         
         const todayStr = getLocalToday();
         const timeNow = getNowTimeStr();
@@ -300,28 +386,55 @@
             updateData.check_out_time = timeNow;
         }
 
-        // 寫入 Supabase (若無當日紀錄則新增，有則更新)
         const { error } = await supabaseClient.from('attendance').upsert(updateData, { onConflict: 'student_id, check_date' });
         
         if(!error) {
-            console.log(`${student.name} ${currentMode === 'in' ? '進班' : '離班'}打卡成功: ${timeNow}`);
+            const actionStr = currentMode === 'in' ? '進班' : '離班';
+            showToast(`✅ ${student.name} ${actionStr}打卡成功: ${timeNow}`, true);
+            
+            // 如果是在 QR Code 視窗內，更新視窗文字
+            const qrText = document.getElementById('qr-status-text');
+            if(qrText) {
+                qrText.innerText = `✅ ${student.name} ${actionStr}成功`;
+                qrText.className = "mt-4 font-black text-lg text-center text-emerald-600 h-6";
+            }
+            
             switchClass(document.getElementById('class-switcher').value); // 重新讀取畫面
+        } else {
+            showToast('❌ 系統異常，打卡失敗', false);
         }
     }
 
-    // 更新請假狀態
+    // 搜尋框輸入學號或姓名點名
+    function processCheckInByInput(inputVal) {
+        if(!inputVal) return;
+        const targetName = db.idToName[inputVal] || inputVal;
+        const student = db.studentDetails[targetName];
+        
+        if (!student) {
+            showToast(`❌ 查無此學生：${inputVal}`, false);
+            const qrText = document.getElementById('qr-status-text');
+            if(qrText) {
+                qrText.innerText = `❌ 查無此人 (${inputVal})`;
+                qrText.className = "mt-4 font-black text-lg text-center text-red-500 h-6";
+            }
+            return;
+        }
+        executeCheckInDB(student);
+    }
+
+    // 更新請假相關欄位
     async function updateLeaveStatus(studentId, leaveType) {
         const selectedDate = document.getElementById('date-selector').value;
-        const { error } = await supabaseClient.from('attendance').upsert({
+        await supabaseClient.from('attendance').upsert({
             student_id: studentId,
             check_date: selectedDate,
             leave_type: leaveType
         }, { onConflict: 'student_id, check_date' });
-
-        if(!error) switchClass(document.getElementById('class-switcher').value);
+        showToast('📝 假別已更新', true);
+        switchClass(document.getElementById('class-switcher').value);
     }
 
-    // 更新請假事由
     async function updateLeaveReason(studentId, reason) {
         const selectedDate = document.getElementById('date-selector').value;
         await supabaseClient.from('attendance').upsert({
@@ -329,6 +442,81 @@
             check_date: selectedDate,
             leave_reason: reason
         }, { onConflict: 'student_id, check_date' });
+        showToast('📝 事由已更新', true);
+    }
+
+    // ======= QR Scanner =======
+    function openQRScanner() {
+        if(!isToday) return showToast('⚠️ 非今日無法開啟掃碼', false);
+        document.getElementById('qr-modal').classList.add('active');
+        document.getElementById('qr-status-text').innerText = '掃描準備就緒...';
+        document.getElementById('qr-status-text').className = "mt-4 font-black text-lg text-center text-blue-600 h-6";
+        
+        if (!html5QrcodeScanner) {
+            html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+        }
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
+
+    function closeQRScanner() {
+        document.getElementById('qr-modal').classList.remove('active');
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear();
+        }
+    }
+
+    function onScanSuccess(decodedText) {
+        if (isProcessingScan) return;
+        isProcessingScan = true;
+        processCheckInByInput(decodedText);
+        setTimeout(() => isProcessingScan = false, 1500); // 1.5秒冷卻防重複
+    }
+    function onScanFailure(error) { /* hide logs */ }
+
+    // ======= 統計報表 Modal =======
+    function openLeaveStatsModal() {
+        document.getElementById('leave-stats-modal').classList.add('active');
+        document.getElementById('stat-start-date').value = getLocalToday();
+        document.getElementById('stat-end-date').value = getLocalToday();
+    }
+    
+    function closeLeaveStatsModal() {
+        document.getElementById('leave-stats-modal').classList.remove('active');
+    }
+
+    async function fetchLeaveStats() {
+        const start = document.getElementById('stat-start-date').value;
+        const end = document.getElementById('stat-end-date').value;
+        const tbody = document.getElementById('leave-stats-body');
+        
+        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 font-bold">資料撈取中...</td></tr>';
+
+        // 搜尋 attendance 表內有請假紀錄的資料
+        const { data, error } = await supabaseClient.from('attendance')
+            .select('*, students(name)')
+            .gte('check_date', start)
+            .lte('check_date', end)
+            .neq('leave_type', 'none')
+            .not('leave_type', 'is', null)
+            .order('check_date', { ascending: false });
+
+        if (error || !data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 font-bold">此區間無請假紀錄</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.forEach(row => {
+            const studentName = row.students ? row.students.name : '未知學生';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="p-3 text-slate-600 font-bold">${row.check_date}</td>
+                <td class="p-3 font-black text-slate-800">${studentName}</td>
+                <td class="p-3"><span class="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-black">${row.leave_type}</span></td>
+                <td class="p-3 text-slate-500 font-bold text-xs">${row.leave_reason || '--'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
     }
 </script>
 </body>

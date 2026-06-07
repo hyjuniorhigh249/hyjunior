@@ -57,42 +57,73 @@
         async function init() {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('date-start').value = today; document.getElementById('date-end').value = today;
+            // 系統開啟時，先預設跑一次欠款計算
             queryDebt();
         }
 
         async function queryIncome() {
             const start = document.getElementById('date-start').value, end = document.getElementById('date-end').value;
+            
+            // ✅ 先把所有學生名冊抓下來，用作翻譯字典
+            const { data: students } = await sb.from('students').select('id, name');
+            const stuMap = {};
+            (students || []).forEach(s => stuMap[s.id] = s.name);
+
+            // 抓取繳費紀錄
             const { data } = await sb.from('payment_logs').select('*').gte('pay_date', start).lte('pay_date', end).order('pay_date', { ascending: true });
+            
             let total = 0; const tbody = document.getElementById('income-list');
-            tbody.innerHTML = (data || []).map(p => { total += p.amount; return `<tr class="border-b hover:bg-slate-50"><td class="p-2">${p.pay_date}</td><td class="p-2 text-xs text-slate-400">${p.serial_no}</td><td class="p-2 font-bold">${p.student_name}</td><td class="p-2">${p.pay_method}</td><td class="p-2">${p.handler}</td><td class="p-2 text-right font-bold text-emerald-600">$${p.amount}</td></tr>`; }).join('');
+            
+            tbody.innerHTML = (data || []).map(p => { 
+                total += p.amount; 
+                // ✅ 將 student_id 翻譯為中文姓名
+                const studentName = stuMap[p.student_id] || '未知學生(或已刪除)';
+                return `<tr class="border-b hover:bg-slate-50"><td class="p-2">${p.pay_date}</td><td class="p-2 text-xs text-slate-400">${p.serial_no}</td><td class="p-2 font-bold">${studentName}</td><td class="p-2">${p.pay_method}</td><td class="p-2">${p.handler}</td><td class="p-2 text-right font-bold text-emerald-600">$${p.amount}</td></tr>`; 
+            }).join('');
+            
             if(!data || data.length === 0) tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">無紀錄</td></tr>';
             document.getElementById('total-income').innerText = `$${total}`;
         }
 
         async function queryDebt() {
             document.getElementById('debt-list').innerHTML = '<tr><td colspan="5" class="p-4 text-center">計算中...</td></tr>';
-            const { data: students } = await sb.from('students').select('name');
+            
+            // ✅ 這裡多抓了 id，因為後續對帳需要用 UUID
+            const { data: students } = await sb.from('students').select('id, name');
             const { data: classes } = await sb.from('classes').select('*');
             const { data: bills } = await sb.from('student_bills').select('*');
-            const { data: payments } = await sb.from('payment_logs').select('student_name, amount');
+            // ✅ 改撈 student_id 來做為加總依據
+            const { data: payments } = await sb.from('payment_logs').select('student_id, amount');
 
+            // ✅ 將已繳金額以 student_id 為 Key 進行統整
             const paidMap = {};
-            (payments || []).forEach(p => { paidMap[p.student_name] = (paidMap[p.student_name] || 0) + p.amount; });
+            (payments || []).forEach(p => { 
+                if(p.student_id) {
+                    paidMap[p.student_id] = (paidMap[p.student_id] || 0) + p.amount; 
+                }
+            });
 
             let totalSysDebt = 0, debtRowsHtml = ''; debtDataExport = [];
 
             (students || []).forEach(stu => {
                 let sPayable = 0, classDetails = [];
                 (classes || []).forEach(c => (c.sub_classes || []).forEach((sub, idx) => {
+                    // 班級名單目前還是存名字，所以用 stu.name 判斷是否在班內
                     if(sub.members && sub.members.includes(stu.name)) {
-                        const b = bills.find(x => x.class_id === c.id && x.sub_idx === idx && x.student_name === stu.name);
+                        // ✅ 找帳單/折扣時，改用 student_id 精準對接
+                        const b = bills.find(x => x.class_id === c.id && x.sub_idx === idx && x.student_id === stu.id);
                         const discount = b ? b.discount_amount : 0;
                         const finalFee = (sub.fee||0) + (sub.textbook_fee||0) + (sub.misc_fee||0) - discount;
-                        sPayable += finalFee; classDetails.push(`${c.name}-${sub.name}($${finalFee})`);
+                        sPayable += finalFee; 
+                        classDetails.push(`${c.name}-${sub.name}($${finalFee})`);
                     }
                 }));
 
-                const sPaid = paidMap[stu.name] || 0, sDebt = sPayable - sPaid;
+                // ✅ 查詢該學生(UUID)歷史總繳費金額
+                const sPaid = paidMap[stu.id] || 0;
+                const sDebt = sPayable - sPaid;
+                
+                // 畫面上依然顯示 stu.name，讓閱讀起來很舒服
                 if (sDebt > 0) {
                     totalSysDebt += sDebt;
                     debtRowsHtml += `<tr class="border-b hover:bg-rose-50"><td class="p-2 font-bold">${stu.name}</td><td class="p-2 text-xs text-slate-500">${classDetails.join('<br>')}</td><td class="p-2 text-right">$${sPayable}</td><td class="p-2 text-right text-emerald-600">$${sPaid}</td><td class="p-2 text-right font-black text-rose-600">$${sDebt}</td></tr>`;
@@ -101,7 +132,8 @@
             });
 
             if(debtRowsHtml === '') debtRowsHtml = '<tr><td colspan="5" class="p-4 text-center text-slate-400">目前無欠款</td></tr>';
-            document.getElementById('debt-list').innerHTML = debtRowsHtml; document.getElementById('total-debt').innerText = `$${totalSysDebt}`;
+            document.getElementById('debt-list').innerHTML = debtRowsHtml; 
+            document.getElementById('total-debt').innerText = `$${totalSysDebt}`;
         }
 
         function exportDebtExcel() {
@@ -109,6 +141,7 @@
             const ws = XLSX.utils.json_to_sheet(debtDataExport); const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "尚欠金額總表"); XLSX.writeFile(wb, `昊學欠款總表_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
+        
         window.onload = init;
     </script>
 </body>

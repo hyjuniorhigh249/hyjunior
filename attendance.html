@@ -68,25 +68,68 @@
 </div>
 
 <script>
-    // Supabase Initialization (請替換為您的參數)
-    const supabaseClient = supabase.createClient('YOUR_URL', 'YOUR_KEY');
-    let currentMode = 'in'; // 'in' or 'out'
+    // Supabase 初始化 (保留您原有的金鑰)
+    const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
+
+    let db = { 
+        allClasses: [], allRooms: [], studentDetails: {}, idToName: {},
+        activeClassId: null, activeSubIdx: null, 
+        currentRoom: null, currentSeats: [], currentAttendance: []
+    };
+
+    let currentMode = 'in'; // 'in' (進班) 或 'out' (離班)
     let isToday = true;
 
-    // 取得今天日期 YYYY-MM-DD
+    // 取得今天日期與現在時間
     function getLocalToday() {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
+    function getNowTimeStr() {
+        return new Date().toLocaleTimeString('en-GB'); // HH:MM:SS
+    }
 
-    // 初始化設定日期為今日
-    window.onload = () => {
+    // 初始化網頁：設定今天日期並拉取基本資料
+    window.onload = async () => {
         document.getElementById('date-selector').value = getLocalToday();
-        init();
+        
+        // 抓取基礎資料
+        const { data: classes } = await supabaseClient.from('classes').select('*');
+        const { data: rooms } = await supabaseClient.from('rooms').select('*');
+        const { data: students } = await supabaseClient.from('students').select('*');
+        
+        db.allClasses = classes || [];
+        db.allRooms = rooms || [];
+        
+        // 建立學生查找表
+        (students || []).forEach(s => {
+            db.studentDetails[s.name] = s;
+            const fullId = (s.student_id_prefix || '') + (s.student_id_suffix || '');
+            if(fullId) db.idToName[fullId] = s.name;
+        });
+
+        // 產生班級下拉選單
+        const switcher = document.getElementById('class-switcher');
+        switcher.innerHTML = '<option value="">請選擇子班別...</option>';
+        let firstVal = null;
+        
+        db.allClasses.forEach(c => {
+            (c.sub_classes || []).forEach((sub, idx) => {
+                const val = `${c.id}_${idx}`;
+                if (!firstVal) firstVal = val;
+                switcher.add(new Option(`${c.name} - ${sub.name}`, val));
+            });
+        });
+
+        if (firstVal) {
+            switcher.value = firstVal;
+            loadDateData(); // 觸發資料載入
+        }
     };
 
+    // 切換進/離班打卡模式
     function setMode(mode) {
-        if (!isToday) return; // 非今日禁止切換打卡模式
+        if (!isToday) return;
         currentMode = mode;
         const btnIn = document.getElementById('btn-mode-in');
         const btnOut = document.getElementById('btn-mode-out');
@@ -100,15 +143,16 @@
         }
     }
 
+    // 當日期改變時觸發
     function loadDateData() {
         const selectedDate = document.getElementById('date-selector').value;
         isToday = (selectedDate === getLocalToday());
         
-        // 防呆邏輯：控制打卡介面可用性
         const searchInput = document.getElementById('global-search');
         const qrBtn = document.getElementById('btn-qr');
         const warning = document.getElementById('date-warning');
         
+        // 防呆：非今日禁止打卡
         if (!isToday) {
             searchInput.disabled = true;
             qrBtn.disabled = true;
@@ -121,35 +165,120 @@
             warning.classList.add('hidden');
         }
 
-        // 重新載入該日期的點名資料與座位表狀態
-        // switchClass(document.getElementById('class-switcher').value);
+        switchClass(document.getElementById('class-switcher').value);
     }
 
-    // 渲染學生列表（加入請假選單）
-    function renderStudentList(students, attendanceRecords) {
+    // 切換班級時，讀取對應的座位表與點名紀錄
+    async function switchClass(val) {
+        if (!val) return;
+        document.getElementById('seat-grid').innerHTML = '<div class="p-8 text-center text-slate-400 font-bold col-span-full">載入資料中...</div>';
+        
+        const [mainId, subIdx] = val.split('_');
+        db.activeClassId = mainId;
+        db.activeSubIdx = parseInt(subIdx);
+
+        const cls = db.allClasses.find(c => c.id === mainId);
+        const sub = cls.sub_classes[db.activeSubIdx];
+        const roomId = sub.room_id;
+        const selectedDate = document.getElementById('date-selector').value;
+
+        // 取得該日期的點名紀錄
+        const { data: attendanceData } = await supabaseClient.from('attendance')
+            .select('*')
+            .eq('check_date', selectedDate);
+        db.currentAttendance = attendanceData || [];
+
+        // 渲染左側清單
+        const membersObjects = (sub.members || []).map(name => db.studentDetails[name]).filter(s => s);
+        renderStudentList(membersObjects);
+
+        if (!roomId) {
+            document.getElementById('seat-grid').innerHTML = "<div class='text-slate-400 font-bold col-span-full'>此子班別尚未綁定教室</div>";
+            document.getElementById('seat-grid').style.gridTemplateColumns = "1fr";
+            return;
+        }
+
+        db.currentRoom = db.allRooms.find(r => r.id === roomId);
+        const { data: seats } = await supabaseClient.from('class_seats')
+            .select('*').eq('class_id', mainId).eq('room_id', roomId).eq('seat_label', String(subIdx));
+        
+        db.currentSeats = seats || [];
+        renderSeats(db.currentRoom, db.currentSeats);
+    }
+
+    // 渲染右側座位表
+    function renderSeats(room, seats) {
+        if(!room) return;
+        const container = document.getElementById('seat-grid');
+        const layout = room.layout_config || {};
+        const size = room.grid_size || { rows: 5, cols: 8 };
+        
+        container.style.gridTemplateColumns = `repeat(${size.cols}, 85px)`;
+        container.innerHTML = "";
+        
+        const seatMap = Object.fromEntries(seats.map(s => [`${s.row_index}-${s.col_index}`, s]));
+
+        for (let r = 0; r < size.rows; r++) {
+            for (let c = 0; c < size.cols; c++) {
+                const key = `${r}-${c}`;
+                const state = layout[key] || 'normal';
+                const div = document.createElement('div');
+
+                if (state === 'hallway') {
+                    div.className = "slot is-hallway bg-slate-300 border-none cursor-default";
+                    div.innerHTML = `<span class="text-[10px] font-bold text-slate-500">走廊</span>`;
+                } else if (state === 'blocked') {
+                    div.className = "slot is-blocked bg-red-200 border-red-400 cursor-default";
+                    div.innerHTML = `<span class="text-white font-bold">XX</span>`;
+                } else {
+                    const seat = seatMap[key];
+                    if (seat && seat.student_name) {
+                        const student = db.studentDetails[seat.student_name];
+                        const record = db.currentAttendance.find(a => a.student_id === student?.id) || {};
+                        
+                        let statusClass = '';
+                        // 判斷視覺狀態
+                        if (record.leave_type && record.leave_type !== 'none') statusClass = 'status-leave';
+                        else if (record.check_out_time) statusClass = 'status-out';
+                        else if (record.check_in_time) statusClass = 'status-in';
+
+                        div.className = `slot ${statusClass} ${!isToday ? 'disabled' : ''}`;
+                        div.innerHTML = `<span class="leading-none text-center font-bold break-words w-full px-1">${seat.student_name}</span>`;
+                        
+                        div.onclick = () => handleSeatClick(student);
+                    } else {
+                        div.className = "slot border-dashed border-slate-300 bg-slate-50 cursor-default opacity-50";
+                    }
+                }
+                container.appendChild(div);
+            }
+        }
+    }
+
+    // 渲染左側學生清單與請假選單
+    function renderStudentList(students) {
         const list = document.getElementById('student-list');
         list.innerHTML = '';
         
         students.forEach(stu => {
-            const record = attendanceRecords.find(r => r.student_name === stu.name) || {};
+            const record = db.currentAttendance.find(a => a.student_id === stu.id) || {};
             
-            // 列表 UI，包含請假操作 (不論日期皆可操作請假)
             const html = `
                 <div class="bg-white p-3 rounded-lg shadow-sm border border-slate-200 text-sm">
                     <div class="flex justify-between items-center mb-2 font-bold">
-                        <span>${stu.name}</span>
-                        <span class="text-xs text-slate-400">進:${record.check_in_time || '--'} | 離:${record.check_out_time || '--'}</span>
+                        <span class="text-slate-800">${stu.name}</span>
+                        <span class="text-[11px] text-slate-400">進:${record.check_in_time || '--'} | 離:${record.check_out_time || '--'}</span>
                     </div>
                     <div class="flex gap-2">
-                        <select onchange="updateLeaveStatus('${stu.id}', this.value)" class="bg-slate-100 rounded px-2 py-1 outline-none font-bold text-xs">
-                            <option value="none" ${!record.leave_type ? 'selected' : ''}>正常</option>
+                        <select onchange="updateLeaveStatus('${stu.id}', this.value)" class="bg-slate-100 rounded px-2 py-1 outline-none font-bold text-xs text-slate-700">
+                            <option value="none" ${!record.leave_type || record.leave_type==='none' ? 'selected' : ''}>正常</option>
                             <option value="事假" ${record.leave_type==='事假' ? 'selected' : ''}>事假</option>
                             <option value="病假" ${record.leave_type==='病假' ? 'selected' : ''}>病假</option>
                             <option value="喪假" ${record.leave_type==='喪假' ? 'selected' : ''}>喪假</option>
                         </select>
                         <input type="text" placeholder="請假事由..." value="${record.leave_reason || ''}" 
                                onchange="updateLeaveReason('${stu.id}', this.value)"
-                               class="flex-1 bg-slate-50 border rounded px-2 py-1 text-xs outline-none">
+                               class="flex-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs outline-none">
                     </div>
                 </div>
             `;
@@ -157,34 +286,50 @@
         });
     }
 
-    // 座位表點擊邏輯
-    function handleSeatClick(studentName) {
-        if (!isToday) {
-            alert('只能對「今日」進行進離班打卡操作！');
-            return;
-        }
+    // 點擊座位執行進/離班打卡
+    async function handleSeatClick(student) {
+        if (!isToday || !student) return;
         
-        const timeNow = new Date().toLocaleTimeString('en-GB');
+        const todayStr = getLocalToday();
+        const timeNow = getNowTimeStr();
+        
+        let updateData = { student_id: student.id, check_date: todayStr };
         if (currentMode === 'in') {
-            // 執行進班 DB 更新並可能觸發 LINE API
-            console.log(`${studentName} 進班打卡：${timeNow}`);
+            updateData.check_in_time = timeNow;
         } else {
-            // 執行離班 DB 更新並可能觸發 LINE API
-            console.log(`${studentName} 離班打卡：${timeNow}`);
+            updateData.check_out_time = timeNow;
+        }
+
+        // 寫入 Supabase (若無當日紀錄則新增，有則更新)
+        const { error } = await supabaseClient.from('attendance').upsert(updateData, { onConflict: 'student_id, check_date' });
+        
+        if(!error) {
+            console.log(`${student.name} ${currentMode === 'in' ? '進班' : '離班'}打卡成功: ${timeNow}`);
+            switchClass(document.getElementById('class-switcher').value); // 重新讀取畫面
         }
     }
 
+    // 更新請假狀態
     async function updateLeaveStatus(studentId, leaveType) {
         const selectedDate = document.getElementById('date-selector').value;
-        // 執行 DB 寫入，更新該學生該日期的 leave_type
-        console.log(`更新請假：${studentId} 於 ${selectedDate} 請 ${leaveType}`);
-        // 寫入後重新 Render
+        const { error } = await supabaseClient.from('attendance').upsert({
+            student_id: studentId,
+            check_date: selectedDate,
+            leave_type: leaveType
+        }, { onConflict: 'student_id, check_date' });
+
+        if(!error) switchClass(document.getElementById('class-switcher').value);
     }
 
-    // (其餘 init, switchClass, renderSeats 邏輯依循原版架構，並加入 isToday 判斷 `slot.disabled`)
-    function init() { /* 初始化班級下拉選單 */ }
-    function switchClass(val) { /* 載入座位表並套用防呆 */ }
-    function openLeaveStatsModal() { /* 開啟統計報表 Modal 邏輯 */ }
+    // 更新請假事由
+    async function updateLeaveReason(studentId, reason) {
+        const selectedDate = document.getElementById('date-selector').value;
+        await supabaseClient.from('attendance').upsert({
+            student_id: studentId,
+            check_date: selectedDate,
+            leave_reason: reason
+        }, { onConflict: 'student_id, check_date' });
+    }
 </script>
 </body>
 </html>

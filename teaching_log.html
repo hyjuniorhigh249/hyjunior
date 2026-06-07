@@ -61,10 +61,8 @@
 </div>
 
 <script>
-    // ✅ 已經替換為你真實的 Supabase 連線資訊
     const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
 
-    // 紀錄目前畫面上這筆日誌在資料庫裡的 ID
     let currentLogId = null;
 
     window.onload = () => {
@@ -74,19 +72,21 @@
     };
 
     async function init() {
-        // 1. 綁定所有的輸入框，只要打字離開框框，就會自動觸發 saveClassLog 存檔
         document.querySelectorAll('[data-field]').forEach(el => {
             el.addEventListener('change', e => saveClassLog(e.target.dataset.field, e.target.value));
         });
 
-        // 2. 真正去 Supabase 撈取班級列表
         try {
-            const { data: classes, error } = await sb.from('classes').select('id, name');
+            // ✅ 撈取包含 sub_classes 的資料，用來展開子班別清單
+            const { data: classes, error } = await sb.from('classes').select('id, name, sub_classes');
             if (error) throw error;
             
             const switcher = document.getElementById('class-switcher');
             classes.forEach(c => {
-                switcher.add(new Option(c.name, c.id));
+                (c.sub_classes || []).forEach((sub, i) => {
+                    // ✅ 將 value 設為「父班級ID_子班別索引」的格式
+                    switcher.add(new Option(`${c.name} - ${sub.name}`, `${c.id}_${i}`));
+                });
             });
         } catch (err) {
             console.error("載入班級清單失敗", err);
@@ -95,9 +95,8 @@
 
     async function loadDiary() {
         const selectedDate = document.getElementById('log-date').value;
-        const classId = document.getElementById('class-switcher').value;
+        const val = document.getElementById('class-switcher').value;
         
-        // 切換班級或日期時，先清空畫面舊資料
         document.getElementById('field-progress').value = '';
         document.getElementById('field-handouts').value = '';
         document.getElementById('field-homework').value = '';
@@ -105,20 +104,23 @@
         document.getElementById('field-avg-score').value = '';
         currentLogId = null;
 
-        if(!classId || !selectedDate) return;
+        if(!val || !selectedDate) return;
+
+        // ✅ 拆解出父班級 ID 與子班別索引
+        const [classId, subIdx] = val.split('_');
 
         try {
-            // 真正去 Supabase 撈取這天、這班的 class_logs
+            // ✅ 查詢時加上 sub_idx 條件，精準抓出子班別的日誌
             const { data: log, error } = await sb.from('class_logs')
                 .select('*')
                 .eq('class_id', classId)
+                .eq('sub_idx', parseInt(subIdx))
                 .eq('log_date', selectedDate)
-                .maybeSingle(); // 只抓一筆，找不到也不會報錯
+                .maybeSingle();
 
             if (error) throw error;
 
             if (log) {
-                // 如果資料庫有紀錄，就把文字塞回畫面中
                 currentLogId = log.id;
                 document.getElementById('field-progress').value = log.progress || '';
                 document.getElementById('field-handouts').value = log.handouts || '';
@@ -133,29 +135,31 @@
 
     async function saveClassLog(field, value) {
         const selectedDate = document.getElementById('log-date').value;
-        const classId = document.getElementById('class-switcher').value;
+        const val = document.getElementById('class-switcher').value;
         
-        if(!classId) {
+        if(!val) {
             alert('請先在右上角選擇班級，才能開始紀錄喔！');
-            document.getElementById(`field-${field.replace('_', '-')}`).value = ''; // 清空剛才亂打的字
+            document.getElementById(`field-${field.replace('_', '-')}`).value = '';
             return;
         }
+
+        const [classId, subIdx] = val.split('_');
 
         try {
             let payload = {};
             payload[field] = value;
 
             if (currentLogId) {
-                // 如果已經有紀錄，就用 UPDATE 更新
                 const { error } = await sb.from('class_logs').update(payload).eq('id', currentLogId);
                 if (error) throw error;
             } else {
-                // 如果是這天這個班級的第一筆字，就用 INSERT 新增
+                // ✅ 存檔時一併寫入 sub_idx
                 payload.class_id = classId;
+                payload.sub_idx = parseInt(subIdx);
                 payload.log_date = selectedDate;
                 const { data: newLog, error } = await sb.from('class_logs').insert([payload]).select().single();
                 if (error) throw error;
-                currentLogId = newLog.id; // 記住剛剛產生的新日誌 ID
+                currentLogId = newLog.id; 
             }
         } catch (err) {
             alert("自動存檔失敗，請檢查網路連線");

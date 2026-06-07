@@ -408,61 +408,49 @@
     }
 
     async function executeCheckInDB(student) {
-        if (!isToday) {
-            showToast('⚠️ 只能針對「今日」進行打卡', false);
-            return;
-        }
-        if (!student) return;
-        
-        const todayStr = getLocalToday();
-        const timeNow = getNowTimeStr();
-        const studentUuid = student.id || student.student_id || student.UUID;
+    if (!isToday) return showToast('⚠️ 只能針對「今日」進行打卡', false);
+    const todayStr = getLocalToday();
+    const timeNow = getNowTimeStr();
+    const studentUuid = student.id || student.student_id || student.UUID;
 
-        if (!studentUuid) {
-            alert("❌ 程式錯誤：無法抓取該學生的 UUID，請檢查學生總檔！");
-            return;
-        }
-        
-        let updateData = { student_id: studentUuid, check_date: todayStr };
-        if (currentMode === 'in') {
-            updateData.check_in_time = timeNow;
-        } else {
-            updateData.check_out_time = timeNow;
-        }
+    // 準備要寫入的物件
+    let dataToUpsert = { 
+        student_id: studentUuid, 
+        check_date: todayStr 
+    };
+    if (currentMode === 'in') {
+        dataToUpsert.check_in_time = timeNow;
+    } else {
+        dataToUpsert.check_out_time = timeNow;
+    }
 
-        const existingRecord = db.currentAttendance.find(a => a.student_id === studentUuid);
-        let error;
+    // 先查詢是否已有紀錄
+    const { data: existing } = await supabaseClient
+        .from('attendance')
+        .select('id')
+        .eq('student_id', studentUuid)
+        .eq('check_date', todayStr)
+        .maybeSingle();
 
-        // 🌟 加入偵錯 Alert：攔截所有 Supabase 報錯
-        try {
-            if (existingRecord) {
-                const res = await supabaseClient.from('attendance')
-                    .update(updateData)
-                    .eq('student_id', studentUuid)
-                    .eq('check_date', todayStr);
-                error = res.error;
-                if(!error) Object.assign(existingRecord, updateData);
-            } else {
-                const res = await supabaseClient.from('attendance').insert([updateData]);
-                error = res.error;
-                if(!error) db.currentAttendance.push(updateData);
-            }
+    let error;
+    if (existing) {
+        // 更新
+        const res = await supabaseClient.from('attendance').update(dataToUpsert).eq('id', existing.id);
+        error = res.error;
+    } else {
+        // 新增
+        const res = await supabaseClient.from('attendance').insert([dataToUpsert]);
+        error = res.error;
+    }
 
-            if(!error) {
-                const actionStr = currentMode === 'in' ? '進班' : '離班';
-                showToast(`✅ ${student.name} ${actionStr}打卡成功: ${timeNow}`, true);
-                
-                const qrText = document.getElementById('qr-status-text');
-                if(qrText) {
-                    qrText.innerText = `✅ ${student.name} ${actionStr}成功`;
-                    qrText.className = "mt-4 font-black text-lg text-center text-emerald-600 h-6";
-                }
-                
-                switchClass(document.getElementById('class-switcher').value); 
-            } else {
-                alert(`⚠️ Supabase 打卡錯誤！\n請截圖這段文字：\n${error.message || JSON.stringify(error)}`);
-                showToast('❌ 系統異常，打卡失敗', false);
-            }
+    if(!error) {
+        showToast(`✅ ${student.name} 打卡成功`, true);
+        switchClass(document.getElementById('class-switcher').value);
+    } else {
+        console.error(error);
+        alert("打卡失敗，詳細錯誤: " + error.message);
+    }
+}
         } catch(err) {
             alert(`⚠️ 系統執行錯誤！\n${err.message}`);
         }
@@ -485,37 +473,42 @@
         executeCheckInDB(student);
     }
 
-    async function saveLeave(studentId) {
-        const selectedDate = document.getElementById('date-selector').value;
-        const typeVal = document.getElementById(`leave-type-${studentId}`).value;
-        const reasonVal = document.getElementById(`leave-reason-${studentId}`).value;
+   async function saveLeave(studentId) {
+    const selectedDate = document.getElementById('date-selector').value;
+    const typeVal = document.getElementById(`leave-type-${studentId}`).value;
+    const reasonVal = document.getElementById(`leave-reason-${studentId}`).value;
 
-        const existingRecord = db.currentAttendance.find(a => a.student_id === studentId);
-        let updateData = { student_id: studentId, check_date: selectedDate, leave_type: typeVal, leave_reason: reasonVal };
-        let error;
+    const { data: existing } = await supabaseClient
+        .from('attendance')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('check_date', selectedDate)
+        .maybeSingle();
 
-        // 🌟 加入偵錯 Alert：攔截所有 Supabase 報錯
-        try {
-            if (existingRecord) {
-                const res = await supabaseClient.from('attendance')
-                    .update(updateData)
-                    .eq('student_id', studentId)
-                    .eq('check_date', selectedDate);
-                error = res.error;
-                if(!error) Object.assign(existingRecord, updateData);
-            } else {
-                const res = await supabaseClient.from('attendance').insert([updateData]);
-                error = res.error;
-                if(!error) db.currentAttendance.push(updateData);
-            }
+    let dataToUpsert = { 
+        student_id: studentId, 
+        check_date: selectedDate, 
+        leave_type: typeVal, 
+        leave_reason: reasonVal 
+    };
 
-            if (!error) {
-                showToast('📝 請假資料已儲存', true);
-                switchClass(document.getElementById('class-switcher').value); 
-            } else {
-                alert(`⚠️ Supabase 儲存錯誤！\n請截圖這段文字：\n${error.message || JSON.stringify(error)}`);
-                showToast('❌ 儲存失敗', false);
-            }
+    let error;
+    if (existing) {
+        const res = await supabaseClient.from('attendance').update(dataToUpsert).eq('id', existing.id);
+        error = res.error;
+    } else {
+        const res = await supabaseClient.from('attendance').insert([dataToUpsert]);
+        error = res.error;
+    }
+
+    if (!error) {
+        showToast('📝 請假資料已儲存', true);
+        switchClass(document.getElementById('class-switcher').value);
+    } else {
+        console.error(error);
+        alert("儲存失敗，詳細錯誤: " + error.message);
+    }
+}
         } catch(err) {
             alert(`⚠️ 系統執行錯誤！\n${err.message}`);
         }

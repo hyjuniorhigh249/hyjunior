@@ -153,6 +153,57 @@
         </div>
     </div>
 
+    <div id="records-modal" class="modal fixed inset-0 z-[70] items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden my-4 max-h-[90vh] flex flex-col">
+            <div class="bg-slate-800 p-4 text-white flex justify-between items-center shrink-0">
+                <h3 id="records-modal-title" class="text-lg font-black tracking-wider">學生歷史紀錄</h3>
+                <button onclick="closeRecordsModal()" class="text-slate-300 hover:text-white text-xl font-black">&times;</button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 space-y-6 bg-slate-50">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <h4 class="font-black text-emerald-700 mb-3 flex items-center gap-2">💰 歷史繳費紀錄</h4>
+                    <div class="overflow-x-auto max-h-60 overflow-y-auto border rounded-lg">
+                        <table class="w-full text-left text-sm whitespace-nowrap">
+                            <thead class="bg-slate-100 sticky top-0 text-slate-600">
+                                <tr>
+                                    <th class="p-3 border-b">日期</th>
+                                    <th class="p-3 border-b">流水號</th>
+                                    <th class="p-3 border-b">方式</th>
+                                    <th class="p-3 border-b text-right">金額</th>
+                                    <th class="p-3 border-b">經手人</th>
+                                </tr>
+                            </thead>
+                            <tbody id="records-payment-list" class="divide-y divide-slate-100 font-bold"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <h4 class="font-black text-amber-700 mb-3 flex items-center gap-2">📅 出缺席與點名紀錄</h4>
+                    <div class="overflow-x-auto max-h-60 overflow-y-auto border rounded-lg">
+                        <table class="w-full text-left text-sm whitespace-nowrap">
+                            <thead class="bg-slate-100 sticky top-0 text-slate-600">
+                                <tr>
+                                    <th class="p-3 border-b">日期</th>
+                                    <th class="p-3 border-b">進班時間</th>
+                                    <th class="p-3 border-b">離班時間</th>
+                                    <th class="p-3 border-b">假別</th>
+                                    <th class="p-3 border-b">事由</th>
+                                </tr>
+                            </thead>
+                            <tbody id="records-attendance-list" class="divide-y divide-slate-100 font-bold"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-white border-t shrink-0">
+                <button onclick="closeRecordsModal()" class="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-black hover:bg-slate-200 transition">關閉紀錄</button>
+            </div>
+        </div>
+    </div>
+
     <div id="print-area" class="hidden print-only">
         <h2 class="text-2xl font-black text-center mb-6 mt-4">昊學文教 - 學生專屬 QR 點名卡</h2>
         <div id="qr-print-grid" class="qr-grid"></div>
@@ -163,9 +214,8 @@
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
         
         let allStudents = [];
-        let selectedPrintIds = new Set(); // 儲存使用者勾選要列印的學生 ID
+        let selectedPrintIds = new Set(); 
         
-        // 所有支援的欄位定義
         const colDefs = [
             { id: 'photo', label: '照片', sortable: false },
             { id: 'student_id', label: '學號', sortable: true },
@@ -185,11 +235,10 @@
             { id: 'note', label: '備註', sortable: false }
         ];
 
-        // 預設欄寬
         const defaultWidths = {
             'photo': 60, 'student_id': 120, 'name': 120, 'gender': 80, 'grade': 80, 'school': 150, 
             'tel_o': 120, 'tel_m': 120, 'tel_p': 120, 'source': 100, 'line_type': 100, 
-            'prospect_course': 180, 'siblings': 120, 'addr': 200, 'created_date': 120, 'note': 180, 'action': 150
+            'prospect_course': 180, 'siblings': 120, 'addr': 200, 'created_date': 120, 'note': 180, 'action': 200 // 增加 action 寬度容納新按鈕
         };
 
         let visibleCols = ['photo', 'student_id', 'name', 'gender', 'grade', 'school', 'tel_o', 'tel_m', 'prospect_course'];
@@ -232,9 +281,6 @@
             renderStudents();
         }
 
-        // ==========================================
-        // 勾選列印邏輯
-        // ==========================================
         function toggleSelect(id) {
             if (selectedPrintIds.has(id)) selectedPrintIds.delete(id);
             else selectedPrintIds.add(id);
@@ -249,9 +295,6 @@
             });
         }
 
-        // ==========================================
-        // 拖拉調整欄寬核心邏輯 (Excel 網格體驗)
-        // ==========================================
         let isResizing = false;
         let currentResizerCol = null;
         let startX = 0;
@@ -291,7 +334,6 @@
             document.documentElement.removeEventListener('mouseup', stopResize);
             document.body.classList.remove('resizing');
         }
-        // ==========================================
 
         function renderStudents() {
             const keyword = document.getElementById('search-input').value.toLowerCase().trim();
@@ -323,7 +365,6 @@
 
             let colWidths = JSON.parse(localStorage.getItem('haoxue_col_widths')) || {};
 
-            // 渲染表頭 (加入全選 Checkbox)
             let headerHTML = `
                 <th style="width: 50px; min-width: 50px; max-width: 50px;" class="text-center" data-col-id="checkbox">
                     <div class="th-content flex justify-center"><input type="checkbox" id="chk-all" onclick="toggleSelectAll(this)" class="w-4 h-4 text-blue-600 rounded cursor-pointer"></div>
@@ -354,12 +395,10 @@
                 return;
             }
 
-            // 渲染資料 (加入個別 Checkbox)
             tbody.innerHTML = filtered.map(s => {
                 const fullId = (s.student_id_prefix && s.student_id_suffix) ? `${s.student_id_prefix}${s.student_id_suffix}` : '無';
                 let rowHTML = `<tr class="hover:bg-slate-50 transition">`;
                 
-                // 每列前方的勾選框
                 rowHTML += `
                     <td class="text-center">
                         <input type="checkbox" class="stu-print-chk w-4 h-4 text-blue-600 rounded cursor-pointer" value="${s.id}" ${selectedPrintIds.has(s.id) ? 'checked' : ''} onchange="toggleSelect('${s.id}')">
@@ -378,14 +417,77 @@
                     rowHTML += `<td title="${titleText}">${cellData}</td>`;
                 });
 
+                // 🌟 新增：在操作功能區塊加入「歷史紀錄」按鈕 (📊)
                 rowHTML += `
                     <td class="text-center whitespace-nowrap">
+                        <button onclick="openRecordsModal('${s.id}', '${s.name}')" class="text-emerald-600 hover:bg-emerald-100 p-2 rounded-lg" title="歷史紀錄">📊</button>
                         <button onclick="showSingleQR('${s.name}', '${fullId}')" class="text-indigo-600 hover:bg-indigo-100 p-2 rounded-lg" title="顯示 QR 碼">📱</button>
                         <button onclick="openModal('${s.id}')" class="text-slate-600 hover:bg-slate-200 p-2 rounded-lg" title="編輯">✏️</button>
                         <button onclick="deleteStudent('${s.id}', '${s.name}')" class="text-red-500 hover:bg-red-100 p-2 rounded-lg" title="刪除">🗑️</button>
                     </td></tr>`;
                 return rowHTML;
             }).join('');
+        }
+
+        // ==========================================
+        // 🌟 學生歷史紀錄查詢模組
+        // ==========================================
+        async function openRecordsModal(studentId, studentName) {
+            document.getElementById('records-modal-title').innerText = `${studentName} 的歷史紀錄`;
+            document.getElementById('records-modal').classList.add('active');
+            
+            const pList = document.getElementById('records-payment-list');
+            const aList = document.getElementById('records-attendance-list');
+            
+            pList.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">連線讀取中...</td></tr>';
+            aList.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">連線讀取中...</td></tr>';
+
+            try {
+                // 1. 抓取繳費紀錄 (使用 UUID 關聯)
+                const { data: payments } = await sb.from('payment_logs').select('*').eq('student_id', studentId).order('pay_date', { ascending: false });
+                
+                if(payments && payments.length > 0) {
+                    pList.innerHTML = payments.map(p => `
+                        <tr class="hover:bg-emerald-50 transition">
+                            <td class="p-3 text-slate-700">${p.pay_date}</td>
+                            <td class="p-3 text-xs text-slate-400">${p.serial_no}</td>
+                            <td class="p-3">${p.pay_method}</td>
+                            <td class="p-3 text-right text-emerald-600 text-lg">$${p.amount}</td>
+                            <td class="p-3 text-xs text-slate-500">${p.handler || '--'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    pList.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">尚無繳費紀錄</td></tr>';
+                }
+
+                // 2. 抓取出缺席與點名紀錄 (使用 UUID 關聯)
+                const { data: attendance } = await sb.from('attendance').select('*').eq('student_id', studentId).order('check_date', { ascending: false });
+                
+                if(attendance && attendance.length > 0) {
+                    aList.innerHTML = attendance.map(a => {
+                        const statusHtml = (a.leave_type && a.leave_type !== 'none') 
+                            ? `<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs">${a.leave_type}</span>` 
+                            : '<span class="text-slate-300">--</span>';
+                        return `
+                            <tr class="hover:bg-amber-50 transition">
+                                <td class="p-3 text-slate-700">${a.check_date}</td>
+                                <td class="p-3 text-blue-600">${a.check_in_time || '--'}</td>
+                                <td class="p-3 text-rose-600">${a.check_out_time || '--'}</td>
+                                <td class="p-3">${statusHtml}</td>
+                                <td class="p-3 text-xs text-slate-500">${a.leave_reason || '--'}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    aList.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">尚無出缺席紀錄</td></tr>';
+                }
+            } catch (err) {
+                alert("讀取紀錄失敗：" + err.message);
+            }
+        }
+
+        function closeRecordsModal() {
+            document.getElementById('records-modal').classList.remove('active');
         }
 
         // 自訂欄位選單
@@ -410,7 +512,6 @@
             renderStudents();
         }
 
-        // 照片上傳壓縮
         function handlePhotoUpload(e) {
             const file = e.target.files[0];
             if(!file) return;
@@ -437,7 +538,6 @@
             reader.readAsDataURL(file);
         }
 
-        // 開啟編輯表單
         function openModal(id = null) {
             document.getElementById('stu-id').value = id || '';
             document.getElementById('photo-upload').value = '';
@@ -560,7 +660,7 @@
             if(confirm(`確定要刪除學生「${name}」嗎？\n\n警告：刪除後，他的學號末三碼將會空出，並自動讓給下一位建立的同屆學生。`)) {
                 await sb.from('students').delete().eq('id', id);
                 await fetchStudents();
-                selectedPrintIds.delete(id); // 刪除時也一併從列印名單移除
+                selectedPrintIds.delete(id); 
             }
         }
 
@@ -585,7 +685,6 @@
             new QRCode(document.getElementById("temp-qr"), { text: fullId, width: 200, height: 200, colorDark : "#1e293b", colorLight : "#ffffff" });
         }
 
-        // 修改後的：只列印「有勾選」的學生
         function printQRCodes() {
             if(selectedPrintIds.size === 0) {
                 return alert("請先在表格最左側勾選要列印 QR 點名卡的學生！");

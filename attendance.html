@@ -2,16 +2,18 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>浩元行政系統 - 點名與教學日誌</title>
+    <title>昊學行政系統 - 點名與教學日誌</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    
     <style>
         body { font-family: "Inter", "Microsoft JhengHei", sans-serif; background: #f1f5f9; overflow: hidden; }
         .main-grid { display: grid; grid-template-columns: 280px 1fr 320px; height: 100vh; gap: 1px; background: #cbd5e1; }
-        .pane { background: white; display: flex; flex-direction: column; overflow: hidden; }
+        .pane { background: white; display: flex; flex-direction: column; overflow: hidden; relative; }
         
         /* 教室視覺區塊 */
-        .canvas-area { background-color: #94a3b8; overflow: auto; display: flex; flex-direction: column; align-items: center; }
+        .canvas-area { background-color: #94a3b8; overflow: auto; display: flex; flex-direction: column; align-items: center; position: relative;}
         .grid-container { 
             background: #f8fafc; border: 2px solid #475569; border-radius: 20px; 
             padding: 40px; margin: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
@@ -28,7 +30,7 @@
         .slot.is-blocked { background: #fca5a5 !important; border-color: #ef4444; color: white !important; font-weight: 900; cursor: default; }
         .slot.is-blocked::after { content: "XX"; }
         .slot.is-empty { border: 1px dashed #cbd5e1; background: #f8fafc; cursor: default; opacity: 0.5; }
-        .slot.has-student { cursor: pointer; border: 1px solid #e2e8f0; }
+        .slot.has-student { cursor: pointer; border: 1px solid #e2e8f0; position: relative; }
         .status-present { background: #10b981 !important; color: white !important; border-color: #059669; }
         
         /* 學生列表樣式 */
@@ -44,12 +46,21 @@
             margin-top: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
-        /* 統一聯絡本輸入框樣式 */
         .diary-input {
             width: 100%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem;
             padding: 0.75rem; font-size: 0.875rem; font-weight: 700; outline: none; transition: border-color 0.2s;
         }
         .diary-input:focus { border-color: #10b981; background-color: #ffffff; }
+
+        /* Modal & Toast */
+        .modal { display: none; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(4px); z-index: 100; }
+        .modal.active { display: flex; }
+        .toast {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            padding: 12px 24px; border-radius: 50px; font-weight: 900; color: white;
+            opacity: 0; transition: opacity 0.3s, top 0.3s; z-index: 50; pointer-events: none;
+        }
+        .toast.show { opacity: 1; top: 80px; }
     </style>
 </head>
 <body>
@@ -70,15 +81,26 @@
             </div>
         </div>
         <div id="all-student-list" class="flex-1 overflow-y-auto"></div>
+        <div class="p-4 border-t bg-slate-50 text-center shrink-0">
+            <p class="text-[10px] font-black text-slate-400 tracking-widest leading-relaxed">
+                用心精進筆尖下的成績<br>以情深耕內心裡的孝善
+            </p>
+        </div>
     </div>
 
-    <div class="pane canvas-area">
-        <div class="w-full bg-white/95 backdrop-blur sticky top-0 z-20 px-4 py-3 border-b flex justify-between items-center">
-            <div class="relative w-64">
-                <input type="text" id="global-search" placeholder="全域點名 (輸入姓名)..." 
-                       class="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full font-bold text-sm outline-none focus:ring-2 ring-emerald-500">
-                <span class="absolute left-3.5 top-2">🔍</span>
+    <div class="pane canvas-area relative">
+        <div class="w-full bg-white/95 backdrop-blur sticky top-0 z-20 px-4 py-3 border-b flex justify-between items-center shadow-sm">
+            <div class="flex items-center gap-2">
+                <div class="relative w-64">
+                    <input type="text" id="global-search" placeholder="輸入學號 或 姓名 (按Enter)" 
+                           class="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full font-bold text-sm outline-none focus:ring-2 ring-emerald-500 placeholder-slate-400">
+                    <span class="absolute left-3.5 top-2">🔍</span>
+                </div>
+                <button onclick="openQRScanner()" class="bg-blue-600 text-white font-black text-sm px-4 py-2 rounded-full shadow-md hover:bg-blue-700 transition flex items-center gap-1">
+                    📷 掃碼點名
+                </button>
             </div>
+            
             <div class="flex items-center gap-2">
                 <span class="text-[11px] font-black text-slate-400">切換子班別：</span>
                 <select id="class-switcher" onchange="switchClass(this.value)" class="bg-slate-800 text-white font-black text-xs px-4 py-2 rounded-lg shadow-lg outline-none cursor-pointer">
@@ -86,6 +108,9 @@
                 </select>
             </div>
         </div>
+
+        <div id="toast-msg" class="toast bg-slate-800 shadow-xl border-2 border-white/20"></div>
+
         <div class="blackboard text-xs">黑板方向</div>
         <div id="seat-grid" class="grid-container">
             <div class="text-slate-400 font-bold p-8">請先選擇左上方子班別</div>
@@ -129,22 +154,50 @@
     </div>
 </div>
 
+<div id="qr-modal" class="modal fixed inset-0 items-center justify-center">
+    <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md flex flex-col items-center relative">
+        <button onclick="closeQRScanner()" class="absolute top-4 right-4 w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 font-black text-xl flex items-center justify-center transition">&times;</button>
+        <h2 class="text-2xl font-black text-slate-800 mb-2">📷 掃碼點名</h2>
+        <p class="text-xs text-slate-400 font-bold mb-4 tracking-widest">請將學生的點名卡對準鏡頭</p>
+        <div id="qr-reader" class="w-full rounded-2xl overflow-hidden border-4 border-slate-100 bg-black"></div>
+        <p id="qr-status-text" class="mt-4 font-black text-lg text-center text-blue-600 h-6"></p>
+    </div>
+</div>
+
 <script>
+    // Supabase 初始化
     const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
 
     let db = { 
         allClasses: [], allRooms: [], studentDetails: {}, 
+        idToName: {}, // 學號對應姓名查找表
         activeClassId: null, activeSubIdx: null, attendance: {}, 
         currentRoom: null, currentSeats: []
     };
 
-    // 強制取得本地時區的 YYYY-MM-DD (避免跨夜產生 UTC 時差導致讀取到昨天資料)
+    let html5QrcodeScanner = null;
+    let isProcessingScan = false;
+
+    // 取得本地日期與時間
     function getLocalToday() {
         const d = new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    function getNowTimeStr() {
+        return new Date().toLocaleTimeString('en-GB'); // HH:MM:SS
+    }
+
+    // 顯示浮動通知 (Toast)
+    function showToast(msg, isSuccess = true) {
+        const toast = document.getElementById('toast-msg');
+        toast.innerHTML = msg;
+        toast.className = `toast ${isSuccess ? 'bg-emerald-600' : 'bg-red-500'} shadow-xl border-2 border-white/20`;
+        
+        // 觸發重繪以重啟動畫
+        void toast.offsetWidth; 
+        toast.classList.add('show');
+        
+        setTimeout(() => { toast.classList.remove('show'); }, 3000);
     }
 
     async function init() {
@@ -154,8 +207,15 @@
         
         db.allClasses = classes || [];
         db.allRooms = rooms || [];
-        (students || []).forEach(s => db.studentDetails[s.name] = s);
+        
+        // 建立學生資料與學號查詢字典
+        (students || []).forEach(s => {
+            db.studentDetails[s.name] = s;
+            const fullId = (s.student_id_prefix || '') + (s.student_id_suffix || '');
+            if(fullId) db.idToName[fullId] = s.name;
+        });
 
+        // 初始化班級選單
         const switcher = document.getElementById('class-switcher');
         switcher.innerHTML = '<option value="">請選擇子班別...</option>';
         let firstVal = null;
@@ -168,18 +228,16 @@
             });
         });
 
+        // 監聽搜尋框：支援姓名與學號
         document.getElementById('global-search').addEventListener('keypress', e => {
             if (e.key === 'Enter') {
-                const name = e.target.value.trim();
-                if (db.attendance.hasOwnProperty(name)) {
-                    updateAttendance(name, 'present');
-                    e.target.value = '';
-                } else {
-                    alert('此班別中找不到該學生，請確認是否打錯名字！');
-                }
+                const inputVal = e.target.value.trim();
+                handleCheckIn(inputVal);
+                e.target.value = '';
             }
         });
 
+        // 監聽日誌儲存
         document.querySelectorAll('[data-field]').forEach(el => {
             el.addEventListener('change', e => saveClassLog(e.target.dataset.field, e.target.value));
         });
@@ -190,10 +248,80 @@
         }
     }
 
+    // 處理打卡邏輯 (手動輸入 or 掃碼 共用)
+    async function handleCheckIn(inputVal) {
+        if(!inputVal) return;
+        
+        // 若輸入的是學號，轉換為姓名；否則視為直接輸入姓名
+        const targetName = db.idToName[inputVal] || inputVal;
+        const studentData = db.studentDetails[targetName];
+
+        if (!studentData) {
+            showToast(`❌ 找不到學生：${inputVal}`, false);
+            document.getElementById('qr-status-text').innerText = `❌ 查無此人 (${inputVal})`;
+            document.getElementById('qr-status-text').className = "mt-4 font-black text-lg text-center text-red-500 h-6";
+            return;
+        }
+
+        // 檢查是否為當前顯示班級的學生，以決定是否要即時更新畫面狀態
+        const isInCurrentClass = db.attendance.hasOwnProperty(targetName);
+        const isAlreadyPresent = db.attendance[targetName] === 'present';
+
+        if (isInCurrentClass && isAlreadyPresent) {
+            showToast(`⚠️ ${targetName} 已經點過名了`, true);
+            document.getElementById('qr-status-text').innerText = `⚠️ ${targetName} 已點過名`;
+            document.getElementById('qr-status-text').className = "mt-4 font-black text-lg text-center text-orange-500 h-6";
+            return;
+        }
+
+        // 執行點名 (會同時寫入資料庫與更新畫面)
+        if (isInCurrentClass) {
+            await updateAttendance(targetName, 'present');
+        } else {
+            // 如果學生不在目前畫面上，直接寫入背景資料庫即可
+            await writeAttendanceToDB(targetName, 'present');
+        }
+
+        const successMsg = `✅ ${targetName} 打卡成功！`;
+        showToast(successMsg, true);
+        
+        const statusText = document.getElementById('qr-status-text');
+        statusText.innerText = successMsg;
+        statusText.className = "mt-4 font-black text-lg text-center text-emerald-600 h-6";
+    }
+
+    // ====== QR Scanner 控制 ======
+    function openQRScanner() {
+        document.getElementById('qr-modal').classList.add('active');
+        document.getElementById('qr-status-text').innerText = '掃描準備就緒...';
+        document.getElementById('qr-status-text').className = "mt-4 font-black text-lg text-center text-blue-600 h-6";
+        
+        if (!html5QrcodeScanner) {
+            html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+        }
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
+
+    function closeQRScanner() {
+        document.getElementById('qr-modal').classList.remove('active');
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear();
+        }
+    }
+
+    function onScanSuccess(decodedText) {
+        if (isProcessingScan) return;
+        isProcessingScan = true;
+        handleCheckIn(decodedText);
+        setTimeout(() => isProcessingScan = false, 1500); // 1.5秒冷卻，防重複掃描
+    }
+
+    function onScanFailure(error) { /* 隱藏連續的底層掃描警告 */ }
+    // =============================
+
+
     async function switchClass(val) {
         if (!val) return;
-        
-        // 切換前先清除畫面，避免殘留視覺錯覺
         document.getElementById('all-student-list').innerHTML = '<div class="p-8 text-center text-slate-400 font-bold">載入資料中...</div>';
         
         const [mainId, subIdx] = val.split('_');
@@ -205,7 +333,6 @@
         const roomId = sub.room_id;
         const today = getLocalToday();
 
-        // 明確提示目前的班級
         document.getElementById('list-title').innerText = `${cls.name} - ${sub.name}`;
 
         // 讀取日誌
@@ -233,9 +360,7 @@
         db.currentRoom = db.allRooms.find(r => r.id === roomId);
         
         const { data: seats } = await supabaseClient.from('class_seats').select('*')
-            .eq('class_id', mainId)
-            .eq('room_id', roomId)
-            .eq('seat_label', String(subIdx));
+            .eq('class_id', mainId).eq('room_id', roomId).eq('seat_label', String(subIdx));
 
         db.currentSeats = seats || [];
 
@@ -269,8 +394,9 @@
                     const seat = seatMap[key];
                     if (seat && seat.student_name) {
                         const status = db.attendance[seat.student_name] || 'pending';
-                        div.className = `slot has-student status-${status} ${status === 'present' ? 'status-present' : ''}`;
+                        div.className = `slot has-student status-${status} ${status === 'present' ? 'status-present shadow-inner' : ''}`;
                         div.innerHTML = `<span class="leading-none text-center font-bold break-words w-full px-1">${seat.student_name}</span>`;
+                        // 點擊座位切換狀態
                         div.onclick = () => updateAttendance(seat.student_name, status === 'present' ? 'pending' : 'present');
                     } else {
                         div.className = "slot is-empty";
@@ -296,18 +422,18 @@
             const info = db.studentDetails[name] || {};
             const status = db.attendance[name];
             const div = document.createElement('div');
-            div.className = `stu-item ${status === 'present' ? 'opacity-50' : ''}`;
+            div.className = `stu-item ${status === 'present' ? 'opacity-50 bg-slate-50' : ''}`;
             div.innerHTML = `
-                <div class="flex justify-between items-center py-2.5 px-4 font-bold text-sm">
-                    <span class="text-slate-700">${name}</span>
-                    <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${status === 'present' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}">
+                <div class="flex justify-between items-center py-3 px-4 font-bold text-sm">
+                    <span class="text-slate-800">${name}</span>
+                    <span class="text-[9px] font-black px-2 py-1 rounded-md ${status === 'present' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}">
                         ${status === 'present' ? '已到' : '待點'}
                     </span>
                 </div>
-                <div class="accordion-content text-[11px] font-bold text-slate-500 space-y-1">
-                    <div>父：${info.tel_p || '--'}</div>
-                    <div>母：${info.tel_m || '--'}</div>
-                    <div>本：${info.tel_o || '--'}</div>
+                <div class="accordion-content text-xs font-bold text-slate-500 space-y-1.5">
+                    <div class="flex justify-between"><span>爸爸手機</span><span class="text-slate-700">${info.tel_p || '--'}</span></div>
+                    <div class="flex justify-between"><span>媽媽手機</span><span class="text-slate-700">${info.tel_m || '--'}</span></div>
+                    <div class="flex justify-between"><span>本人手機</span><span class="text-slate-700">${info.tel_o || '--'}</span></div>
                 </div>
             `;
             div.onclick = () => div.classList.toggle('active');
@@ -319,46 +445,70 @@
         }
     }
 
+    // 負責統籌：更新畫面狀態、寫入日誌、寫入精確打卡時間
     async function updateAttendance(name, status) {
         db.attendance[name] = status;
-        const today = getLocalToday();
-        
         const cls = db.allClasses.find(c => c.id === db.activeClassId);
         const sub = cls.sub_classes[db.activeSubIdx];
         
-        // 1. 畫面先即時更新 (Optimistic UI)
+        // 1. 畫面即時更新
         renderSeats(db.currentRoom, db.currentSeats);
         renderFullList(sub.members);
         updateStats();
 
-        // 2. 背景處理資料庫寫入 (包含智慧合併機制，避免不同子班別互相覆蓋出缺席名單)
-        const { data: currentLog } = await supabaseClient.from('class_logs')
-            .select('*').eq('class_id', db.activeClassId).eq('log_date', today).maybeSingle();
-            
-        let presentList = currentLog?.attendance_data || [];
-        
-        if (status === 'present') {
-            if (!presentList.includes(name)) presentList.push(name);
-        } else {
-            presentList = presentList.filter(n => n !== name);
+        // 2. 呼叫背景資料庫寫入
+        await writeAttendanceToDB(name, status);
+    }
+
+    // 實際寫入資料庫的核心邏輯
+    async function writeAttendanceToDB(name, status) {
+        const today = getLocalToday();
+        const nowTime = getNowTimeStr();
+        const studentData = db.studentDetails[name];
+
+        // A. 寫入 class_logs (班級日誌與陣列)
+        if (db.activeClassId) {
+            const { data: currentLog } = await supabaseClient.from('class_logs')
+                .select('*').eq('class_id', db.activeClassId).eq('log_date', today).maybeSingle();
+                
+            let presentList = currentLog?.attendance_data || [];
+            if (status === 'present') {
+                if (!presentList.includes(name)) presentList.push(name);
+            } else {
+                presentList = presentList.filter(n => n !== name);
+            }
+
+            if (currentLog) {
+                await supabaseClient.from('class_logs').update({ attendance_data: presentList }).eq('id', currentLog.id);
+            } else {
+                await supabaseClient.from('class_logs').insert([{ 
+                    class_id: db.activeClassId, log_date: today, attendance_data: presentList 
+                }]);
+            }
         }
 
-        if (currentLog) {
-            await supabaseClient.from('class_logs').update({ attendance_data: presentList }).eq('id', currentLog.id);
-        } else {
-            await supabaseClient.from('class_logs').insert([{ 
-                class_id: db.activeClassId, log_date: today, attendance_data: presentList 
-            }]);
+        // B. 寫入 attendance 表 (記錄精確時間)
+        if (studentData) {
+            if (status === 'present') {
+                // 使用 upsert 避免重複寫入，並保證有最新的時間
+                await supabaseClient.from('attendance').upsert([{
+                    student_id: studentData.id,
+                    check_date: today,
+                    check_time: nowTime
+                }], { onConflict: 'student_id, check_date' });
+            } else {
+                // 若取消點名，則刪除當日紀錄
+                await supabaseClient.from('attendance').delete()
+                    .eq('student_id', studentData.id)
+                    .eq('check_date', today);
+            }
+            // 同步寫入學生總檔
+            await supabaseClient.from('students').update({ arrival_status: status }).eq('id', studentData.id);
         }
-        
-        // 同步寫入學生總檔
-        await supabaseClient.from('students').update({ arrival_status: status }).eq('name', name);
     }
 
     async function saveClassLog(field, value) {
         const today = getLocalToday();
-        
-        // 採用 update/insert 雙軌制，取代會無差別覆蓋欄位的 upsert
         const { data: currentLog } = await supabaseClient.from('class_logs')
             .select('*').eq('class_id', db.activeClassId).eq('log_date', today).maybeSingle();
             
@@ -398,7 +548,7 @@
         if(avgScore) msg += `平均分數：${avgScore}分\n`;
         msg += `考卷內容已於課堂上檢討完畢`;
 
-        navigator.clipboard.writeText(msg).then(() => alert('聯絡本訊息已複製！'));
+        navigator.clipboard.writeText(msg).then(() => showToast('✅ 聯絡本訊息已複製！', true));
     }
 
     window.onload = init;

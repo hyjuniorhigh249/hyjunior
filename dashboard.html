@@ -11,7 +11,6 @@
         .dashboard-card { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; }
         .course-card { background: #f8fafc; border-radius: 0.75rem; border-left: 6px solid #3b82f6; padding: 1rem; margin-bottom: 0.75rem; }
         .scroll-area { max-height: 350px; overflow-y: auto; padding-right: 0.5rem; }
-        /* 隱藏捲軸但可滾動 */
         .scroll-area::-webkit-scrollbar { width: 6px; }
         .scroll-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
@@ -25,20 +24,27 @@
                 <div class="text-4xl font-black mt-2" id="stat-student-count">--</div>
                 <p class="text-xs text-blue-200 mt-2">今日起有課 且 總繳費≧3000</p>
             </div>
+            
             <div class="dashboard-card bg-gradient-to-br from-rose-500 to-rose-700 text-white border-none">
                 <h3 class="font-bold text-rose-100 text-sm">全班系尚欠總額</h3>
                 <div class="text-4xl font-black mt-2" id="stat-total-debt">--</div>
                 <p class="text-xs text-rose-200 mt-2">需催繳提醒</p>
             </div>
+            
             <div class="dashboard-card bg-gradient-to-br from-amber-500 to-amber-700 text-white border-none">
                 <h3 class="font-bold text-amber-100 text-sm">今日請假人數</h3>
                 <div class="text-4xl font-black mt-2" id="stat-absence-count">--</div>
                 <p class="text-xs text-amber-200 mt-2">已於點名系統登記</p>
             </div>
-            <div class="dashboard-card bg-gradient-to-br from-emerald-500 to-emerald-700 text-white border-none">
-                <h3 class="font-bold text-emerald-100 text-sm">今日待辦事項</h3>
-                <div class="text-4xl font-black mt-2" id="stat-task-count">--</div>
-                <p class="text-xs text-emerald-200 mt-2">未完成任務</p>
+            
+            <div class="dashboard-card bg-gradient-to-br from-emerald-500 to-emerald-700 text-white border-none flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-emerald-100 text-sm" id="task-card-title">今日待辦事項</h3>
+                    <span class="bg-emerald-800 text-emerald-100 px-2 py-0.5 rounded-full text-xs font-black" id="stat-task-count">0</span>
+                </div>
+                <div id="stat-task-preview" class="text-sm font-bold mt-2 space-y-1.5 flex-1">
+                    <div class="text-emerald-200 text-xs">讀取中...</div>
+                </div>
             </div>
         </div>
 
@@ -53,10 +59,10 @@
                 </div>
 
                 <div class="dashboard-card border-t-4 border-t-emerald-500">
-                    <h3 class="font-black text-slate-800 text-lg mb-4 flex items-center gap-2">✅ 今日重要事項 Tasks</h3>
+                    <h3 class="font-black text-slate-800 text-lg mb-4 flex items-center gap-2">✅ 重要事項 Tasks</h3>
                     
                     <div class="flex gap-2 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                        <input type="date" id="task-date" class="border rounded p-2 text-sm font-bold outline-none bg-white">
+                        <input type="date" id="task-date" onchange="loadTasks()" class="border rounded p-2 text-sm font-bold outline-none bg-white">
                         <input type="text" id="task-content" placeholder="輸入待辦事項..." class="flex-1 border rounded p-2 text-sm font-bold outline-none bg-white">
                         <button onclick="addTask()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded font-black text-sm transition">新增</button>
                     </div>
@@ -104,48 +110,45 @@
             return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
 
+        let isFirstLoad = true;
+
         async function loadDashboard() {
             const todayStr = getLocalToday();
-            document.getElementById('task-date').value = todayStr;
-            const currentDayOfWeek = new Date(todayStr).getDay().toString(); // "0"~"6"
+            
+            if (isFirstLoad) {
+                document.getElementById('task-date').value = todayStr;
+                isFirstLoad = false;
+            }
+            
+            const currentDayOfWeek = new Date(todayStr).getDay().toString();
 
-            // 一次性抓取所有所需資料
             const [
                 { data: students },
                 { data: classes },
                 { data: attendance },
                 { data: payments },
-                { data: bills },
-                { data: todos }
+                { data: bills }
             ] = await Promise.all([
                 sb.from('students').select('id, name'),
                 sb.from('classes').select('*'),
                 sb.from('attendance').select('student_id, leave_type, leave_reason').eq('check_date', todayStr),
                 sb.from('payment_logs').select('student_id, amount'),
-                sb.from('student_bills').select('student_id, class_id, sub_idx, discount_amount'),
-                sb.from('todo_notes').select('id, content').eq('note_date', todayStr).order('created_at', { ascending: false })
+                sb.from('student_bills').select('student_id, class_id, sub_idx, discount_amount')
             ]);
 
-            const stuMap = {};
             const stuIdToName = {};
-            (students || []).forEach(s => {
-                stuMap[s.name] = s.id;
-                stuIdToName[s.id] = s.name;
-            });
+            (students || []).forEach(s => stuIdToName[s.id] = s.name);
 
             const paidMap = {};
             (payments || []).forEach(p => {
                 if(p.student_id) paidMap[p.student_id] = (paidMap[p.student_id] || 0) + p.amount;
             });
 
-            // ==========================================
-            // 1. 今日課程 Schedule
-            // ==========================================
+            // 1. 今日課程
             let todaysEvents = [];
             (classes || []).forEach(cls => {
                 const isPast = cls.end_date && cls.end_date < todayStr;
                 const isFuture = cls.start_date && cls.start_date > todayStr;
-                
                 if (!isPast && !isFuture && cls.sub_classes) {
                     cls.sub_classes.forEach(sub => {
                         if (sub.day === currentDayOfWeek || (sub.class_days && sub.class_days.includes(parseInt(currentDayOfWeek)))) {
@@ -155,8 +158,7 @@
                 }
             });
             todaysEvents.sort((a, b) => (a.start_time || a.start || '').localeCompare(b.start_time || b.start || ''));
-            const scheduleList = document.getElementById('today-classes-list');
-            scheduleList.innerHTML = todaysEvents.length > 0 
+            document.getElementById('today-classes-list').innerHTML = todaysEvents.length > 0 
                 ? todaysEvents.map(e => `
                     <div class="course-card">
                         <span class="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded">${e.start_time || e.start || ''} - ${e.end_time || e.end || ''}</span>
@@ -165,9 +167,7 @@
                     </div>`).join('')
                 : '<div class="text-center py-6 text-slate-400 font-bold border-2 border-dashed rounded-lg">今日無課程</div>';
 
-            // ==========================================
-            // 2. 欠費名單與總額 & 3. 活躍學生人數
-            // ==========================================
+            // 2. 欠費名單 & 活躍學生
             let totalSysDebt = 0;
             let debtsHtml = '';
             let activeStudentIds = new Set();
@@ -177,11 +177,10 @@
                 let isActiveStudent = false;
 
                 (classes || []).forEach(c => {
-                    // 判斷是否為「今日或未來」的課程（還沒結業）
                     if (!c.end_date || c.end_date >= todayStr) {
                         (c.sub_classes || []).forEach((sub, idx) => {
                             if (sub.members && sub.members.includes(stu.name)) {
-                                isActiveStudent = true; // 只要有報名活躍課程，標記為活躍
+                                isActiveStudent = true;
                                 const b = (bills || []).find(x => x.class_id === c.id && x.sub_idx === idx && x.student_id === stu.id);
                                 const discount = b ? b.discount_amount : 0;
                                 sPayable += (sub.fee||0) + (sub.textbook_fee||0) + (sub.misc_fee||0) - discount;
@@ -193,12 +192,8 @@
                 const sPaid = paidMap[stu.id] || 0;
                 const sDebt = sPayable - sPaid;
                 
-                // 統計活躍繳費學生 (活躍課程 且 繳費>=3000)
-                if (isActiveStudent && sPaid >= 3000) {
-                    activeStudentIds.add(stu.id);
-                }
+                if (isActiveStudent && sPaid >= 3000) activeStudentIds.add(stu.id);
 
-                // 統計欠款
                 if (sDebt > 0) {
                     totalSysDebt += sDebt;
                     debtsHtml += `<tr class="hover:bg-rose-50 transition"><td class="py-2 font-bold">${stu.name}</td><td class="py-2 text-right text-slate-500">$${sPayable}</td><td class="py-2 text-right text-emerald-600">$${sPaid}</td><td class="py-2 text-right font-black text-rose-600">$${sDebt}</td></tr>`;
@@ -209,9 +204,7 @@
             document.getElementById('stat-total-debt').innerText = `$${totalSysDebt}`;
             document.getElementById('debts-list').innerHTML = debtsHtml || '<tr><td colspan="4" class="text-center py-6 text-slate-400 font-bold">目前無欠費學生</td></tr>';
 
-            // ==========================================
-            // 4. 今日缺席名單
-            // ==========================================
+            // 3. 今日缺席名單
             let absencesHtml = '';
             let absCount = 0;
             (attendance || []).forEach(a => {
@@ -224,18 +217,37 @@
             document.getElementById('stat-absence-count').innerText = absCount;
             document.getElementById('absences-list').innerHTML = absencesHtml || '<tr><td colspan="3" class="text-center py-6 text-slate-400 font-bold border-2 border-dashed rounded-lg">今日全員全勤</td></tr>';
 
-            // ==========================================
-            // 5. 今日重要事項 Tasks
-            // ==========================================
-            document.getElementById('stat-task-count').innerText = (todos || []).length;
-            const tasksList = document.getElementById('today-tasks-list');
-            tasksList.innerHTML = (todos || []).length > 0
+            // 呼叫獨立的任務載入函數
+            loadTasks();
+        }
+
+        // 🌟 獨立的任務載入函數 (負責更新清單與綠色卡片)
+        async function loadTasks() {
+            const selectedDate = document.getElementById('task-date').value || getLocalToday();
+            const { data: todos } = await sb.from('todo_notes').select('id, content').eq('note_date', selectedDate).order('created_at', { ascending: false });
+            
+            // 1. 更新下方的清單
+            document.getElementById('today-tasks-list').innerHTML = (todos || []).length > 0
                 ? todos.map(t => `
                     <div class="flex items-center justify-between bg-white p-3 rounded border border-slate-200 shadow-sm">
                         <span class="font-bold text-slate-700 text-sm">🔹 ${t.content}</span>
                         <button onclick="deleteTask('${t.id}')" class="text-slate-400 hover:text-rose-500 font-black px-2 py-1 rounded transition">✕</button>
                     </div>`).join('')
-                : '<div class="text-center py-4 text-slate-400 font-bold border-2 border-dashed rounded-lg bg-slate-50">今日無待辦事項</div>';
+                : '<div class="text-center py-4 text-slate-400 font-bold border-2 border-dashed rounded-lg bg-slate-50">無待辦事項</div>';
+
+            // 2. 更新右上角的綠色卡片
+            document.getElementById('stat-task-count').innerText = (todos || []).length;
+            const isToday = selectedDate === getLocalToday();
+            document.getElementById('task-card-title').innerText = isToday ? '今日待辦事項' : `${selectedDate.slice(5)} 待辦事項`;
+
+            const previewBox = document.getElementById('stat-task-preview');
+            if (todos && todos.length > 0) {
+                // 最多顯示 3 筆在綠色卡片裡
+                const previewHtml = todos.slice(0, 3).map(t => `<div class="truncate bg-emerald-800/40 px-2 py-1 rounded">🔹 ${t.content}</div>`).join('');
+                previewBox.innerHTML = previewHtml + (todos.length > 3 ? `<div class="text-xs text-emerald-200 mt-1 pt-1 border-t border-emerald-600/50 text-center">...及其他 ${todos.length - 3} 項</div>` : '');
+            } else {
+                previewBox.innerHTML = '<div class="text-emerald-200 text-xs mt-2">目前無事項</div>';
+            }
         }
 
         async function addTask() {
@@ -247,14 +259,14 @@
             if(error) return alert("新增失敗：" + error.message);
             
             document.getElementById('task-content').value = '';
-            loadDashboard(); // 重新載入畫面
+            loadTasks(); // 🌟 只重新讀取任務，速度極快
         }
 
         async function deleteTask(id) {
             if(!confirm("確定要刪除/完成此事項嗎？")) return;
             const { error } = await sb.from('todo_notes').delete().eq('id', id);
             if(error) return alert("刪除失敗：" + error.message);
-            loadDashboard();
+            loadTasks(); // 🌟 只重新讀取任務
         }
 
         window.onload = loadDashboard;

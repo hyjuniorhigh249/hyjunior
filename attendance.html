@@ -32,8 +32,8 @@
         <div class="p-4 border-b bg-white space-y-3">
             <h2 class="font-black text-slate-800 text-lg">📅 點名系統</h2>
             
-            <input type="date" id="date-selector" onchange="loadDateData()" class="w-full bg-slate-100 p-2 rounded-lg font-bold text-sm outline-none">
-            <select id="class-switcher" onchange="switchClass(this.value)" class="w-full bg-slate-800 text-white font-black text-sm px-4 py-2 rounded-lg outline-none">
+            <input type="date" id="date-selector" onchange="loadDateData()" class="w-full bg-slate-100 p-2 rounded-lg font-bold text-sm outline-none cursor-pointer">
+            <select id="class-switcher" onchange="switchClass(this.value)" class="w-full bg-slate-800 text-white font-black text-sm px-4 py-2 rounded-lg outline-none cursor-pointer">
                 <option value="">請先選擇日期...</option>
             </select>
 
@@ -74,7 +74,7 @@
 
         <div id="toast-msg" class="toast bg-slate-800 shadow-xl border-2 border-white/20"></div>
 
-        <div id="seat-grid" class="grid-container mt-12">
+        <div id="seat-grid" class="grid-container mt-12 mx-auto">
             <div class="text-slate-400 font-bold p-8 text-center col-span-full">座位表準備就緒</div>
         </div>
     </div>
@@ -96,15 +96,15 @@
         <h2 class="text-xl font-black text-slate-800 mb-4 border-b pb-2">📊 請假紀錄查詢</h2>
         
         <div class="flex gap-2 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200">
-            <input type="date" id="stat-start-date" class="bg-white border p-2 rounded text-sm font-bold outline-none">
+            <input type="date" id="stat-start-date" class="bg-white border p-2 rounded text-sm font-bold outline-none cursor-pointer">
             <span class="py-2 text-slate-400 font-bold">至</span>
-            <input type="date" id="stat-end-date" class="bg-white border p-2 rounded text-sm font-bold outline-none">
-            <button onclick="fetchLeaveStats()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-bold transition">查詢</button>
+            <input type="date" id="stat-end-date" class="bg-white border p-2 rounded text-sm font-bold outline-none cursor-pointer">
+            <button onclick="fetchLeaveStats()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded text-sm font-bold transition shadow">查詢</button>
         </div>
         
         <div class="overflow-y-auto flex-1 border rounded-lg bg-slate-50">
             <table class="w-full text-left text-sm">
-                <thead class="bg-slate-200 sticky top-0 text-slate-600">
+                <thead class="bg-slate-200 sticky top-0 text-slate-600 shadow-sm">
                     <tr>
                         <th class="p-3 font-black">日期</th>
                         <th class="p-3 font-black">學生姓名</th>
@@ -125,7 +125,6 @@
     const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
 
     let db = { 
-        // ✅ 新增 studentsById，用來透過 ID 快速反查學生名字
         allClasses: [], allRooms: [], studentDetails: {}, idToName: {}, studentsById: {},
         activeClassId: null, activeSubIdx: null, 
         currentRoom: null, currentSeats: [], currentAttendance: []
@@ -166,7 +165,7 @@
         
         (students || []).forEach(s => {
             db.studentDetails[s.name] = s;
-            db.studentsById[s.id] = s; // ✅ 建立 ID 對應表的索引
+            db.studentsById[s.id] = s;
             const fullId = (s.student_id_prefix || '') + (s.student_id_suffix || '');
             if(fullId) db.idToName[fullId] = s.name;
         });
@@ -212,9 +211,20 @@
 
         db.allClasses.forEach(c => {
             (c.sub_classes || []).forEach((sub, idx) => {
-                const hasSchedule = sub.class_days && Array.isArray(sub.class_days) && sub.class_days.length > 0;
-                
-                if (!hasSchedule || sub.class_days.includes(targetDayOfWeek)) {
+                let hasScheduleDef = false;
+                let isMatch = false;
+
+                // 判斷該子班別在當天是否有排課
+                if (sub.class_days && Array.isArray(sub.class_days) && sub.class_days.length > 0) {
+                    hasScheduleDef = true;
+                    isMatch = sub.class_days.some(d => String(d) === String(targetDayOfWeek));
+                } else if (sub.schedule && Array.isArray(sub.schedule) && sub.schedule.length > 0) {
+                    hasScheduleDef = true;
+                    isMatch = sub.schedule.some(s => String(s.day) === String(targetDayOfWeek));
+                }
+
+                // 如果有設定排課且吻合今日，或者完全沒設定排課（防呆顯示），則加入選單
+                if (!hasScheduleDef || isMatch) {
                     const val = `${c.id}_${idx}`;
                     if (!firstVal) firstVal = val;
                     switcher.add(new Option(`${c.name} - ${sub.name}`, val));
@@ -259,10 +269,21 @@
         const sub = cls.sub_classes[db.activeSubIdx];
         const roomId = sub.room_id;
         const selectedDate = document.getElementById('date-selector').value;
+        const targetDayOfWeek = new Date(selectedDate).getDay();
 
-        // 更新上方授課師與時間
+        // 智慧抓取上課時間（包含支援內層 schedule 查詢）
+        let sTime = sub.start_time;
+        let eTime = sub.end_time;
+        if (!sTime && sub.schedule && Array.isArray(sub.schedule)) {
+            const todaySch = sub.schedule.find(s => String(s.day) === String(targetDayOfWeek));
+            if (todaySch) {
+                sTime = todaySch.start_time;
+                eTime = todaySch.end_time;
+            }
+        }
+
         const teacherName = sub.teacher_name || sub.teacher || '未設定';
-        const classTime = (sub.start_time && sub.end_time) ? `${sub.start_time} ~ ${sub.end_time}` : '未設定時間';
+        const classTime = (sTime && eTime) ? `${sTime} ~ ${eTime}` : (sTime ? sTime : '未設定時間');
         document.getElementById('class-info-display').innerHTML = `👨‍🏫 授課師：<span class="text-blue-700">${teacherName}</span> &nbsp;|&nbsp; ⏱️ 時間：<span class="text-emerald-700">${classTime}</span>`;
 
         // 取得該日期的點名紀錄
@@ -313,7 +334,6 @@
                     div.innerHTML = `<span class="text-white font-bold">XX</span>`;
                 } else {
                     const seat = seatMap[key];
-                    // ✅ 讀取座位時，改用 student_id 來判斷與反查
                     if (seat && seat.student_id) {
                         const student = db.studentsById[seat.student_id];
                         const studentName = student ? student.name : '未知學生';
@@ -354,15 +374,14 @@
                         <span class="text-[11px] text-slate-400">進:${record.check_in_time || '--'} | 離:${record.check_out_time || '--'}</span>
                     </div>
                     <div class="flex gap-2">
-                        <select onchange="updateLeaveStatus('${stu.id}', this.value)" class="bg-slate-100 border border-slate-200 rounded px-2 py-1 outline-none font-bold text-xs text-slate-700">
+                        <select id="leave-type-${stu.id}" class="bg-slate-100 border border-slate-200 rounded px-2 py-1 outline-none font-bold text-xs text-slate-700">
                             <option value="none" ${!record.leave_type || record.leave_type==='none' ? 'selected' : ''}>正常</option>
                             <option value="事假" ${record.leave_type==='事假' ? 'selected' : ''}>事假</option>
                             <option value="病假" ${record.leave_type==='病假' ? 'selected' : ''}>病假</option>
                             <option value="喪假" ${record.leave_type==='喪假' ? 'selected' : ''}>喪假</option>
                         </select>
-                        <input type="text" placeholder="請假事由..." value="${record.leave_reason || ''}" 
-                               onchange="updateLeaveReason('${stu.id}', this.value)"
-                               class="flex-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:border-blue-400">
+                        <input type="text" id="leave-reason-${stu.id}" placeholder="請假事由..." value="${record.leave_reason || ''}" class="flex-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:border-blue-400">
+                        <button onclick="saveLeave('${stu.id}')" class="bg-orange-500 text-white px-3 py-1 rounded text-xs font-bold shadow hover:bg-orange-600 transition">儲存</button>
                     </div>
                 </div>
             `;
@@ -370,7 +389,7 @@
         });
     }
 
-    // 核心打卡邏輯：接受學生物件並寫入 DB
+    // 核心打卡邏輯：改寫為 Select + Update/Insert 以避免聯合唯一索引(onConflict)的報錯
     async function executeCheckInDB(student) {
         if (!isToday) {
             showToast('⚠️ 只能針對「今日」進行打卡', false);
@@ -388,22 +407,35 @@
             updateData.check_out_time = timeNow;
         }
 
-        const { error } = await supabaseClient.from('attendance').upsert(updateData, { onConflict: 'student_id, check_date' });
+        const existingRecord = db.currentAttendance.find(a => a.student_id === student.id);
+        let error;
+
+        // 如果當天該學生已有紀錄，使用該紀錄的 Primary Key 進行更新
+        if (existingRecord && existingRecord.id) {
+            const res = await supabaseClient.from('attendance').update(updateData).eq('id', existingRecord.id);
+            error = res.error;
+            if(!error) Object.assign(existingRecord, updateData);
+        } else {
+            // 如果尚無紀錄則新增
+            const res = await supabaseClient.from('attendance').insert([updateData]).select();
+            error = res.error;
+            if(!error && res.data) db.currentAttendance.push(res.data[0]);
+        }
         
         if(!error) {
             const actionStr = currentMode === 'in' ? '進班' : '離班';
             showToast(`✅ ${student.name} ${actionStr}打卡成功: ${timeNow}`, true);
             
-            // 如果是在 QR Code 視窗內，更新視窗文字
             const qrText = document.getElementById('qr-status-text');
             if(qrText) {
                 qrText.innerText = `✅ ${student.name} ${actionStr}成功`;
                 qrText.className = "mt-4 font-black text-lg text-center text-emerald-600 h-6";
             }
             
-            switchClass(document.getElementById('class-switcher').value); // 重新讀取畫面
+            switchClass(document.getElementById('class-switcher').value); // 重新讀取畫面更新狀態
         } else {
             showToast('❌ 系統異常，打卡失敗', false);
+            console.error('打卡寫入錯誤:', error);
         }
     }
 
@@ -425,26 +457,33 @@
         executeCheckInDB(student);
     }
 
-    // 更新請假相關欄位
-    async function updateLeaveStatus(studentId, leaveType) {
+    // 儲存請假與事由 (解決跳回與未儲存 Bug)
+    async function saveLeave(studentId) {
         const selectedDate = document.getElementById('date-selector').value;
-        await supabaseClient.from('attendance').upsert({
-            student_id: studentId,
-            check_date: selectedDate,
-            leave_type: leaveType
-        }, { onConflict: 'student_id, check_date' });
-        showToast('📝 假別已更新', true);
-        switchClass(document.getElementById('class-switcher').value);
-    }
+        const typeVal = document.getElementById(`leave-type-${studentId}`).value;
+        const reasonVal = document.getElementById(`leave-reason-${studentId}`).value;
 
-    async function updateLeaveReason(studentId, reason) {
-        const selectedDate = document.getElementById('date-selector').value;
-        await supabaseClient.from('attendance').upsert({
-            student_id: studentId,
-            check_date: selectedDate,
-            leave_reason: reason
-        }, { onConflict: 'student_id, check_date' });
-        showToast('📝 事由已更新', true);
+        const existingRecord = db.currentAttendance.find(a => a.student_id === studentId);
+        let updateData = { student_id: studentId, check_date: selectedDate, leave_type: typeVal, leave_reason: reasonVal };
+        let error;
+
+        if (existingRecord && existingRecord.id) {
+            const res = await supabaseClient.from('attendance').update(updateData).eq('id', existingRecord.id);
+            error = res.error;
+            if(!error) Object.assign(existingRecord, updateData);
+        } else {
+            const res = await supabaseClient.from('attendance').insert([updateData]).select();
+            error = res.error;
+            if(!error && res.data) db.currentAttendance.push(res.data[0]);
+        }
+
+        if (!error) {
+            showToast('📝 請假資料已儲存', true);
+            switchClass(document.getElementById('class-switcher').value); // 確保UI正常刷新
+        } else {
+            showToast('❌ 儲存失敗', false);
+            console.error('請假儲存錯誤:', error);
+        }
     }
 
     // ======= QR Scanner =======
@@ -464,6 +503,7 @@
         document.getElementById('qr-modal').classList.remove('active');
         if (html5QrcodeScanner) {
             html5QrcodeScanner.clear();
+            html5QrcodeScanner = null; // 確保關閉後釋放記憶體
         }
     }
 
@@ -493,7 +533,7 @@
         
         tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 font-bold">資料撈取中...</td></tr>';
 
-        // 搜尋 attendance 表內有請假紀錄的資料
+        // 搜尋 attendance 表內有請假紀錄的資料，透過 foreign key 連動 students 表抓名字
         const { data, error } = await supabaseClient.from('attendance')
             .select('*, students(name)')
             .gte('check_date', start)

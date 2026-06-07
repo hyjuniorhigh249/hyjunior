@@ -6,18 +6,39 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; }
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
+        
+        /* 隱藏捲軸但可滾動 */
+        .scroll-area::-webkit-scrollbar { width: 6px; }
+        .scroll-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body class="p-8">
-    <div class="max-w-5xl mx-auto">
-        <header class="flex justify-between items-center mb-8">
-            <h1 class="text-2xl font-black text-slate-800">班級組織與成員管理</h1>
-            <button onclick="openClassModal()" class="bg-slate-800 text-white px-5 py-2 rounded-xl font-black shadow-md hover:bg-slate-700 transition">＋ 建立新主班級</button>
-        </header>
-        <div id="classes-container" class="space-y-6"></div>
+<body class="p-6 h-screen flex flex-col overflow-hidden bg-slate-50">
+    
+    <header class="flex justify-between items-center mb-6 shrink-0 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <h1 class="text-2xl font-black text-slate-800">班級組織與成員管理</h1>
+    </header>
+    
+    <div class="flex gap-6 flex-1 min-h-0">
+        
+        <div class="w-1/3 max-w-sm bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+            <div class="p-4 border-b bg-slate-50 flex justify-between items-center shrink-0">
+                <h2 class="font-black text-slate-700">📂 班級列表</h2>
+                <button onclick="openClassModal()" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg font-black shadow-sm hover:bg-slate-700 transition">＋ 主班級</button>
+            </div>
+            <div id="left-class-list" class="flex-1 overflow-y-auto scroll-area">
+                <p class="text-center py-10 text-slate-400 font-bold">讀取中...</p>
+            </div>
+        </div>
+
+        <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+            <div id="right-class-detail" class="flex-1 overflow-y-auto p-6 scroll-area bg-slate-50/50">
+                <div class="flex items-center justify-center h-full text-slate-400 font-bold">請從左側選擇或建立班級</div>
+            </div>
+        </div>
+
     </div>
 
     <div id="class-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
@@ -26,30 +47,30 @@
             <input type="hidden" id="cls-id">
             
             <label class="block text-xs font-bold text-slate-400 mb-1">主班級名稱*</label>
-            <input type="text" id="cls-name" class="w-full p-2 border rounded-lg mb-3 font-bold">
+            <input type="text" id="cls-name" class="w-full p-2 border rounded-lg mb-3 font-bold bg-slate-50 focus:bg-white outline-none">
             
             <div class="grid grid-cols-2 gap-2 mb-3">
                 <div>
                     <label class="block text-xs font-bold text-slate-400 mb-1">開課日期</label>
-                    <input type="date" id="cls-start" class="w-full p-2 border rounded-lg font-bold text-sm">
+                    <input type="date" id="cls-start" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-400 mb-1">結業日期</label>
-                    <input type="date" id="cls-end" class="w-full p-2 border rounded-lg font-bold text-sm">
+                    <input type="date" id="cls-end" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50">
                 </div>
             </div>
             
             <div class="grid grid-cols-3 gap-2 mb-3">
-                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">預設學費</label><input type="number" id="cls-fee" class="w-full p-2 border rounded-lg font-bold text-emerald-600" value="0"></div>
-                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">教材費</label><input type="number" id="cls-textbook" class="w-full p-2 border rounded-lg font-bold" value="0"></div>
-                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">雜費</label><input type="number" id="cls-misc" class="w-full p-2 border rounded-lg font-bold" value="0"></div>
+                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">預設學費</label><input type="number" id="cls-fee" class="w-full p-2 border rounded-lg font-bold text-emerald-600 bg-slate-50" value="0"></div>
+                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">教材費</label><input type="number" id="cls-textbook" class="w-full p-2 border rounded-lg font-bold bg-slate-50" value="0"></div>
+                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">雜費</label><input type="number" id="cls-misc" class="w-full p-2 border rounded-lg font-bold bg-slate-50" value="0"></div>
             </div>
             
             <label class="block text-xs font-bold text-slate-400 mb-1">備註</label>
-            <input type="text" id="cls-note" class="w-full p-2 border rounded-lg mb-6 font-bold">
+            <input type="text" id="cls-note" class="w-full p-2 border rounded-lg mb-6 font-bold bg-slate-50">
             
             <div class="flex gap-2">
-                <button onclick="closeModal('class-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold hover:bg-slate-200">取消</button>
+                <button onclick="closeModal('class-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 text-slate-600">取消</button>
                 <button onclick="saveClass()" class="flex-1 py-2 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700">儲存</button>
             </div>
         </div>
@@ -62,37 +83,37 @@
             <input type="hidden" id="sub-idx">
             
             <label class="block text-xs font-bold text-slate-400 mb-1">子班別名稱*</label>
-            <input type="text" id="sub-name" class="w-full p-2 border rounded-lg mb-3 font-bold">
+            <input type="text" id="sub-name" class="w-full p-2 border rounded-lg mb-3 font-bold bg-slate-50">
             
             <div class="grid grid-cols-2 gap-2 mb-3">
                 <div class="col-span-2">
                     <label class="block text-xs font-bold text-slate-400 mb-1">每週上課日*</label>
-                    <select id="sub-day" class="w-full p-2 border rounded-lg font-bold text-sm">
+                    <select id="sub-day" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50">
                         <option value="1">星期一</option><option value="2">星期二</option><option value="3">星期三</option>
                         <option value="4">星期四</option><option value="5">星期五</option><option value="6">星期六</option><option value="0">星期日</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-400 mb-1">開始時間</label>
-                    <input type="time" id="sub-start" class="w-full p-2 border rounded-lg font-bold text-sm">
+                    <input type="time" id="sub-start" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50">
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-400 mb-1">結束時間</label>
-                    <input type="time" id="sub-end" class="w-full p-2 border rounded-lg font-bold text-sm">
+                    <input type="time" id="sub-end" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50">
                 </div>
             </div>
 
             <div class="grid grid-cols-3 gap-2 mb-3">
-                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">學費</label><input type="number" id="sub-fee" class="w-full p-2 border rounded-lg font-bold text-emerald-600"></div>
-                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">教材費</label><input type="number" id="sub-textbook" class="w-full p-2 border rounded-lg font-bold"></div>
-                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">雜費</label><input type="number" id="sub-misc" class="w-full p-2 border rounded-lg font-bold"></div>
+                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">學費</label><input type="number" id="sub-fee" class="w-full p-2 border rounded-lg font-bold text-emerald-600 bg-slate-50"></div>
+                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">教材費</label><input type="number" id="sub-textbook" class="w-full p-2 border rounded-lg font-bold bg-slate-50"></div>
+                <div><label class="block text-[10px] font-bold text-slate-400 mb-1">雜費</label><input type="number" id="sub-misc" class="w-full p-2 border rounded-lg font-bold bg-slate-50"></div>
             </div>
 
             <label class="block text-xs font-bold text-slate-400 mb-1">授課老師</label>
-            <input type="text" id="sub-teacher" class="w-full p-2 border rounded-lg mb-6 font-bold">
+            <input type="text" id="sub-teacher" class="w-full p-2 border rounded-lg mb-6 font-bold bg-slate-50">
 
             <div class="flex gap-2">
-                <button onclick="closeModal('sub-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold hover:bg-slate-200">取消</button>
+                <button onclick="closeModal('sub-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 text-slate-600">取消</button>
                 <button onclick="saveSubClass()" class="flex-1 py-2 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700">儲存</button>
             </div>
         </div>
@@ -101,22 +122,24 @@
     <div id="student-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl flex flex-col max-h-[90vh]">
             <h3 class="text-lg font-black mb-4">加入學生至子班別</h3>
-            <select id="grade-filter" onchange="filterStudents()" class="w-full p-2 border rounded-lg mb-2 font-bold text-sm">
+            <select id="grade-filter" onchange="filterStudents()" class="w-full p-2 border rounded-lg mb-2 font-bold text-sm bg-slate-50">
                 <option value="">全部年級</option>
                 <script>
                     const grades = ['小一','小二','小三','小四','小五','小六','國一','國二','國三','高一','高二','高三'];
                     grades.forEach((g,i) => document.write(`<option value="${i+1}">${g}</option>`));
                 </script>
             </select>
-            <input type="text" id="stu-search" oninput="filterStudents()" placeholder="搜尋姓名..." class="w-full p-2 border rounded-lg text-sm font-bold mb-4">
-            <div id="student-list-container" class="flex-1 overflow-y-auto space-y-1"></div>
-            <button onclick="closeModal('student-modal')" class="w-full py-2 mt-4 bg-slate-100 rounded-xl font-bold">完成</button>
+            <input type="text" id="stu-search" oninput="filterStudents()" placeholder="搜尋姓名..." class="w-full p-2 border rounded-lg text-sm font-bold mb-4 bg-slate-50 outline-none focus:bg-white">
+            <div id="student-list-container" class="flex-1 overflow-y-auto space-y-1 scroll-area"></div>
+            <button onclick="closeModal('student-modal')" class="w-full py-3 mt-4 bg-slate-100 text-slate-700 hover:bg-slate-200 transition rounded-xl font-black">完成</button>
         </div>
     </div>
 
     <script>
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
         let allClassData = [], allStudents = [], targetClassId = '', targetSubIdx = 0;
+        let selectedClassId = null; // 紀錄左側目前選取的班級 ID
+        let stuMap = {}; // 用來翻譯 student_id 到 姓名
         const dayMap = { '0': '日', '1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六' };
 
         async function init() {
@@ -124,57 +147,128 @@
             const { data: students } = await sb.from('students').select('*');
             allClassData = classes || [];
             allStudents = students || [];
+            
+            // 建立姓名翻譯字典
+            stuMap = {};
+            allStudents.forEach(s => { stuMap[s.id] = s.name; });
+
+            // 如果有資料且尚未選取，預設選取第一筆
+            if (allClassData.length > 0 && !selectedClassId) {
+                selectedClassId = allClassData[0].id;
+            }
+
+            render();
+        }
+
+        // 智能顯示學生名稱 (相容舊版名字與新版 UUID)
+        function getMemberDisplayName(m) {
+            if (stuMap[m]) return stuMap[m]; // 是 UUID 且找得到人
+            if (m.length > 20) return '已刪除學生'; // 是 UUID 但找不到人
+            return m; // 是舊版的中文名字字串
+        }
+
+        function selectClass(id) {
+            selectedClassId = id;
             render();
         }
 
         function render() {
-            document.getElementById('classes-container').innerHTML = allClassData.map(cls => `
-                <div class="bg-white p-6 rounded-2xl border shadow-sm relative">
-                    <div class="flex justify-between items-start mb-4 border-b pb-4">
+            // =========================
+            // 1. 渲染左側班級列表
+            // =========================
+            const leftList = document.getElementById('left-class-list');
+            if (allClassData.length === 0) {
+                leftList.innerHTML = '<p class="text-center py-10 text-slate-400 font-bold">目前無班級資料</p>';
+            } else {
+                leftList.innerHTML = allClassData.map(cls => `
+                    <div onclick="selectClass('${cls.id}')" class="p-4 border-b cursor-pointer transition-colors ${cls.id === selectedClassId ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'bg-white hover:bg-slate-50 border-l-4 border-l-transparent'}">
+                        <h4 class="font-black text-slate-800 ${cls.id === selectedClassId ? 'text-blue-800' : ''}">${cls.name}</h4>
+                        <p class="text-[10px] text-slate-500 font-bold mt-1">
+                            ${cls.start_date ? cls.start_date.replace(/-/g, '/') : '未定'} ~ ${cls.end_date ? cls.end_date.replace(/-/g, '/') : '未定'}
+                        </p>
+                    </div>
+                `).join('');
+            }
+
+            // =========================
+            // 2. 渲染右側詳細面板
+            // =========================
+            const rightPane = document.getElementById('right-class-detail');
+            const cls = allClassData.find(c => c.id === selectedClassId);
+            
+            if (!cls) {
+                rightPane.innerHTML = `<div class="flex items-center justify-center h-full text-slate-400 font-bold">請從左側選擇或建立班級</div>`;
+                return;
+            }
+
+            rightPane.innerHTML = `
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 relative">
+                    <div class="flex justify-between items-start">
                         <div>
-                            <h4 class="font-black text-xl text-slate-800">${cls.name} 
-                                <span class="text-[11px] text-slate-400 bg-slate-50 px-2 py-1 rounded ml-2 border">預設: 學費$${cls.default_fee||0} | 教材$${cls.default_textbook_fee||0} | 雜費$${cls.default_misc_fee||0}</span>
-                            </h4>
-                            <p class="text-xs text-slate-500 font-bold mt-1">
-                                修業期間：${cls.start_date ? cls.start_date.replace(/-/g, '/') : '未設定'} ~ ${cls.end_date ? cls.end_date.replace(/-/g, '/') : '未設定'}
-                            </p>
-                        </div>
-                        <div class="flex flex-col gap-2 items-end">
-                            <div class="flex gap-2">
-                                <button onclick="openClassModal('${cls.id}')" class="text-[10px] bg-slate-100 text-slate-600 px-3 py-1 rounded font-black hover:bg-slate-200">編輯</button>
-                                <button onclick="deleteClass('${cls.id}')" class="text-[10px] bg-red-50 text-red-500 px-3 py-1 rounded font-black hover:bg-red-100">刪除主班級</button>
+                            <h2 class="font-black text-2xl text-slate-800">${cls.name}</h2>
+                            <div class="flex gap-2 mt-2">
+                                <span class="text-[11px] text-slate-500 bg-slate-100 px-2 py-1 rounded font-bold border">
+                                    預設：學費 $${cls.default_fee||0} | 教材 $${cls.default_textbook_fee||0} | 雜費 $${cls.default_misc_fee||0}
+                                </span>
                             </div>
-                            <button onclick="openSubModal('${cls.id}')" class="text-xs bg-emerald-500 text-white px-4 py-1.5 rounded-lg font-black shadow-sm hover:bg-emerald-600">＋ 新增子班別</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="openClassModal('${cls.id}')" class="text-xs bg-slate-100 text-slate-600 px-4 py-2 rounded-lg font-black hover:bg-slate-200 transition shadow-sm">⚙️ 編輯</button>
+                            <button onclick="deleteClass('${cls.id}')" class="text-xs bg-rose-50 text-rose-600 px-4 py-2 rounded-lg font-black hover:bg-rose-100 transition shadow-sm">🗑️ 刪除</button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        ${(cls.sub_classes || []).map((sub, idx) => `
-                            <div class="bg-slate-50 p-4 rounded-xl border relative">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div>
-                                        <p class="font-black text-sm text-slate-800">${sub.name} <span class="text-[10px] text-emerald-600 ml-1">(學$${sub.fee||0} / 教$${sub.textbook_fee||0} / 雜$${sub.misc_fee||0})</span></p>
-                                        <p class="text-[10px] text-slate-500 font-bold mt-0.5">每週${sub.day ? dayMap[sub.day] : '未定'} | ${sub.start || '--:--'} ~ ${sub.end || '--:--'}</p>
-                                    </div>
-                                    <div class="flex gap-1 h-fit">
-                                        <button onclick="openSubModal('${cls.id}', ${idx})" class="text-[9px] bg-slate-200 text-slate-700 px-2 py-1 rounded font-black hover:bg-slate-300">編輯</button>
-                                        <button onclick="deleteSub('${cls.id}', ${idx})" class="text-[9px] bg-red-200 text-red-700 px-2 py-1 rounded font-black hover:bg-red-300">刪除</button>
-                                        <button onclick="openStudentModal('${cls.id}', ${idx})" class="text-[9px] bg-blue-600 text-white px-2 py-1 rounded font-black hover:bg-blue-700">＋ 加入學生</button>
-                                    </div>
-                                </div>
-                                <div class="flex flex-wrap gap-1 mt-2 pt-2 border-t border-slate-200">
-                                    ${(sub.members || []).map(m => `
-                                        <span class="bg-white px-2 py-0.5 rounded border text-[10px] font-bold flex items-center gap-1 shadow-sm">
-                                            ${m} <span onclick="removeStudent('${cls.id}', ${idx}, '${m}')" class="text-red-400 cursor-pointer hover:text-red-600 text-xs px-0.5">×</span>
-                                        </span>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        `).join('')}
+                    <div class="absolute -bottom-4 right-6">
+                        <button onclick="openSubModal('${cls.id}')" class="text-sm bg-emerald-500 text-white px-5 py-2 rounded-full font-black shadow-lg hover:bg-emerald-600 transition hover:-translate-y-1">＋ 新增子班別</button>
                     </div>
                 </div>
-            `).join('');
+
+                <h3 class="font-black text-slate-700 text-lg mb-4 ml-1">📚 子班別與學生名單</h3>
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    ${(!cls.sub_classes || cls.sub_classes.length === 0) ? '<div class="col-span-full text-center py-10 text-slate-400 font-bold bg-white rounded-xl border border-dashed">尚無子班別</div>' : ''}
+                    ${(cls.sub_classes || []).map((sub, idx) => `
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
+                            <div class="flex justify-between items-start mb-3 border-b pb-3">
+                                <div>
+                                    <p class="font-black text-base text-slate-800 flex items-center gap-2">
+                                        ${sub.name} 
+                                        <span class="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 tracking-wider">
+                                            $${sub.fee||0} / $${sub.textbook_fee||0} / $${sub.misc_fee||0}
+                                        </span>
+                                    </p>
+                                    <p class="text-xs text-slate-500 font-bold mt-1.5 flex items-center gap-1">
+                                        🕒 每週${sub.day ? dayMap[sub.day] : '未定'} | ${sub.start || '--:--'} ~ ${sub.end || '--:--'}
+                                    </p>
+                                    <p class="text-[11px] text-blue-600 font-bold mt-1 bg-blue-50 w-fit px-2 py-0.5 rounded">👨‍🏫 老師：${sub.teacher || '未定'}</p>
+                                </div>
+                                <div class="flex gap-1 flex-col h-fit">
+                                    <button onclick="openSubModal('${cls.id}', ${idx})" class="text-[10px] bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-black hover:bg-slate-200 text-left">⚙️ 編輯</button>
+                                    <button onclick="deleteSub('${cls.id}', ${idx})" class="text-[10px] bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg font-black hover:bg-rose-100 text-left">🗑️ 刪除</button>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-bold text-slate-400">目前人數: ${(sub.members||[]).length}</span>
+                                <button onclick="openStudentModal('${cls.id}', ${idx})" class="text-[10px] bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700 font-black">＋ 加入學生</button>
+                            </div>
+                            
+                            <div class="flex flex-wrap gap-1.5 bg-slate-50 p-2 rounded-lg min-h-[50px] items-start content-start border border-slate-100">
+                                ${(sub.members || []).map(m => `
+                                    <span class="bg-white px-2 py-1 rounded border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1.5 shadow-sm">
+                                        ${getMemberDisplayName(m)} 
+                                        <span onclick="removeStudent('${cls.id}', ${idx}, '${m}')" class="text-slate-300 cursor-pointer hover:text-rose-500 hover:bg-rose-50 rounded-full w-4 h-4 flex items-center justify-center transition">×</span>
+                                    </span>
+                                `).join('')}
+                                ${(sub.members || []).length === 0 ? '<span class="text-xs text-slate-400 font-bold p-1">尚未加入學生</span>' : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
         }
 
+        // ==========================================
+        // Modal 與資料儲存操作
+        // ==========================================
         function openClassModal(id = null) {
             document.getElementById('cls-id').value = id || '';
             if(id) {
@@ -214,9 +308,16 @@
             };
             
             if(!name) return alert("主班級名稱為必填！");
-            if(id) await sb.from('classes').update(payload).eq('id', id);
-            else { payload.sub_classes = []; await sb.from('classes').insert([payload]); }
-            closeModal('class-modal'); init();
+            
+            if(id) {
+                await sb.from('classes').update(payload).eq('id', id);
+            } else { 
+                payload.sub_classes = []; 
+                const { data } = await sb.from('classes').insert([payload]).select();
+                if(data && data.length > 0) selectedClassId = data[0].id; // 新增後自動選取
+            }
+            closeModal('class-modal'); 
+            init();
         }
 
         function openSubModal(clsId, idx = null) {
@@ -272,18 +373,20 @@
             else subs.push({ ...data, members: [], room_id: null });
 
             await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId);
-            closeModal('sub-modal'); init();
+            closeModal('sub-modal'); 
+            init();
         }
 
         async function deleteClass(id) { 
-            if(confirm("確定要刪除整個主班級與底下的所有子班別嗎？")) { 
+            if(confirm("確定要刪除整個主班級與底下的所有子班別嗎？\n注意：此動作無法復原！")) { 
                 await sb.from('classes').delete().eq('id', id); 
+                selectedClassId = null; // 重置選取狀態
                 init(); 
             } 
         }
 
         async function deleteSub(clsId, idx) { 
-            if(confirm("確定刪除此子班別？")) { 
+            if(confirm("確定要刪除此子班別嗎？")) { 
                 const cls = allClassData.find(c => c.id === clsId); 
                 let subs = [...cls.sub_classes]; 
                 subs.splice(idx, 1); 
@@ -292,6 +395,9 @@
             } 
         }
 
+        // ==========================================
+        // 學生名單操作 (改用 UUID 連動)
+        // ==========================================
         function getAcademicYear() { const d = new Date(); return (d.getMonth() + 1) >= 7 ? d.getFullYear() : d.getFullYear() - 1; }
         function calculateDisplayGrade(baseYear) { if (!baseYear) return null; const grade = getAcademicYear() - baseYear + 1; return grade > 12 ? 13 : grade; }
         
@@ -316,29 +422,33 @@
             );
             
             document.getElementById('student-list-container').innerHTML = filtered.map(s => {
-                const isAdded = currentMembers.includes(s.name);
-                return `<div class="p-2 border-b flex justify-between items-center ${isAdded ? 'bg-slate-50 opacity-50' : 'cursor-pointer hover:bg-slate-100'}" onclick="${isAdded ? '' : `addStudent('${s.name}')`}">
-                    <span class="font-bold text-sm">${s.name}</span>
-                    ${isAdded ? '<span class="text-[9px] font-black text-slate-400 border px-1 rounded">已加入</span>' : '<span class="text-[9px] font-black text-white bg-blue-500 px-2 py-0.5 rounded shadow-sm hover:bg-blue-600">加入</span>'}
+                // ✅ 同時檢查 UUID 與 舊版名字 是否已存在名單中
+                const isAdded = currentMembers.includes(s.id) || currentMembers.includes(s.name);
+                return `<div class="p-3 border-b flex justify-between items-center ${isAdded ? 'bg-slate-50 opacity-50' : 'cursor-pointer hover:bg-slate-100 transition'}" onclick="${isAdded ? '' : `addStudent('${s.id}')`}">
+                    <span class="font-bold text-sm text-slate-700">${s.name}</span>
+                    ${isAdded ? '<span class="text-[10px] font-black text-slate-400 border px-1.5 py-0.5 rounded bg-white">已加入</span>' : '<span class="text-[10px] font-black text-white bg-blue-600 px-3 py-1 rounded shadow hover:bg-blue-700">＋ 加入</span>'}
                 </div>`;
             }).join('');
         }
 
-        async function addStudent(name) { 
+        async function addStudent(stuId) { 
             const cls = allClassData.find(c => c.id === targetClassId); 
             let subs = [...cls.sub_classes]; 
-            subs[targetSubIdx].members = [...(subs[targetSubIdx].members || []), name]; 
+            // ✅ 現在加入名單的是 student_id (UUID)
+            subs[targetSubIdx].members = [...(subs[targetSubIdx].members || []), stuId]; 
             await sb.from('classes').update({ sub_classes: subs }).eq('id', targetClassId); 
             cls.sub_classes = subs; 
             filterStudents(); 
             render(); 
         }
 
-        async function removeStudent(clsId, idx, name) { 
-            if(confirm(`確定要將 ${name} 從這個班別移除嗎？`)) { 
+        async function removeStudent(clsId, idx, memberValue) { 
+            const dispName = getMemberDisplayName(memberValue);
+            if(confirm(`確定要將 ${dispName} 從這個班別移除嗎？`)) { 
                 const cls = allClassData.find(c => c.id === clsId); 
                 let subs = [...cls.sub_classes]; 
-                subs[idx].members = subs[idx].members.filter(m => m !== name); 
+                // ✅ 無論他是舊版名字還是新版 UUID，精準移除該值
+                subs[idx].members = subs[idx].members.filter(m => m !== memberValue); 
                 await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId); 
                 init(); 
             } 

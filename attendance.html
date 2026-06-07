@@ -457,7 +457,8 @@
         
         let dataToUpsert = { 
             student_id: studentUuid, 
-            check_date: todayStr 
+            check_date: todayStr
+            check_time: timeNow //
         };
         
         if (currentMode === 'in') {
@@ -508,7 +509,8 @@
             student_id: studentId, 
             check_date: selectedDate, 
             leave_type: typeVal, 
-            leave_reason: reasonVal 
+            leave_reason: reasonVal
+            check_time: getNowTimeStr() //
         };
 
         let error;

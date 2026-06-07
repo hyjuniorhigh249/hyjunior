@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>昊學行政系統 - 教學成績</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: "Inter", "Microsoft JhengHei", sans-serif; background: #f1f5f9; }
+        .diary-input {
+            width: 100%; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem;
+            padding: 0.75rem; font-size: 0.875rem; font-weight: 700; outline: none; transition: border-color 0.2s;
+        }
+        .diary-input:focus { border-color: #10b981; background-color: #ffffff; }
+    </style>
+</head>
+<body class="p-8 flex justify-center">
+
+<div class="w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+    <div class="bg-slate-800 p-6 flex gap-4 items-center justify-between">
+        <div class="flex items-center gap-4">
+            <h2 class="text-white font-black text-xl tracking-widest">📝 教學日誌</h2>
+            <input type="date" id="log-date" onchange="loadDiary()" class="bg-slate-700 text-white border-none rounded-lg px-3 py-1.5 font-bold outline-none">
+            <select id="class-switcher" onchange="loadDiary()" class="bg-slate-700 text-white rounded-lg px-3 py-1.5 font-bold outline-none">
+                <option value="">選擇班別...</option>
+            </select>
+        </div>
+        <button onclick="copyContactLogs()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg transition-colors shadow-md">
+            📋 複製聯絡本
+        </button>
+    </div>
+
+    <div class="p-8 space-y-6">
+        <div class="grid grid-cols-2 gap-6">
+            <div>
+                <label class="text-xs font-black text-slate-500 mb-2 block">上課進度</label>
+                <input type="text" id="field-progress" data-field="progress" class="diary-input" placeholder="例如：4-3 ~ 4-4">
+            </div>
+            <div>
+                <label class="text-xs font-black text-slate-500 mb-2 block">發放講義</label>
+                <input type="text" id="field-handouts" data-field="handouts" class="diary-input" placeholder="有發放哪些講義？">
+            </div>
+            <div>
+                <label class="text-xs font-black text-slate-500 mb-2 block">回家作業</label>
+                <input type="text" id="field-homework" data-field="homework" class="diary-input">
+            </div>
+            <div>
+                <label class="text-xs font-black text-slate-500 mb-2 block">下週考試 / 測驗範圍</label>
+                <input type="text" id="field-next-exam" data-field="next_exam" class="diary-input">
+            </div>
+        </div>
+
+        <div class="pt-6 border-t border-slate-100 flex flex-col items-center">
+            <label class="text-sm font-black text-slate-500 mb-3 block">本次測驗平均成績</label>
+            <div class="relative w-48">
+                <input type="number" id="field-avg-score" data-field="avg_score" class="diary-input text-center text-3xl text-emerald-600 font-black" style="height: 70px;">
+                <span class="absolute right-4 top-6 text-emerald-300 font-bold">分</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const supabaseClient = supabase.createClient('YOUR_URL', 'YOUR_KEY');
+
+    window.onload = () => {
+        const d = new Date();
+        document.getElementById('log-date').value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        init();
+    };
+
+    function init() {
+        // 載入班級列表邏輯
+        // 綁定輸入框的 onchange 事件，自動觸發 saveClassLog()
+        document.querySelectorAll('[data-field]').forEach(el => {
+            el.addEventListener('change', e => saveClassLog(e.target.dataset.field, e.target.value));
+        });
+    }
+
+    async function loadDiary() {
+        const selectedDate = document.getElementById('log-date').value;
+        const classId = document.getElementById('class-switcher').value;
+        if(!classId || !selectedDate) return;
+
+        // 去 Supabase 撈取 class_logs，若有資料則填入 input，若無則清空
+        console.log(`載入 ${classId} 於 ${selectedDate} 的日誌`);
+    }
+
+    async function saveClassLog(field, value) {
+        const selectedDate = document.getElementById('log-date').value;
+        const classId = document.getElementById('class-switcher').value;
+        if(!classId) return alert('請先選擇班級');
+
+        // 寫入/更新 Supabase 邏輯
+        console.log(`儲存 ${field} = ${value}`);
+    }
+
+    function copyContactLogs() {
+        const dateVal = document.getElementById('log-date').value;
+        const dateObj = new Date(dateVal);
+        const dateStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
+        
+        const switcher = document.getElementById('class-switcher');
+        const className = switcher.options[switcher.selectedIndex]?.text || '';
+        
+        const progress = document.getElementById('field-progress').value;
+        const handouts = document.getElementById('field-handouts').value;
+        const homework = document.getElementById('field-homework').value;
+        const nextExam = document.getElementById('field-next-exam').value;
+        const avgScore = document.getElementById('field-avg-score').value;
+
+        let msg = `家長您好\n以下為 ${dateStr} ${className} 課堂狀況：\n`;
+        if(progress) msg += `上課範圍：${progress}\n`;
+        if(handouts) msg += `發放資料：${handouts}\n`;
+        if(homework) msg += `回家作業：${homework}\n`;
+        if(nextExam) msg += `下週考試：${nextExam}\n`;
+        if(avgScore) msg += `平均分數：${avgScore}分\n`;
+        msg += `考卷內容已於課堂上檢討完畢`;
+
+        navigator.clipboard.writeText(msg).then(() => alert('✅ 聯絡本訊息已複製！'));
+    }
+</script>
+</body>
+</html>

@@ -193,7 +193,8 @@
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
         
         let students = [], allStudentsData = [], classes = [], bills = [], payments = [];
-        let currentStudent = null, currentEnrolled = [], currentTotalDebt = 0;
+        // ✅ 新增 currentStudentId 來記錄選中學生的 UUID
+        let currentStudent = null, currentStudentId = null, currentEnrolled = [], currentTotalDebt = 0;
         
         function getAcademicYear() { const d = new Date(); return (d.getMonth() + 1) >= 7 ? d.getFullYear() : d.getFullYear() - 1; }
         function numToChinese(num) {
@@ -249,6 +250,10 @@
         async function loadStudentData(name) {
             try {
                 currentStudent = name; 
+                // ✅ 找出該名字對應的 UUID
+                const stuObj = allStudentsData.find(s => s.name === name);
+                currentStudentId = stuObj ? stuObj.id : null;
+
                 document.getElementById('b-stu-name').innerText = name;
                 document.getElementById('empty-panel').style.display = 'none';
                 document.getElementById('billing-panel').style.display = 'block'; 
@@ -269,9 +274,10 @@
                     }
                 }));
 
-                const { data: bData } = await sb.from('student_bills').select('*').eq('student_name', name); 
+                // ✅ 改用 student_id 來查詢帳單與繳費紀錄
+                const { data: bData } = await sb.from('student_bills').select('*').eq('student_id', currentStudentId); 
                 bills = bData || [];
-                const { data: pData } = await sb.from('payment_logs').select('*').eq('student_name', name).order('pay_date', { ascending: false }); 
+                const { data: pData } = await sb.from('payment_logs').select('*').eq('student_id', currentStudentId).order('pay_date', { ascending: false }); 
                 payments = pData || [];
                 
                 renderBillingTable();
@@ -344,15 +350,17 @@
             const rsn = document.getElementById(`rsn-${cId}-${sIdx}`).value.trim();
             
             try {
+                // ✅ 儲存折扣前，改用 student_id 查詢與寫入
                 const { data: existing, error: findErr } = await sb.from('student_bills')
-                    .select('id').eq('student_name', currentStudent).eq('class_id', cId).eq('sub_idx', sIdx).maybeSingle();
+                    .select('id').eq('student_id', currentStudentId).eq('class_id', cId).eq('sub_idx', sIdx).maybeSingle();
                 if (findErr) throw findErr;
 
                 if (existing) {
                     const { error: updErr } = await sb.from('student_bills').update({ discount_amount: amt, discount_reason: rsn }).eq('id', existing.id);
                     if (updErr) throw updErr;
                 } else {
-                    const { error: insErr } = await sb.from('student_bills').insert([{ student_name: currentStudent, class_id: cId, sub_idx: sIdx, discount_amount: amt, discount_reason: rsn }]);
+                    // ✅ 新增時寫入 student_id
+                    const { error: insErr } = await sb.from('student_bills').insert([{ student_id: currentStudentId, class_id: cId, sub_idx: sIdx, discount_amount: amt, discount_reason: rsn }]);
                     if (insErr) throw insErr;
                 }
                 
@@ -380,7 +388,8 @@
             
             try {
                 const serial = `NO.${date.replace(/-/g, '')}${Math.floor(1000+Math.random()*9000)}`;
-                const { error } = await sb.from('payment_logs').insert([{ serial_no: serial, student_name: currentStudent, amount: amt, pay_method: method, pay_date: date, handler: handler }]);
+                // ✅ 繳費入帳時寫入 student_id
+                const { error } = await sb.from('payment_logs').insert([{ serial_no: serial, student_id: currentStudentId, amount: amt, pay_method: method, pay_date: date, handler: handler }]);
                 if (error) throw error;
                 
                 closeModal('pay-modal'); 
@@ -401,7 +410,6 @@
             const gradeStr = stuData.grade_base_year ? (getAcademicYear() - stuData.grade_base_year + 1) + '年級' : '未定';
             const schoolStr = stuData.school || '未定';
             
-            // --- 核心：自動計算縮放以塞入 1 頁 ---
             const printArea = document.getElementById('print-area');
             printArea.classList.remove('scale-90', 'scale-80', 'scale-70', 'scale-60');
             const rowCount = currentEnrolled.length;
@@ -409,7 +417,6 @@
             else if (rowCount >= 9) printArea.classList.add('scale-70');
             else if (rowCount >= 6) printArea.classList.add('scale-80');
             else if (rowCount >= 4) printArea.classList.add('scale-90');
-            // ------------------------------------
             
             document.getElementById('p-stu-info').innerText = `學生姓名: ${currentStudent}   學校/年級: ${schoolStr} / ${gradeStr}`;
             

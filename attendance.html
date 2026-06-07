@@ -33,7 +33,7 @@
             
             <input type="date" id="date-selector" onchange="loadDateData()" class="w-full bg-slate-100 p-2 rounded-lg font-bold text-sm outline-none cursor-pointer">
             <select id="class-switcher" onchange="switchClass(this.value)" class="w-full bg-slate-800 text-white font-black text-sm px-4 py-2 rounded-lg outline-none cursor-pointer">
-                <option value="">請先選擇日期...</option>
+                <option value="">讀取中...</option>
             </select>
 
             <div id="attendance-mode-toggle" class="flex rounded-lg overflow-hidden border border-slate-200 p-1 bg-slate-50">
@@ -152,31 +152,36 @@
     window.onload = async () => {
         document.getElementById('date-selector').value = getLocalToday();
         
-        const { data: classes } = await supabaseClient.from('classes').select('*');
-        const { data: rooms } = await supabaseClient.from('rooms').select('*');
-        const { data: students } = await supabaseClient.from('students').select('*');
-        
-        db.allClasses = classes || [];
-        db.allRooms = rooms || [];
-        
-        (students || []).forEach(s => {
-            db.studentDetails[s.name] = s;
-            // 確保支援不同的 UUID 欄位命名
-            const sId = s.id || s.student_id || s.UUID;
-            if(sId) db.studentsById[sId] = s;
+        try {
+            const { data: classes } = await supabaseClient.from('classes').select('*');
+            const { data: rooms } = await supabaseClient.from('rooms').select('*');
+            const { data: students } = await supabaseClient.from('students').select('*');
             
-            const fullId = (s.student_id_prefix || '') + (s.student_id_suffix || '');
-            if(fullId) db.idToName[fullId] = s.name;
-        });
+            db.allClasses = classes || [];
+            db.allRooms = rooms || [];
+            
+            (students || []).forEach(s => {
+                db.studentDetails[s.name] = s;
+                // 確保支援不同的 UUID 欄位命名
+                const sId = s.id || s.student_id || s.UUID;
+                if(sId) db.studentsById[sId] = s;
+                
+                const fullId = (s.student_id_prefix || '') + (s.student_id_suffix || '');
+                if(fullId) db.idToName[fullId] = s.name;
+            });
 
-        document.getElementById('global-search').addEventListener('keypress', e => {
-            if (e.key === 'Enter') {
-                processCheckInByInput(e.target.value.trim());
-                e.target.value = '';
-            }
-        });
+            document.getElementById('global-search').addEventListener('keypress', e => {
+                if (e.key === 'Enter') {
+                    processCheckInByInput(e.target.value.trim());
+                    e.target.value = '';
+                }
+            });
 
-        loadDateData(); 
+            loadDateData(); 
+        } catch (error) {
+            console.error("初始化載入失敗:", error);
+            showToast("系統初始化失敗，請重新整理", false);
+        }
     };
 
     function loadDateData() {
@@ -220,7 +225,7 @@
                 let hasScheduleDef = false;
                 let isMatch = false;
 
-                // 🌟 更新邏輯：如果子班別沒設日期，去抓「主班級(c)」的設定！
+                // 🌟 更新邏輯：如果子班別沒設日期，去抓「主班級(c)」的設定
                 let cDays = sub.class_days || sub.days || c.class_days || c.days;
                 if (typeof cDays === 'string') {
                     cDays = cDays.split(/[,,、，]/).map(s => s.trim());
@@ -288,16 +293,19 @@
         const chMap = ['日','一','二','三','四','五','六'];
         const targetStrings = [String(jsDay), String(twDay), chMap[jsDay], '星期'+chMap[jsDay], '週'+chMap[jsDay], '周'+chMap[jsDay]];
 
-        // 🌟 更新邏輯：時間也繼承主班級
-        let sTime = sub.start_time || cls.start_time;
-        let eTime = sub.end_time || cls.end_time;
-        
+        // 🌟 強化時間抓取邏輯 (深入檢查 schedule)
+        let sTime = sub.start_time || cls.start_time || '';
+        let eTime = sub.end_time || cls.end_time || '';
         let schArr = sub.schedule || cls.schedule;
-        if (!sTime && schArr && Array.isArray(schArr)) {
+        
+        if (schArr && Array.isArray(schArr) && schArr.length > 0) {
             const todaySch = schArr.find(s => targetStrings.includes(String(s.day || s.weekday).trim()));
             if (todaySch) {
                 sTime = todaySch.start_time || sTime;
                 eTime = todaySch.end_time || eTime;
+            } else if (!sTime) {
+                sTime = schArr[0].start_time || sTime;
+                eTime = schArr[0].end_time || eTime;
             }
         }
 
@@ -310,7 +318,11 @@
             .eq('check_date', selectedDate);
         db.currentAttendance = attendanceData || [];
 
-        const membersObjects = (sub.members || []).map(name => db.studentDetails[name]).filter(s => s);
+        // 🌟 雙軌支援：透過名字或 UUID 找回學生完整物件
+        const membersObjects = (sub.members || []).map(identifier => {
+            return db.studentsById[identifier] || db.studentDetails[identifier];
+        }).filter(s => s);
+        
         renderStudentList(membersObjects);
 
         if (!roomId) {
@@ -353,9 +365,13 @@
                 } else {
                     const seat = seatMap[key];
                     if (seat && seat.student_id) {
-                        const student = db.studentsById[seat.student_id];
+                        // 🌟 雙軌支援：處理座位表上的學生 ID/Name
+                        const student = db.studentsById[seat.student_id] || db.studentDetails[seat.student_id];
                         const studentName = student ? student.name : '未知學生';
-                        const record = db.currentAttendance.find(a => a.student_id === seat.student_id) || {};
+                        
+                        // 抓取真實 UUID 來對比出缺勤
+                        const actualUuid = student ? (student.id || student.student_id || student.UUID) : null;
+                        const record = db.currentAttendance.find(a => a.student_id === actualUuid) || {};
                         
                         let statusClass = '';
                         if (record.leave_type && record.leave_type !== 'none') statusClass = 'status-leave';
@@ -407,7 +423,28 @@
         });
     }
 
-   async function executeCheckInDB(student) {
+    // 🌟 新增：處理搜尋欄位及 QR Code 的文字輸入
+    async function processCheckInByInput(text) {
+        if (!text) return;
+        
+        // 嘗試透過 UUID 或 姓名 找學生
+        let student = db.studentsById[text] || db.studentDetails[text];
+
+        // 如果找不到，可能輸入的是自訂學號，去 idToName 找
+        if (!student) {
+            const name = db.idToName[text];
+            if (name) student = db.studentDetails[name];
+        }
+
+        if (!student) {
+            showToast(`❌ 找不到符合條件的學生: ${text}`, false);
+            return;
+        }
+
+        await executeCheckInDB(student);
+    }
+
+    async function executeCheckInDB(student) {
         if (!isToday) return showToast('⚠️ 只能針對「今日」進行打卡', false);
         const todayStr = getLocalToday();
         const timeNow = getNowTimeStr();
@@ -422,6 +459,7 @@
             student_id: studentUuid, 
             check_date: todayStr 
         };
+        
         if (currentMode === 'in') {
             dataToUpsert.check_in_time = timeNow;
         } else {
@@ -453,6 +491,7 @@
         }
     }
 
+    // 🌟 已修正：移除重複的函數宣告與錯誤的括號
     async function saveLeave(studentId) {
         const selectedDate = document.getElementById('date-selector').value;
         const typeVal = document.getElementById(`leave-type-${studentId}`).value;
@@ -487,46 +526,6 @@
         } else {
             console.error(error);
             alert("儲存失敗，詳細錯誤: " + error.message);
-        }
-    }
-   async function saveLeave(studentId) {
-    const selectedDate = document.getElementById('date-selector').value;
-    const typeVal = document.getElementById(`leave-type-${studentId}`).value;
-    const reasonVal = document.getElementById(`leave-reason-${studentId}`).value;
-
-    const { data: existing } = await supabaseClient
-        .from('attendance')
-        .select('id')
-        .eq('student_id', studentId)
-        .eq('check_date', selectedDate)
-        .maybeSingle();
-
-    let dataToUpsert = { 
-        student_id: studentId, 
-        check_date: selectedDate, 
-        leave_type: typeVal, 
-        leave_reason: reasonVal 
-    };
-
-    let error;
-    if (existing) {
-        const res = await supabaseClient.from('attendance').update(dataToUpsert).eq('id', existing.id);
-        error = res.error;
-    } else {
-        const res = await supabaseClient.from('attendance').insert([dataToUpsert]);
-        error = res.error;
-    }
-
-    if (!error) {
-        showToast('📝 請假資料已儲存', true);
-        switchClass(document.getElementById('class-switcher').value);
-    } else {
-        console.error(error);
-        alert("儲存失敗，詳細錯誤: " + error.message);
-    }
-}
-        } catch(err) {
-            alert(`⚠️ 系統執行錯誤！\n${err.message}`);
         }
     }
 

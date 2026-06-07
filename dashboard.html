@@ -7,71 +7,257 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; color: #1e293b; }
-        .course-card { background: white; border-radius: 1rem; border-left: 6px solid #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; color: #1e293b; }
+        .dashboard-card { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; }
+        .course-card { background: #f8fafc; border-radius: 0.75rem; border-left: 6px solid #3b82f6; padding: 1rem; margin-bottom: 0.75rem; }
+        .scroll-area { max-height: 350px; overflow-y: auto; padding-right: 0.5rem; }
+        /* 隱藏捲軸但可滾動 */
+        .scroll-area::-webkit-scrollbar { width: 6px; }
+        .scroll-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body class="p-8">
-    <div class="max-w-4xl mx-auto">
-        <h3 class="font-black text-slate-400 text-xs uppercase tracking-widest mb-4">Today's Schedule 今日課程</h3>
-        <div id="today-classes-list" class="space-y-4">
-            <p class="text-slate-400">讀取中...</p>
+<body class="p-8 h-screen overflow-auto">
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="dashboard-card bg-gradient-to-br from-blue-500 to-blue-700 text-white border-none">
+                <h3 class="font-bold text-blue-100 text-sm">活躍繳費學生人數</h3>
+                <div class="text-4xl font-black mt-2" id="stat-student-count">--</div>
+                <p class="text-xs text-blue-200 mt-2">今日起有課 且 總繳費≧3000</p>
+            </div>
+            <div class="dashboard-card bg-gradient-to-br from-rose-500 to-rose-700 text-white border-none">
+                <h3 class="font-bold text-rose-100 text-sm">全班系尚欠總額</h3>
+                <div class="text-4xl font-black mt-2" id="stat-total-debt">--</div>
+                <p class="text-xs text-rose-200 mt-2">需催繳提醒</p>
+            </div>
+            <div class="dashboard-card bg-gradient-to-br from-amber-500 to-amber-700 text-white border-none">
+                <h3 class="font-bold text-amber-100 text-sm">今日請假人數</h3>
+                <div class="text-4xl font-black mt-2" id="stat-absence-count">--</div>
+                <p class="text-xs text-amber-200 mt-2">已於點名系統登記</p>
+            </div>
+            <div class="dashboard-card bg-gradient-to-br from-emerald-500 to-emerald-700 text-white border-none">
+                <h3 class="font-bold text-emerald-100 text-sm">今日待辦事項</h3>
+                <div class="text-4xl font-black mt-2" id="stat-task-count">--</div>
+                <p class="text-xs text-emerald-200 mt-2">未完成任務</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <div class="space-y-6">
+                <div class="dashboard-card">
+                    <h3 class="font-black text-slate-800 text-lg mb-4 flex items-center gap-2">📅 今日課程 Schedule</h3>
+                    <div id="today-classes-list" class="scroll-area">
+                        <p class="text-slate-400 font-bold text-center py-4">讀取中...</p>
+                    </div>
+                </div>
+
+                <div class="dashboard-card border-t-4 border-t-emerald-500">
+                    <h3 class="font-black text-slate-800 text-lg mb-4 flex items-center gap-2">✅ 今日重要事項 Tasks</h3>
+                    
+                    <div class="flex gap-2 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                        <input type="date" id="task-date" class="border rounded p-2 text-sm font-bold outline-none bg-white">
+                        <input type="text" id="task-content" placeholder="輸入待辦事項..." class="flex-1 border rounded p-2 text-sm font-bold outline-none bg-white">
+                        <button onclick="addTask()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded font-black text-sm transition">新增</button>
+                    </div>
+
+                    <div id="today-tasks-list" class="space-y-2 scroll-area">
+                        <p class="text-slate-400 font-bold text-center py-4">無事項</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="dashboard-card border-t-4 border-t-amber-500">
+                    <h3 class="font-black text-slate-800 text-lg mb-4 flex items-center gap-2">⚠️ 今日缺席名單 Absences</h3>
+                    <div class="overflow-x-auto scroll-area">
+                        <table class="w-full text-left text-sm">
+                            <thead class="text-slate-500 border-b"><tr><th class="pb-2">學生姓名</th><th class="pb-2">假別</th><th class="pb-2">事由</th></tr></thead>
+                            <tbody id="absences-list" class="divide-y divide-slate-100">
+                                <tr><td colspan="3" class="text-center py-6 text-slate-400 font-bold">讀取中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="dashboard-card border-t-4 border-t-rose-500">
+                    <h3 class="font-black text-slate-800 text-lg mb-4 flex items-center gap-2">💰 欠費名單提醒 Unpaid Debts</h3>
+                    <div class="overflow-x-auto scroll-area">
+                        <table class="w-full text-left text-sm">
+                            <thead class="text-slate-500 border-b"><tr><th class="pb-2">學生姓名</th><th class="pb-2 text-right">應繳</th><th class="pb-2 text-right">已繳</th><th class="pb-2 text-right text-rose-600">尚欠</th></tr></thead>
+                            <tbody id="debts-list" class="divide-y divide-slate-100">
+                                <tr><td colspan="4" class="text-center py-6 text-slate-400 font-bold">讀取中...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <script>
-        const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const sb = supabase.createClient("https://hlelxeiwamvrntsxnram.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM");
+
+        function getLocalToday() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
 
         async function loadDashboard() {
-            const now = new Date();
-            // 設定 today 為今日午夜，方便比較日期
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const currentDay = now.getDay().toString();
-            
-            const { data: classes } = await supabaseClient.from('classes').select('*');
-            const list = document.getElementById('today-classes-list');
-            
-            let todaysEvents = [];
-            
-            (classes || []).forEach(cls => {
-                // 1. 檢查日期區間 (開課日與結業日)
-                const startDate = cls.start_date ? new Date(cls.start_date) : null;
-                const endDate = cls.end_date ? new Date(cls.end_date) : null;
-                
-                // 如果今天小於開課日，或是大於結業日，則該班級的所有子班別都不顯示
-                if (startDate && today < startDate) return;
-                if (endDate && today > endDate) return;
+            const todayStr = getLocalToday();
+            document.getElementById('task-date').value = todayStr;
+            const currentDayOfWeek = new Date(todayStr).getDay().toString(); // "0"~"6"
 
-                // 2. 檢查子班別
-                if (cls.sub_classes) {
+            // 一次性抓取所有所需資料
+            const [
+                { data: students },
+                { data: classes },
+                { data: attendance },
+                { data: payments },
+                { data: bills },
+                { data: todos }
+            ] = await Promise.all([
+                sb.from('students').select('id, name'),
+                sb.from('classes').select('*'),
+                sb.from('attendance').select('student_id, leave_type, leave_reason').eq('check_date', todayStr),
+                sb.from('payment_logs').select('student_id, amount'),
+                sb.from('student_bills').select('student_id, class_id, sub_idx, discount_amount'),
+                sb.from('todo_notes').select('id, content').eq('note_date', todayStr).order('created_at', { ascending: false })
+            ]);
+
+            const stuMap = {};
+            const stuIdToName = {};
+            (students || []).forEach(s => {
+                stuMap[s.name] = s.id;
+                stuIdToName[s.id] = s.name;
+            });
+
+            const paidMap = {};
+            (payments || []).forEach(p => {
+                if(p.student_id) paidMap[p.student_id] = (paidMap[p.student_id] || 0) + p.amount;
+            });
+
+            // ==========================================
+            // 1. 今日課程 Schedule
+            // ==========================================
+            let todaysEvents = [];
+            (classes || []).forEach(cls => {
+                const isPast = cls.end_date && cls.end_date < todayStr;
+                const isFuture = cls.start_date && cls.start_date > todayStr;
+                
+                if (!isPast && !isFuture && cls.sub_classes) {
                     cls.sub_classes.forEach(sub => {
-                        if (sub.day === currentDay) {
+                        if (sub.day === currentDayOfWeek || (sub.class_days && sub.class_days.includes(parseInt(currentDayOfWeek)))) {
                             todaysEvents.push({ ...sub, parentName: cls.name });
                         }
                     });
                 }
             });
-
-            // 依時間排序
-            todaysEvents.sort((a, b) => a.start.localeCompare(b.start));
-
-            list.innerHTML = todaysEvents.length > 0 
+            todaysEvents.sort((a, b) => (a.start_time || a.start || '').localeCompare(b.start_time || b.start || ''));
+            const scheduleList = document.getElementById('today-classes-list');
+            scheduleList.innerHTML = todaysEvents.length > 0 
                 ? todaysEvents.map(e => `
-                    <div class="course-card p-5">
-                        <div class="flex justify-between">
-                            <div>
-                                <span class="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded">${e.start} - ${e.end}</span>
-                                <h4 class="text-lg font-black mt-1">${e.parentName} - ${e.name}</h4>
-                                <p class="text-xs font-bold text-slate-500">老師：${e.teacher}</p>
-                            </div>
-                        </div>
-                    </div>
-                `).join('')
-                : '<div class="text-center py-10 bg-white rounded-xl border border-dashed text-slate-400">今日無安排進行中的子班別課程</div>';
+                    <div class="course-card">
+                        <span class="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded">${e.start_time || e.start || ''} - ${e.end_time || e.end || ''}</span>
+                        <h4 class="text-base font-black mt-1 text-slate-800">${e.parentName} - ${e.name}</h4>
+                        <p class="text-xs font-bold text-slate-500 mt-1">老師：${e.teacher_name || e.teacher || '未定'}</p>
+                    </div>`).join('')
+                : '<div class="text-center py-6 text-slate-400 font-bold border-2 border-dashed rounded-lg">今日無課程</div>';
+
+            // ==========================================
+            // 2. 欠費名單與總額 & 3. 活躍學生人數
+            // ==========================================
+            let totalSysDebt = 0;
+            let debtsHtml = '';
+            let activeStudentIds = new Set();
+
+            (students || []).forEach(stu => {
+                let sPayable = 0;
+                let isActiveStudent = false;
+
+                (classes || []).forEach(c => {
+                    // 判斷是否為「今日或未來」的課程（還沒結業）
+                    if (!c.end_date || c.end_date >= todayStr) {
+                        (c.sub_classes || []).forEach((sub, idx) => {
+                            if (sub.members && sub.members.includes(stu.name)) {
+                                isActiveStudent = true; // 只要有報名活躍課程，標記為活躍
+                                const b = (bills || []).find(x => x.class_id === c.id && x.sub_idx === idx && x.student_id === stu.id);
+                                const discount = b ? b.discount_amount : 0;
+                                sPayable += (sub.fee||0) + (sub.textbook_fee||0) + (sub.misc_fee||0) - discount;
+                            }
+                        });
+                    }
+                });
+
+                const sPaid = paidMap[stu.id] || 0;
+                const sDebt = sPayable - sPaid;
+                
+                // 統計活躍繳費學生 (活躍課程 且 繳費>=3000)
+                if (isActiveStudent && sPaid >= 3000) {
+                    activeStudentIds.add(stu.id);
+                }
+
+                // 統計欠款
+                if (sDebt > 0) {
+                    totalSysDebt += sDebt;
+                    debtsHtml += `<tr class="hover:bg-rose-50 transition"><td class="py-2 font-bold">${stu.name}</td><td class="py-2 text-right text-slate-500">$${sPayable}</td><td class="py-2 text-right text-emerald-600">$${sPaid}</td><td class="py-2 text-right font-black text-rose-600">$${sDebt}</td></tr>`;
+                }
+            });
+
+            document.getElementById('stat-student-count').innerText = activeStudentIds.size;
+            document.getElementById('stat-total-debt').innerText = `$${totalSysDebt}`;
+            document.getElementById('debts-list').innerHTML = debtsHtml || '<tr><td colspan="4" class="text-center py-6 text-slate-400 font-bold">目前無欠費學生</td></tr>';
+
+            // ==========================================
+            // 4. 今日缺席名單
+            // ==========================================
+            let absencesHtml = '';
+            let absCount = 0;
+            (attendance || []).forEach(a => {
+                if (a.leave_type && a.leave_type !== 'none') {
+                    absCount++;
+                    const sName = stuIdToName[a.student_id] || '未知';
+                    absencesHtml += `<tr class="hover:bg-amber-50 transition"><td class="py-2 font-bold text-slate-800">${sName}</td><td class="py-2"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-black">${a.leave_type}</span></td><td class="py-2 text-xs text-slate-500 font-bold">${a.leave_reason || '--'}</td></tr>`;
+                }
+            });
+            document.getElementById('stat-absence-count').innerText = absCount;
+            document.getElementById('absences-list').innerHTML = absencesHtml || '<tr><td colspan="3" class="text-center py-6 text-slate-400 font-bold border-2 border-dashed rounded-lg">今日全員全勤</td></tr>';
+
+            // ==========================================
+            // 5. 今日重要事項 Tasks
+            // ==========================================
+            document.getElementById('stat-task-count').innerText = (todos || []).length;
+            const tasksList = document.getElementById('today-tasks-list');
+            tasksList.innerHTML = (todos || []).length > 0
+                ? todos.map(t => `
+                    <div class="flex items-center justify-between bg-white p-3 rounded border border-slate-200 shadow-sm">
+                        <span class="font-bold text-slate-700 text-sm">🔹 ${t.content}</span>
+                        <button onclick="deleteTask('${t.id}')" class="text-slate-400 hover:text-rose-500 font-black px-2 py-1 rounded transition">✕</button>
+                    </div>`).join('')
+                : '<div class="text-center py-4 text-slate-400 font-bold border-2 border-dashed rounded-lg bg-slate-50">今日無待辦事項</div>';
         }
-        loadDashboard();
+
+        async function addTask() {
+            const date = document.getElementById('task-date').value;
+            const content = document.getElementById('task-content').value.trim();
+            if(!date || !content) return alert("日期與事項內容不得為空！");
+            
+            const { error } = await sb.from('todo_notes').insert([{ note_date: date, content: content }]);
+            if(error) return alert("新增失敗：" + error.message);
+            
+            document.getElementById('task-content').value = '';
+            loadDashboard(); // 重新載入畫面
+        }
+
+        async function deleteTask(id) {
+            if(!confirm("確定要刪除/完成此事項嗎？")) return;
+            const { error } = await sb.from('todo_notes').delete().eq('id', id);
+            if(error) return alert("刪除失敗：" + error.message);
+            loadDashboard();
+        }
+
+        window.onload = loadDashboard;
     </script>
 </body>
 </html>

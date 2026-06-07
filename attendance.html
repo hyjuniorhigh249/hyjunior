@@ -125,7 +125,8 @@
     const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
 
     let db = { 
-        allClasses: [], allRooms: [], studentDetails: {}, idToName: {},
+        // ✅ 新增 studentsById，用來透過 ID 快速反查學生名字
+        allClasses: [], allRooms: [], studentDetails: {}, idToName: {}, studentsById: {},
         activeClassId: null, activeSubIdx: null, 
         currentRoom: null, currentSeats: [], currentAttendance: []
     };
@@ -165,6 +166,7 @@
         
         (students || []).forEach(s => {
             db.studentDetails[s.name] = s;
+            db.studentsById[s.id] = s; // ✅ 建立 ID 對應表的索引
             const fullId = (s.student_id_prefix || '') + (s.student_id_suffix || '');
             if(fullId) db.idToName[fullId] = s.name;
         });
@@ -202,8 +204,6 @@
             warning.classList.add('hidden');
         }
 
-        // 取得選擇日期的星期幾 (0=日, 1=一 ... 6=六)
-        // 備註：若您的資料庫沒有 class_days 欄位，這段預設會顯示所有班級。
         const targetDayOfWeek = new Date(selectedDate).getDay();
         const switcher = document.getElementById('class-switcher');
         switcher.innerHTML = '';
@@ -212,8 +212,6 @@
 
         db.allClasses.forEach(c => {
             (c.sub_classes || []).forEach((sub, idx) => {
-                // 假設 sub_classes 裡有儲存星期幾上課的陣列，例如 class_days: [1, 3] 代表週一週三
-                // 如果沒有這個陣列屬性，就暫時全部開放顯示以免選不到
                 const hasSchedule = sub.class_days && Array.isArray(sub.class_days) && sub.class_days.length > 0;
                 
                 if (!hasSchedule || sub.class_days.includes(targetDayOfWeek)) {
@@ -315,9 +313,11 @@
                     div.innerHTML = `<span class="text-white font-bold">XX</span>`;
                 } else {
                     const seat = seatMap[key];
-                    if (seat && seat.student_name) {
-                        const student = db.studentDetails[seat.student_name];
-                        const record = db.currentAttendance.find(a => a.student_id === student?.id) || {};
+                    // ✅ 讀取座位時，改用 student_id 來判斷與反查
+                    if (seat && seat.student_id) {
+                        const student = db.studentsById[seat.student_id];
+                        const studentName = student ? student.name : '未知學生';
+                        const record = db.currentAttendance.find(a => a.student_id === seat.student_id) || {};
                         
                         let statusClass = '';
                         if (record.leave_type && record.leave_type !== 'none') statusClass = 'status-leave';
@@ -325,10 +325,12 @@
                         else if (record.check_in_time) statusClass = 'status-in';
 
                         div.className = `slot ${statusClass} ${!isToday ? 'disabled' : ''}`;
-                        div.innerHTML = `<span class="leading-none text-center font-bold break-words w-full px-1">${seat.student_name}</span>`;
+                        div.innerHTML = `<span class="leading-none text-center font-bold break-words w-full px-1">${studentName}</span>`;
                         
                         // 綁定點擊事件
-                        div.onclick = () => executeCheckInDB(student);
+                        if(student) {
+                            div.onclick = () => executeCheckInDB(student);
+                        }
                     } else {
                         div.className = "slot border-dashed border-slate-300 bg-slate-50 cursor-default opacity-50";
                     }

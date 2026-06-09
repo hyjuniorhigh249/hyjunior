@@ -162,7 +162,6 @@
             
             (students || []).forEach(s => {
                 db.studentDetails[s.name] = s;
-                // 確保支援不同的 UUID 欄位命名
                 const sId = s.id || s.student_id || s.UUID;
                 if(sId) db.studentsById[sId] = s;
                 
@@ -209,7 +208,6 @@
         const twDay = jsDay === 0 ? 7 : jsDay;
         const chMap = ['日','一','二','三','四','五','六'];
         
-        // 建立所有可能表示今天星期的字串
         const targetStrings = [
             String(jsDay), String(twDay), 
             chMap[jsDay], '星期'+chMap[jsDay], '週'+chMap[jsDay], '周'+chMap[jsDay]
@@ -222,10 +220,9 @@
 
         db.allClasses.forEach(c => {
             (c.sub_classes || []).forEach((sub, idx) => {
-                let hasScheduleDef = false;
                 let isMatch = false;
 
-                // 🌟 更新邏輯：如果子班別沒設日期，去抓「主班級(c)」的設定
+                // 🌟 更新邏輯：精準判斷當天是否有排課
                 let cDays = sub.class_days || sub.days || c.class_days || c.days;
                 if (typeof cDays === 'string') {
                     cDays = cDays.split(/[,,、，]/).map(s => s.trim());
@@ -234,14 +231,15 @@
                 let schArr = sub.schedule || c.schedule;
 
                 if (cDays && Array.isArray(cDays) && cDays.length > 0) {
-                    hasScheduleDef = true;
                     isMatch = cDays.some(day => targetStrings.includes(String(day).trim()));
                 } else if (schArr && Array.isArray(schArr) && schArr.length > 0) {
-                    hasScheduleDef = true;
                     isMatch = schArr.some(s => targetStrings.includes(String(s.day || s.weekday).trim()));
+                } else {
+                    // 如果該班級完全沒有設定日期，預設顯示以免遺漏
+                    isMatch = true; 
                 }
 
-                if (!hasScheduleDef || isMatch) {
+                if (isMatch) {
                     const val = `${c.id}_${idx}`;
                     if (!firstVal) firstVal = val;
                     switcher.add(new Option(`${c.name} - ${sub.name}`, val));
@@ -293,7 +291,6 @@
         const chMap = ['日','一','二','三','四','五','六'];
         const targetStrings = [String(jsDay), String(twDay), chMap[jsDay], '星期'+chMap[jsDay], '週'+chMap[jsDay], '周'+chMap[jsDay]];
 
-        // 🌟 強化時間抓取邏輯 (深入檢查 schedule)
         let sTime = sub.start_time || cls.start_time || '';
         let eTime = sub.end_time || cls.end_time || '';
         let schArr = sub.schedule || cls.schedule;
@@ -318,7 +315,6 @@
             .eq('check_date', selectedDate);
         db.currentAttendance = attendanceData || [];
 
-        // 🌟 雙軌支援：透過名字或 UUID 找回學生完整物件
         const membersObjects = (sub.members || []).map(identifier => {
             return db.studentsById[identifier] || db.studentDetails[identifier];
         }).filter(s => s);
@@ -365,11 +361,9 @@
                 } else {
                     const seat = seatMap[key];
                     if (seat && seat.student_id) {
-                        // 🌟 雙軌支援：處理座位表上的學生 ID/Name
                         const student = db.studentsById[seat.student_id] || db.studentDetails[seat.student_id];
                         const studentName = student ? student.name : '未知學生';
                         
-                        // 抓取真實 UUID 來對比出缺勤
                         const actualUuid = student ? (student.id || student.student_id || student.UUID) : null;
                         const record = db.currentAttendance.find(a => a.student_id === actualUuid) || {};
                         
@@ -423,14 +417,11 @@
         });
     }
 
-    // 🌟 新增：處理搜尋欄位及 QR Code 的文字輸入
     async function processCheckInByInput(text) {
         if (!text) return;
         
-        // 嘗試透過 UUID 或 姓名 找學生
         let student = db.studentsById[text] || db.studentDetails[text];
 
-        // 如果找不到，可能輸入的是自訂學號，去 idToName 找
         if (!student) {
             const name = db.idToName[text];
             if (name) student = db.studentDetails[name];
@@ -455,10 +446,11 @@
             return;
         }
         
+        // 🌟 這裡修正了：增加了逗號
         let dataToUpsert = { 
             student_id: studentUuid, 
-            check_date: todayStr
-            check_time: timeNow //
+            check_date: todayStr,
+            check_time: timeNow
         };
         
         if (currentMode === 'in') {
@@ -492,7 +484,6 @@
         }
     }
 
-    // 🌟 已修正：移除重複的函數宣告與錯誤的括號
     async function saveLeave(studentId) {
         const selectedDate = document.getElementById('date-selector').value;
         const typeVal = document.getElementById(`leave-type-${studentId}`).value;
@@ -505,12 +496,13 @@
             .eq('check_date', selectedDate)
             .maybeSingle();
 
+        // 🌟 這裡修正了：增加了逗號
         let dataToUpsert = { 
             student_id: studentId, 
             check_date: selectedDate, 
             leave_type: typeVal, 
-            leave_reason: reasonVal
-            check_time: getNowTimeStr() //
+            leave_reason: reasonVal,
+            check_time: getNowTimeStr() 
         };
 
         let error;

@@ -14,14 +14,14 @@
     <h2 class="text-2xl font-black text-slate-800 mb-2">昊學文教</h2>
     <p class="text-sm text-slate-500 font-bold mb-6">家長推播系統綁定</p>
     
-    <div id="status-card" class="bg-blue-50 text-blue-700 p-4 rounded-lg font-bold animate-pulse">
+    <div id="status-card" class="bg-blue-50 text-blue-700 p-4 rounded-lg font-bold animate-pulse whitespace-pre-wrap">
         ⏳ 系統連線中...
     </div>
 </div>
 
 <script>
-    // ⚠️ 等一下第三步拿到了 LIFF ID，要回來把這裡換掉！
-    const LIFF_ID = "2010347655-XBXrBoxP"; 
+    // ⚠️ 請記得貼上您在 LINE 申請到的真實 LIFF ID 喔！
+    const LIFF_ID = "請在這裡填寫您的LIFF_ID"; 
     
     const supabaseUrl = 'https://hlelxeiwamvrntsxnram.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM';
@@ -50,19 +50,26 @@
 
             showStatus('🔄 正在為您綁定專屬推播...', 'loading');
 
-            const { error } = await supabaseClient
+            // ⭐ 升級：強迫資料庫回傳更新結果 (.select())，用來檢查有沒有被擋信
+            const { data, error } = await supabaseClient
                 .from('students')
                 .update({ parent_line_id: lineUserId })
-                .eq('id', studentId); 
+                .eq('id', studentId)
+                .select(); 
 
             if (error) {
-                showStatus('❌ 綁定失敗：無法寫入資料庫', 'error');
+                // 照妖鏡 1：如果是資料庫爆掉或語法錯誤
+                showStatus('❌ 資料庫寫入失敗！\n錯誤訊息：' + error.message, 'error');
+            } else if (!data || data.length === 0) {
+                // 照妖鏡 2：如果沒跳錯誤，但資料庫根本沒更新到任何學生
+                showStatus('❌ 綁定失敗！\n原因：找不到對應的學生 ID，或者資料庫的 RLS 安全防護牆把連線擋下來了。', 'error');
             } else {
+                // 真正成功
                 showStatus(`✅ 綁定成功！\n\n您好，${parentName}。\n未來學生到/離班將會主動推播給您。`, 'success');
                 setTimeout(() => { liff.closeWindow(); }, 3500);
             }
         } catch (err) {
-            showStatus('❌ 系統初始化失敗，請確認在 LINE APP 內開啟。', 'error');
+            showStatus('❌ 系統初始化失敗：' + err.message, 'error');
         }
     }
 

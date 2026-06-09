@@ -238,7 +238,7 @@
         const defaultWidths = {
             'photo': 60, 'student_id': 120, 'name': 120, 'gender': 80, 'grade': 80, 'school': 150, 
             'tel_o': 120, 'tel_m': 120, 'tel_p': 120, 'source': 100, 'line_type': 100, 
-            'prospect_course': 180, 'siblings': 120, 'addr': 200, 'created_date': 120, 'note': 180, 'action': 200 // 增加 action 寬度容納新按鈕
+            'prospect_course': 180, 'siblings': 120, 'addr': 200, 'created_date': 120, 'note': 180, 'action': 240 // 加寬了一點點給新按鈕
         };
 
         let visibleCols = ['photo', 'student_id', 'name', 'gender', 'grade', 'school', 'tel_o', 'tel_m', 'prospect_course'];
@@ -417,11 +417,12 @@
                     rowHTML += `<td title="${titleText}">${cellData}</td>`;
                 });
 
-                // 🌟 新增：在操作功能區塊加入「歷史紀錄」按鈕 (📊)
+                // 🌟 新增：這就是您第三塊積木的位置！加入了一個藍色的 🔗 綁定按鈕
                 rowHTML += `
                     <td class="text-center whitespace-nowrap">
                         <button onclick="openRecordsModal('${s.id}', '${s.name}')" class="text-emerald-600 hover:bg-emerald-100 p-2 rounded-lg" title="歷史紀錄">📊</button>
                         <button onclick="showSingleQR('${s.name}', '${fullId}')" class="text-indigo-600 hover:bg-indigo-100 p-2 rounded-lg" title="顯示 QR 碼">📱</button>
+                        <button onclick="openBindModal('${s.id}', '${s.name}')" class="text-blue-600 hover:bg-blue-100 p-2 rounded-lg" title="產生家長綁定連結">🔗</button>
                         <button onclick="openModal('${s.id}')" class="text-slate-600 hover:bg-slate-200 p-2 rounded-lg" title="編輯">✏️</button>
                         <button onclick="deleteStudent('${s.id}', '${s.name}')" class="text-red-500 hover:bg-red-100 p-2 rounded-lg" title="刪除">🗑️</button>
                     </td></tr>`;
@@ -709,26 +710,67 @@
             setTimeout(() => { window.print(); }, 500);
         }
 
+        // ==========================================
+        // 🌟 家長綁定 QR Code 相關功能 (第二塊積木)
+        // ==========================================
+        
+        // ⚠️⚠️⚠️ 請務必將下方的 LIFF_ID 替換為您在 LINE Developers 取得的真實代碼！
+        const LIFF_BASE_URL = "https://liff.line.me/2010347655-XBXrBoxP";
+
+        function openBindModal(studentId, studentName) {
+            const bindUrl = `${LIFF_BASE_URL}?student_id=${studentId}`;
+            
+            document.getElementById('bind-qr-modal').classList.add('active');
+            document.getElementById('bind-student-name').innerText = `學生：${studentName}`;
+            document.getElementById('bind-url-input').value = bindUrl;
+            
+            const qrImg = document.getElementById('bind-qr-image');
+            const loading = document.getElementById('bind-qr-loading');
+            
+            qrImg.classList.add('hidden');
+            loading.classList.remove('hidden');
+            
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(bindUrl)}`;
+            
+            qrImg.onload = () => {
+                qrImg.classList.remove('hidden');
+                loading.classList.add('hidden');
+            };
+        }
+
+        function closeBindModal() {
+            document.getElementById('bind-qr-modal').classList.remove('active');
+        }
+
+        function copyBindUrl() {
+            const input = document.getElementById('bind-url-input');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(input.value);
+            alert('✅ 連結已複製！您可以直接貼到 LINE 傳給家長。');
+        }
+
         window.onload = init;
     </script>
+    
     <div id="bind-qr-modal" class="modal">
-    <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm flex flex-col items-center relative">
-        <button onclick="closeBindModal()" class="absolute top-4 right-4 w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 font-black flex items-center justify-center transition">&times;</button>
-        
-        <h2 class="text-xl font-black text-slate-800 mb-2">📱 家長綁定 QR Code</h2>
-        <p id="bind-student-name" class="text-sm text-slate-500 font-bold mb-4"></p>
-        
-        <div class="w-48 h-48 bg-slate-100 rounded-xl overflow-hidden mb-4 border border-slate-200 flex items-center justify-center">
-            <img id="bind-qr-image" src="" alt="QR Code" class="w-full h-full object-contain hidden">
-            <span id="bind-qr-loading" class="text-slate-400 font-bold text-xs">產生中...</span>
-        </div>
+        <div class="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm flex flex-col items-center relative">
+            <button onclick="closeBindModal()" class="absolute top-4 right-4 w-8 h-8 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200 font-black flex items-center justify-center transition">&times;</button>
+            
+            <h2 class="text-xl font-black text-slate-800 mb-2">📱 家長綁定 QR Code</h2>
+            <p id="bind-student-name" class="text-sm text-slate-500 font-bold mb-4"></p>
+            
+            <div class="w-48 h-48 bg-slate-100 rounded-xl overflow-hidden mb-4 border border-slate-200 flex items-center justify-center">
+                <img id="bind-qr-image" src="" alt="QR Code" class="w-full h-full object-contain hidden">
+                <span id="bind-qr-loading" class="text-slate-400 font-bold text-xs">產生中...</span>
+            </div>
 
-        <p class="text-[10px] text-slate-400 font-bold mb-2">或複製下方連結直接傳送給家長：</p>
-        <div class="flex w-full gap-2">
-            <input type="text" id="bind-url-input" readonly class="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 text-xs text-slate-500 outline-none">
-            <button onclick="copyBindUrl()" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-xs font-bold shadow hover:bg-slate-700">複製</button>
+            <p class="text-[10px] text-slate-400 font-bold mb-2">或複製下方連結直接傳送給家長：</p>
+            <div class="flex w-full gap-2">
+                <input type="text" id="bind-url-input" readonly class="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 text-xs text-slate-500 outline-none">
+                <button onclick="copyBindUrl()" class="bg-slate-800 text-white px-3 py-2 rounded-lg text-xs font-bold shadow hover:bg-slate-700">複製</button>
+            </div>
         </div>
     </div>
-</div>
 </body>
 </html>

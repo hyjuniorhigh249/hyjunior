@@ -400,7 +400,7 @@
         await executeCheckInDB(student);
     }
 
-    // 🌟 即時打卡函數（未來串接 LINE 的地方）
+    // 🌟 即時打卡函數（已串接 LINE 推播）
     async function executeCheckInDB(student) {
         if (!isToday) return showToast('⚠️ 只能針對「今日」進行打卡', false);
         const todayStr = getLocalToday();
@@ -418,10 +418,13 @@
             check_time: timeNow
         };
         
+        let actionText = '';
         if (currentMode === 'in') {
             dataToUpsert.check_in_time = timeNow;
+            actionText = '到班';
         } else {
             dataToUpsert.check_out_time = timeNow;
+            actionText = '離班';
         }
 
         const { data: existing } = await supabaseClient
@@ -443,7 +446,35 @@
         if(!error) {
             showToast(`✅ ${student.name} 打卡成功`, true);
             switchClass(document.getElementById('class-switcher').value);
-            // 💡 未來串接：在這裡寫發送 LINE 官方帳號推播的程式碼
+            
+            // ==========================================
+            // 🌟 串接 LINE 推播：背景呼叫 Edge Function
+            // ==========================================
+            const parentLineId = student.parent_line_id; // 取得綁定的家長 LINE ID
+            
+            if (parentLineId) {
+                // 不使用 await，讓這段請求在背景默默執行，不影響櫃台下一位學生的打卡速度
+                supabaseClient.functions.invoke('send-line-notify', {
+                    body: {
+                        studentName: student.name,
+                        time: timeNow,
+                        action: actionText,
+                        parentLineId: parentLineId
+                    }
+                }).then(({ data, error }) => {
+                    if (error) {
+                        console.error("LINE 推播發送失敗:", error);
+                    } else {
+                        console.log("LINE 推播發送成功:", data);
+                    }
+                }).catch(err => {
+                    console.error("呼叫推播系統發生錯誤:", err);
+                });
+            } else {
+                console.log(`⚠️ ${student.name} 未綁定家長 LINE，已跳過推播。`);
+            }
+            // ==========================================
+            
         } else {
             console.error(error);
             alert("打卡失敗，詳細錯誤: " + error.message);

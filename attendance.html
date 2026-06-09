@@ -40,7 +40,7 @@
                 <button id="btn-mode-in" onclick="setMode('in')" class="flex-1 py-1 text-sm font-bold rounded-md bg-emerald-500 text-white shadow transition-all">進班打卡</button>
                 <button id="btn-mode-out" onclick="setMode('out')" class="flex-1 py-1 text-sm font-bold rounded-md text-slate-500 hover:bg-slate-200 transition-all">離班打卡</button>
             </div>
-            <p id="date-warning" class="text-xs font-bold text-red-500 hidden text-center">⚠️ 非今日，無法進行進/離班打卡</p>
+            <p id="date-warning" class="text-xs font-bold text-red-500 hidden text-center">⚠️ 非今日，無法即時掃碼，請於下方手動補登</p>
         </div>
 
         <div id="student-list" class="flex-1 overflow-y-auto p-2 space-y-2 bg-slate-50">
@@ -59,7 +59,7 @@
         <div class="absolute top-0 w-full bg-white/90 backdrop-blur px-6 py-3 border-b flex justify-between items-center z-20">
             <div class="flex items-center gap-3">
                 <div class="relative w-72">
-                    <input type="text" id="global-search" placeholder="輸入學號 或 姓名 (按Enter)" class="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full font-bold text-sm outline-none focus:ring-2 ring-emerald-500 transition-all">
+                    <input type="text" id="global-search" placeholder="輸入學號 或 姓名 (按Enter)" class="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-full font-bold text-sm outline-none focus:ring-2 ring-emerald-500 transition-all disabled:opacity-50 disabled:bg-slate-200">
                     <span class="absolute left-3.5 top-2">🔍</span>
                 </div>
                 <button id="btn-qr" onclick="openQRScanner()" class="bg-blue-600 text-white font-black text-sm px-4 py-2 rounded-full shadow-md hover:bg-blue-700 transition">
@@ -183,7 +183,6 @@
         }
     };
 
-    // 🌟 篩選邏輯已完全改為與 dashboard.html 一致
     function loadDateData() {
         const selectedDate = document.getElementById('date-selector').value;
         isToday = (selectedDate === getLocalToday());
@@ -211,13 +210,11 @@
         let classCount = 0;
 
         db.allClasses.forEach(cls => {
-            // 判斷主班級是否在有效開課期間
             const isPast = cls.end_date && cls.end_date < selectedDate;
             const isFuture = cls.start_date && cls.start_date > selectedDate;
 
             if (!isPast && !isFuture && cls.sub_classes) {
                 cls.sub_classes.forEach((sub, idx) => {
-                    // 嚴格比對星期
                     if (sub.day === currentDayOfWeek || (sub.class_days && sub.class_days.includes(parseInt(currentDayOfWeek)))) {
                         const val = `${cls.id}_${idx}`;
                         if (!firstVal) firstVal = val;
@@ -265,7 +262,6 @@
         const roomId = sub.room_id;
         const selectedDate = document.getElementById('date-selector').value;
 
-        // 時間抓取：優先抓子班別，否則抓主班級
         let sTime = sub.start_time || sub.start || cls.start_time || '';
         let eTime = sub.end_time || sub.end || cls.end_time || '';
 
@@ -358,11 +354,17 @@
             const stuId = stu.id || stu.student_id || stu.UUID;
             const record = db.currentAttendance.find(a => a.student_id === stuId) || {};
             
+            // 🌟 升級：將純文字轉換為手動輸入時間的欄位
             const html = `
                 <div class="bg-white p-3 rounded-lg shadow-sm border border-slate-200 text-sm">
                     <div class="flex justify-between items-center mb-2 font-bold">
                         <span class="text-slate-800">${stu.name}</span>
-                        <span class="text-[11px] text-slate-400">進:${record.check_in_time || '--'} | 離:${record.check_out_time || '--'}</span>
+                        <div class="flex items-center gap-1">
+                            <span class="text-[10px] text-slate-400 font-black">進</span>
+                            <input type="time" id="in-time-${stuId}" value="${record.check_in_time || ''}" class="bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-xs outline-none focus:border-blue-400 text-slate-600">
+                            <span class="text-[10px] text-slate-400 font-black ml-1">離</span>
+                            <input type="time" id="out-time-${stuId}" value="${record.check_out_time || ''}" class="bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-xs outline-none focus:border-blue-400 text-slate-600">
+                        </div>
                     </div>
                     <div class="flex gap-2">
                         <select id="leave-type-${stuId}" class="bg-slate-100 border border-slate-200 rounded px-2 py-1 outline-none font-bold text-xs text-slate-700">
@@ -372,7 +374,7 @@
                             <option value="喪假" ${record.leave_type==='喪假' ? 'selected' : ''}>喪假</option>
                         </select>
                         <input type="text" id="leave-reason-${stuId}" placeholder="請假事由..." value="${record.leave_reason || ''}" class="flex-1 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs outline-none focus:border-blue-400">
-                        <button onclick="saveLeave('${stuId}')" class="bg-orange-500 text-white px-3 py-1 rounded text-xs font-bold shadow hover:bg-orange-600 transition">儲存</button>
+                        <button onclick="saveRecord('${stuId}')" class="bg-orange-500 text-white px-3 py-1 rounded text-xs font-bold shadow hover:bg-orange-600 transition">儲存</button>
                     </div>
                 </div>
             `;
@@ -398,6 +400,7 @@
         await executeCheckInDB(student);
     }
 
+    // 🌟 即時打卡函數（未來串接 LINE 的地方）
     async function executeCheckInDB(student) {
         if (!isToday) return showToast('⚠️ 只能針對「今日」進行打卡', false);
         const todayStr = getLocalToday();
@@ -440,16 +443,20 @@
         if(!error) {
             showToast(`✅ ${student.name} 打卡成功`, true);
             switchClass(document.getElementById('class-switcher').value);
+            // 💡 未來串接：在這裡寫發送 LINE 官方帳號推播的程式碼
         } else {
             console.error(error);
             alert("打卡失敗，詳細錯誤: " + error.message);
         }
     }
 
-    async function saveLeave(studentId) {
+    // 🌟 手動補登函數（純紀錄，絕不會發送 LINE）
+    async function saveRecord(studentId) {
         const selectedDate = document.getElementById('date-selector').value;
         const typeVal = document.getElementById(`leave-type-${studentId}`).value;
         const reasonVal = document.getElementById(`leave-reason-${studentId}`).value;
+        const inTimeVal = document.getElementById(`in-time-${studentId}`).value;
+        const outTimeVal = document.getElementById(`out-time-${studentId}`).value;
 
         const { data: existing } = await supabaseClient
             .from('attendance')
@@ -463,6 +470,8 @@
             check_date: selectedDate, 
             leave_type: typeVal, 
             leave_reason: reasonVal,
+            check_in_time: inTimeVal || null,
+            check_out_time: outTimeVal || null,
             check_time: getNowTimeStr() 
         };
 
@@ -476,7 +485,7 @@
         }
 
         if (!error) {
-            showToast('📝 請假資料已儲存', true);
+            showToast('📝 紀錄已手動更新', true);
             switchClass(document.getElementById('class-switcher').value);
         } else {
             console.error(error);

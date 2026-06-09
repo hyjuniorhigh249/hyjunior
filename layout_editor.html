@@ -135,15 +135,22 @@
         
         let state = { 
             mode: 'seating', 
-            allClasses: [], allRooms: [], allStudents: [], // ✅ 新增 allStudents 存放姓名與 ID 對照表
+            allClasses: [], allRooms: [], allStudents: [], 
             currentClassId: null, currentSubIdx: null, currentRoomId: null, 
             studentSeating: {}, layoutConfig: {}, members: [], selectedStudent: null,
             rows: 5, cols: 8
         };
 
+        // ✅ 輔助函式：將學生轉為「姓名 (學號)」的顯示格式
+        function getStudentDisplayName(stu) {
+            // 💡 若你的學號欄位不叫 student_number，請在此更改（例如: stu.school_id）
+            const stNo = stu.student_number || ''; 
+            return stNo ? `${stu.name} (${stNo})` : stu.name;
+        }
+
         async function init() {
-            // ✅ 啟動時多抓一個「學生名冊」，用來做 ID 與姓名的自動翻譯
-            const { data: students } = await sb.from('students').select('id, name');
+            // 這裡改為 select('*') 確保能抓到學號欄位，避免欄位名稱錯漏報錯
+            const { data: students } = await sb.from('students').select('*');
             state.allStudents = students || [];
 
             const { data: classes } = await sb.from('classes').select('*');
@@ -152,7 +159,7 @@
             state.allRooms = rooms || [];
 
             const sSelect = document.getElementById('subclass-select');
-            sSelect.innerHTML = '<option value="">1. 選擇子班別 (可不選，純印空白教室)</option>';
+            sSelect.innerHTML = '<option value="">1. 選擇子班別 (純印空白免選)</option>';
             state.allClasses.forEach(c => {
                 (c.sub_classes || []).forEach((sub, i) => {
                     sSelect.add(new Option(`${c.name} - ${sub.name}`, `${c.id}_${i}`));
@@ -186,7 +193,13 @@
             state.currentSubIdx = parseInt(idx);
             
             const cls = state.allClasses.find(c => c.id === clsId);
-            state.members = cls.sub_classes[idx].members || [];
+            
+            // ✅ 載入名單時，將 UUID 翻譯成「姓名 (學號)」
+            const rawMembers = cls.sub_classes[idx].members || [];
+            state.members = rawMembers.map(memberItem => {
+                const studentObj = state.allStudents.find(stu => stu.id === memberItem);
+                return studentObj ? getStudentDisplayName(studentObj) : memberItem;
+            });
             
             const roomId = cls.sub_classes[idx].room_id; 
             if(roomId) {
@@ -226,11 +239,11 @@
                 
                 if(error) console.error("讀取座位失敗:", error);
                 
-                // ✅ 讀取資料庫時：把 UUID 翻譯回「學生名字」顯示在畫面上
+                // ✅ 載入已排好的座位時，將資料庫裡的 UUID 翻譯成「姓名 (學號)」
                 seats?.forEach(s => {
                     const studentObj = state.allStudents.find(stu => stu.id === s.student_id);
                     if(studentObj) {
-                        state.studentSeating[`${s.row_index}-${s.col_index}`] = studentObj.name;
+                        state.studentSeating[`${s.row_index}-${s.col_index}`] = getStudentDisplayName(studentObj);
                     }
                 });
             }
@@ -296,7 +309,8 @@
                     div.className = `slot ${configState === 'hallway' ? 'is-hallway' : ''} ${configState === 'blocked' ? 'is-blocked' : ''}`;
                     
                     if (configState === 'normal' && state.studentSeating[key]) {
-                        div.innerHTML = `<span class="font-black text-xs text-slate-800 text-center w-full break-words px-1">${state.studentSeating[key]}</span>`;
+                        // 加入 leading-tight 讓兩行文字稍微緊湊一點，容納學號
+                        div.innerHTML = `<span class="font-black text-xs text-slate-800 text-center w-full break-words px-1 leading-tight">${state.studentSeating[key]}</span>`;
                     }
 
                     div.onclick = () => handleSlotClick(key, configState);
@@ -344,15 +358,18 @@
                     
                     if(delErr) throw new Error("清理舊座位失敗: " + delErr.message);
                     
-                    // ✅ 寫入資料庫時：把畫面上的「學生名字」翻譯成 UUID
+                    // ✅ 寫入資料庫時，反向將「姓名 (學號)」比對找回最原始的 UUID
                     const insertData = [];
-                    Object.entries(state.studentSeating).forEach(([key, name]) => {
-                        const studentObj = state.allStudents.find(stu => stu.name === name);
+                    Object.entries(state.studentSeating).forEach(([key, displayName]) => {
+                        const studentObj = state.allStudents.find(stu => 
+                            getStudentDisplayName(stu) === displayName || stu.name === displayName
+                        );
+                        
                         if(studentObj) {
                             insertData.push({
                                 class_id: state.currentClassId, 
                                 room_id: state.currentRoomId, 
-                                student_id: studentObj.id, // 改為送出 student_id
+                                student_id: studentObj.id, 
                                 row_index: parseInt(key.split('-')[0]), 
                                 col_index: parseInt(key.split('-')[1]),
                                 seat_label: String(state.currentSubIdx)
@@ -508,12 +525,16 @@
             if(!seats || seats.length === 0) return alert("該來源班別在此教室沒有設定座位。");
 
             let copyCount = 0;
-            // ✅ 複製座位時：一樣先把來源的 ID 翻譯成名字
+            // ✅ 複製座位時，也套用新的「姓名 (學號)」比對格式
             seats.forEach(s => {
                 const studentObj = state.allStudents.find(stu => stu.id === s.student_id);
-                if(studentObj && state.members.includes(studentObj.name)) {
-                    state.studentSeating[`${s.row_index}-${s.col_index}`] = studentObj.name;
-                    copyCount++;
+                if(studentObj) {
+                    const formattedName = getStudentDisplayName(studentObj);
+                    // 檢查目標班級是否有這個學生 (比對新格式或舊格式)
+                    if(state.members.includes(formattedName) || state.members.includes(studentObj.name)) {
+                        state.studentSeating[`${s.row_index}-${s.col_index}`] = formattedName;
+                        copyCount++;
+                    }
                 }
             });
 

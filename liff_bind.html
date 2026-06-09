@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>昊學文教 - 家長推播綁定</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-50 flex items-center justify-center min-h-screen p-4">
+
+<div class="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full text-center">
+    <h2 class="text-2xl font-black text-slate-800 mb-2">昊學文教</h2>
+    <p class="text-sm text-slate-500 font-bold mb-6">家長推播系統綁定</p>
+    
+    <div id="status-card" class="bg-blue-50 text-blue-700 p-4 rounded-lg font-bold animate-pulse">
+        ⏳ 系統連線中...
+    </div>
+</div>
+
+<script>
+    // ⚠️ 等一下第三步拿到了 LIFF ID，要回來把這裡換掉！
+    const LIFF_ID = "請在這裡填寫您的LIFF_ID"; 
+    
+    const supabaseUrl = 'https://hlelxeiwamvrntsxnram.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM';
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    async function initializeLiff() {
+        try {
+            await liff.init({ liffId: LIFF_ID });
+
+            if (!liff.isLoggedIn()) {
+                liff.login();
+                return;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const studentId = urlParams.get('student_id');
+
+            if (!studentId) {
+                showStatus('❌ 錯誤：網址缺少學生資訊，請重新掃描櫃台條碼。', 'error');
+                return;
+            }
+
+            const profile = await liff.getProfile();
+            const lineUserId = profile.userId;
+            const parentName = profile.displayName;
+
+            showStatus('🔄 正在為您綁定專屬推播...', 'loading');
+
+            const { error } = await supabaseClient
+                .from('students')
+                .update({ parent_line_id: lineUserId })
+                .eq('id', studentId); 
+
+            if (error) {
+                showStatus('❌ 綁定失敗：無法寫入資料庫', 'error');
+            } else {
+                showStatus(`✅ 綁定成功！\n\n您好，${parentName}。\n未來學生到/離班將會主動推播給您。`, 'success');
+                setTimeout(() => { liff.closeWindow(); }, 3500);
+            }
+        } catch (err) {
+            showStatus('❌ 系統初始化失敗，請確認在 LINE APP 內開啟。', 'error');
+        }
+    }
+
+    function showStatus(text, type) {
+        const card = document.getElementById('status-card');
+        card.innerText = text;
+        card.className = "p-4 rounded-lg font-bold whitespace-pre-wrap ";
+        if (type === 'error') card.classList.add('bg-red-50', 'text-red-700');
+        else if (type === 'success') card.classList.add('bg-emerald-50', 'text-emerald-700');
+        else card.classList.add('bg-blue-50', 'text-blue-700', 'animate-pulse');
+    }
+
+    window.onload = initializeLiff;
+</script>
+</body>
+</html>

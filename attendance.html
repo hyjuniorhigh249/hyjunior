@@ -183,6 +183,7 @@
         }
     };
 
+    // 🌟 篩選邏輯已完全改為與 dashboard.html 一致
     function loadDateData() {
         const selectedDate = document.getElementById('date-selector').value;
         isToday = (selectedDate === getLocalToday());
@@ -203,49 +204,28 @@
             warning.classList.add('hidden');
         }
 
-        const d = new Date(selectedDate);
-        const jsDay = d.getDay(); 
-        const twDay = jsDay === 0 ? 7 : jsDay;
-        const chMap = ['日','一','二','三','四','五','六'];
-        
-        const targetStrings = [
-            String(jsDay), String(twDay), 
-            chMap[jsDay], '星期'+chMap[jsDay], '週'+chMap[jsDay], '周'+chMap[jsDay]
-        ];
-        
+        const currentDayOfWeek = new Date(selectedDate).getDay().toString();
         const switcher = document.getElementById('class-switcher');
         switcher.innerHTML = '';
         let firstVal = null;
         let classCount = 0;
 
-        db.allClasses.forEach(c => {
-            (c.sub_classes || []).forEach((sub, idx) => {
-                let isMatch = false;
+        db.allClasses.forEach(cls => {
+            // 判斷主班級是否在有效開課期間
+            const isPast = cls.end_date && cls.end_date < selectedDate;
+            const isFuture = cls.start_date && cls.start_date > selectedDate;
 
-                // 🌟 更新邏輯：精準判斷當天是否有排課
-                let cDays = sub.class_days || sub.days || c.class_days || c.days;
-                if (typeof cDays === 'string') {
-                    cDays = cDays.split(/[,,、，]/).map(s => s.trim());
-                }
-
-                let schArr = sub.schedule || c.schedule;
-
-                if (cDays && Array.isArray(cDays) && cDays.length > 0) {
-                    isMatch = cDays.some(day => targetStrings.includes(String(day).trim()));
-                } else if (schArr && Array.isArray(schArr) && schArr.length > 0) {
-                    isMatch = schArr.some(s => targetStrings.includes(String(s.day || s.weekday).trim()));
-                } else {
-                    // 如果該班級完全沒有設定日期，預設顯示以免遺漏
-                    isMatch = true; 
-                }
-
-                if (isMatch) {
-                    const val = `${c.id}_${idx}`;
-                    if (!firstVal) firstVal = val;
-                    switcher.add(new Option(`${c.name} - ${sub.name}`, val));
-                    classCount++;
-                }
-            });
+            if (!isPast && !isFuture && cls.sub_classes) {
+                cls.sub_classes.forEach((sub, idx) => {
+                    // 嚴格比對星期
+                    if (sub.day === currentDayOfWeek || (sub.class_days && sub.class_days.includes(parseInt(currentDayOfWeek)))) {
+                        const val = `${cls.id}_${idx}`;
+                        if (!firstVal) firstVal = val;
+                        switcher.add(new Option(`${cls.name} - ${sub.name}`, val));
+                        classCount++;
+                    }
+                });
+            }
         });
 
         if (classCount === 0) {
@@ -284,27 +264,10 @@
         const sub = cls.sub_classes[db.activeSubIdx];
         const roomId = sub.room_id;
         const selectedDate = document.getElementById('date-selector').value;
-        
-        const d = new Date(selectedDate);
-        const jsDay = d.getDay();
-        const twDay = jsDay === 0 ? 7 : jsDay;
-        const chMap = ['日','一','二','三','四','五','六'];
-        const targetStrings = [String(jsDay), String(twDay), chMap[jsDay], '星期'+chMap[jsDay], '週'+chMap[jsDay], '周'+chMap[jsDay]];
 
-        let sTime = sub.start_time || cls.start_time || '';
-        let eTime = sub.end_time || cls.end_time || '';
-        let schArr = sub.schedule || cls.schedule;
-        
-        if (schArr && Array.isArray(schArr) && schArr.length > 0) {
-            const todaySch = schArr.find(s => targetStrings.includes(String(s.day || s.weekday).trim()));
-            if (todaySch) {
-                sTime = todaySch.start_time || sTime;
-                eTime = todaySch.end_time || eTime;
-            } else if (!sTime) {
-                sTime = schArr[0].start_time || sTime;
-                eTime = schArr[0].end_time || eTime;
-            }
-        }
+        // 時間抓取：優先抓子班別，否則抓主班級
+        let sTime = sub.start_time || sub.start || cls.start_time || '';
+        let eTime = sub.end_time || sub.end || cls.end_time || '';
 
         const teacherName = sub.teacher_name || sub.teacher || '未設定';
         const classTime = (sTime && eTime) ? `${sTime} ~ ${eTime}` : (sTime ? sTime : '未設定時間');
@@ -446,7 +409,6 @@
             return;
         }
         
-        // 🌟 這裡修正了：增加了逗號
         let dataToUpsert = { 
             student_id: studentUuid, 
             check_date: todayStr,
@@ -496,7 +458,6 @@
             .eq('check_date', selectedDate)
             .maybeSingle();
 
-        // 🌟 這裡修正了：增加了逗號
         let dataToUpsert = { 
             student_id: studentId, 
             check_date: selectedDate, 

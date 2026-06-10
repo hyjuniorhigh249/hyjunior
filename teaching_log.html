@@ -157,7 +157,6 @@
             const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             document.getElementById('log-date').value = todayStr;
             
-            // 載入全校學生與包含 start_date, end_date 的班級架構
             await Promise.all([loadGlobalStudents(), fetchClassesStructure()]);
             filterClassesByDay();
         };
@@ -172,10 +171,8 @@
             }
         }
 
-        // ==================== 讀取班級架構 (含修業期間) ====================
         async function fetchClassesStructure() {
             try {
-                // 💡 升級點：把 start_date 和 end_date 一併抓下來
                 const { data, error } = await sb.from('classes').select('id, name, sub_classes, start_date, end_date');
                 if (error) throw error;
                 rawClassesData = data || [];
@@ -184,7 +181,6 @@
             }
         }
 
-        // ==================== 雙重過濾：修業期間 + 星期 ====================
         function filterClassesByDay() {
             const dateValStr = document.getElementById('log-date').value;
             const switcher = document.getElementById('class-switcher');
@@ -203,16 +199,10 @@
             let hasMatches = false;
 
             rawClassesData.forEach(c => {
-                // 1. 先判斷「選擇的日期」是否落在該班級的 start_date ~ end_date 之間
                 let isWithinPeriod = true;
-                if (c.start_date && dateValStr < c.start_date) {
-                    isWithinPeriod = false;
-                }
-                if (c.end_date && dateValStr > c.end_date) {
-                    isWithinPeriod = false;
-                }
+                if (c.start_date && dateValStr < c.start_date) isWithinPeriod = false;
+                if (c.end_date && dateValStr > c.end_date) isWithinPeriod = false;
 
-                // 2. 如果在修業期間內，再判斷該子班別的星期是否吻合
                 if (isWithinPeriod) {
                     (c.sub_classes || []).forEach((sub, i) => {
                         const targetDay = sub.week_day !== undefined ? sub.week_day : (sub.day !== undefined ? sub.day : sub.week);
@@ -224,7 +214,6 @@
                 }
             });
 
-            // 系統防呆防空轉：如果嚴格篩選後什麼都選不到，至少展開全部讓使用者手動挑選
             if (!hasMatches) {
                 tips.innerText = `(無符合條件的班級，已展開全部)`;
                 rawClassesData.forEach(c => {
@@ -235,7 +224,6 @@
             }
         }
 
-        // ==================== 查詢與載入核心 ====================
         async function executeQuery() {
             const dateVal = document.getElementById('log-date').value;
             const classVal = document.getElementById('class-switcher').value;
@@ -247,7 +235,6 @@
 
             const [classId, subIdx] = classVal.split('_');
 
-            // 重置選取狀態
             selectedStudentId = null;
             document.getElementById('ind-name').value = '';
             document.getElementById('current-selected-student-handbook').innerText = '請先點擊右側學生名單';
@@ -287,7 +274,6 @@
             }
         }
 
-        // ====== 智慧連動 ======
         async function loadSubClassStudentsList(classId, subIdx, dateVal) {
             const container = document.getElementById('student-list-container');
             container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">智慧連動中，請稍候...</p>';
@@ -339,7 +325,6 @@
                     return;
                 }
 
-                // 抓取個別指導報告狀態
                 const { data: indivLogs, error: indErr } = await sb.from('individual_logs')
                     .select('student_id, is_sent')
                     .eq('class_id', classId)
@@ -348,11 +333,11 @@
 
                 if (indErr) throw indErr;
 
-                // 抓取團班日誌狀態
+                // 💡 修正：精準對應實際資料庫的欄位名稱 sent_student_ids
                 let groupSentList = [];
                 if (currentLogId) {
-                    const { data: currentGroupLog } = await sb.from('class_logs').select('sent_students').eq('id', currentLogId).single();
-                    groupSentList = currentGroupLog && currentGroupLog.sent_students ? currentGroupLog.sent_students : [];
+                    const { data: currentGroupLog } = await sb.from('class_logs').select('sent_student_ids').eq('id', currentLogId).single();
+                    groupSentList = currentGroupLog && currentGroupLog.sent_student_ids ? currentGroupLog.sent_student_ids : [];
                 }
 
                 container.innerHTML = '';
@@ -399,7 +384,6 @@
             }
         }
 
-        // ==================== 點選名單學生與狀態管理 ====================
         async function selectStudent(id, name, lineId) {
             selectedStudentId = id;
             selectedStudentName = name;
@@ -416,15 +400,15 @@
                     await loadSingleStudentIndividualLog(classId, subIdx, dateVal, id);
                 }
             }
-            refreshStudentListUIOnly();
+            await refreshStudentListUIOnly();
         }
 
-        function refreshStudentListUIOnly() {
+        async function refreshStudentListUIOnly() {
             const classVal = document.getElementById('class-switcher').value;
             const dateVal = document.getElementById('log-date').value;
             if(classVal && dateVal) {
                 const [classId, subIdx] = classVal.split('_');
-                loadSubClassStudentsList(classId, subIdx, dateVal);
+                await loadSubClassStudentsList(classId, subIdx, dateVal);
             }
         }
 
@@ -466,7 +450,7 @@
             }
         }
 
-        function switchTab(tabName) {
+        async function switchTab(tabName) {
             currentTab = tabName;
             const tabGroup = document.getElementById('tab-group');
             const tabIndiv = document.getElementById('tab-indiv');
@@ -488,7 +472,7 @@
                 btnGroup.classList.replace('bg-blue-600', 'bg-gray-200');
                 btnGroup.classList.replace('text-white', 'text-gray-600');
             }
-            refreshStudentListUIOnly();
+            await refreshStudentListUIOnly();
         }
 
         function toggleQuizInput() {
@@ -537,13 +521,14 @@
                     payload.class_id = classId;
                     payload.sub_idx = parseInt(subIdx);
                     payload.log_date = dateVal;
-                    payload.sent_students = []; 
+                    // 💡 修正：使用 sent_student_ids
+                    payload.sent_student_ids = []; 
                     const { data: newLog, error } = await sb.from('class_logs').insert([payload]).select().single();
                     if (error) throw error;
                     currentLogId = newLog.id; 
                 }
                 alert('✅ 團班教學日誌已儲存成功！');
-                refreshStudentListUIOnly();
+                await refreshStudentListUIOnly();
             } catch (err) {
                 console.error("儲存團班日誌失敗", err);
                 alert("儲存失敗，請檢查資料庫連線");
@@ -601,14 +586,14 @@
                 }
 
                 alert(`✅ 成功！${selectedStudentName} 的個指學習報告已儲存。`);
-                refreshStudentListUIOnly();
+                await refreshStudentListUIOnly();
             } catch (err) {
                 console.error("儲存個指報告失敗:", err);
                 alert("儲存失敗，請檢查個指欄位或資料庫權限。");
             }
         }
 
-        // ====== 💡 官方 SDK 發送推播 ======
+        // ==================== 官方 SDK 發送推播與狀態更新 ====================
         async function triggerSingleStudentPush(studentId) {
             const targetStudent = currentSubClassStudents.find(s => s.id === studentId);
             if (!targetStudent) return;
@@ -626,6 +611,11 @@
             let msgContent = "";
 
             if (currentTab === 'group') {
+                if (!currentLogId) {
+                    alert(`⚠️ 請先點擊左側下方的「💾 儲存團班教學日誌」按鈕，儲存後才能發送！`);
+                    return;
+                }
+
                 const progress = document.getElementById('field-progress').value;
                 const handouts = document.getElementById('field-handouts').value;
                 const homework = document.getElementById('field-homework').value;
@@ -682,7 +672,6 @@
             if (!confirmSend) return;
 
             try {
-                // 💡 升級點：改回最穩定且能自動帶入驗證憑證的 Supabase SDK 原生寫法
                 const { data, error } = await sb.functions.invoke('send-line-notify', {
                     body: { 
                         userId: targetStudent.parent_line_id, 
@@ -695,15 +684,15 @@
                     throw error;
                 }
 
-                // 發送成功後更新狀態
                 if (currentTab === 'group') {
                     if (currentLogId) {
-                        const { data: currentLog } = await sb.from('class_logs').select('sent_students').eq('id', currentLogId).single();
-                        let currentSentArr = currentLog && currentLog.sent_students ? currentLog.sent_students : [];
+                        // 💡 修正：精準使用 sent_student_ids
+                        const { data: currentLog } = await sb.from('class_logs').select('sent_student_ids').eq('id', currentLogId).single();
+                        let currentSentArr = currentLog && currentLog.sent_student_ids ? currentLog.sent_student_ids : [];
                         if (!currentSentArr.includes(studentId)) {
                             currentSentArr.push(studentId);
                         }
-                        await sb.from('class_logs').update({ sent_students: currentSentArr }).eq('id', currentLogId);
+                        await sb.from('class_logs').update({ sent_student_ids: currentSentArr }).eq('id', currentLogId);
                     }
                 } else {
                     await sb.from('individual_logs')
@@ -715,7 +704,8 @@
                 }
 
                 alert(`🟢 發送成功！已成功推播給 ${targetStudent.name} 的家長。`);
-                refreshStudentListUIOnly();
+                
+                await refreshStudentListUIOnly();
 
             } catch (err) {
                 console.error("發送 LINE 訊息失敗:", err);

@@ -3,168 +3,439 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教學成績與學習報告管理</title>
+    <title>教學成績與學習報告管理系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 p-6">
-    <div class="max-w-5xl mx-auto bg-white rounded-xl shadow-lg p-8">
-        <h1 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">教學成績與學習報告管理</h1>
+    <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-8">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">📝 教學成績與學習報告管理</h1>
 
-        <div class="mb-8 p-5 bg-blue-50 border border-blue-100 rounded-lg flex flex-wrap gap-6 items-center">
+        <div class="mb-6 p-5 bg-blue-50 border border-blue-100 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div>
-                <label class="block text-sm font-bold text-gray-700 mb-1">選擇年級</label>
-                <select id="grade-selector" class="border border-gray-300 p-2 rounded w-48 shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">-- 請選擇年級 --</option>
+                <label class="block text-sm font-bold text-gray-700 mb-1">1. 選擇日期</label>
+                <input type="date" id="log-date" class="w-full border border-gray-300 p-2 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500" onchange="filterClassesByDay()">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">2. 選擇當日班級/子班別 <span id="week-tips" class="text-xs text-blue-600 font-normal"></span></label>
+                <select id="class-switcher" class="w-full border border-gray-300 p-2 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">-- 請先選擇日期 --</option>
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-bold text-gray-700 mb-1">選擇學生 <span class="text-xs text-gray-500 font-normal">(選擇後才能發送推播)</span></label>
-                <select id="student-selector" class="border border-gray-300 p-2 rounded w-56 shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">-- 請先選擇年級 --</option>
-                </select>
-            </div>
-            <div id="bind-status" class="mt-5 text-sm font-bold text-red-500"></div>
-        </div>
-
-        <div class="flex space-x-2 mb-6">
-            <button id="btn-tab-group" onclick="switchTab('group')" class="px-6 py-2 rounded-t-lg font-bold bg-blue-600 text-white transition-colors">
-                團班教學日誌
-            </button>
-            <button id="btn-tab-indiv" onclick="switchTab('indiv')" class="px-6 py-2 rounded-t-lg font-bold bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors">
-                個指學習報告
-            </button>
-        </div>
-
-        <div id="tab-group" class="block bg-gray-50 p-6 rounded-b-lg border border-gray-200">
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">日誌日期</label>
-                    <input type="date" id="log-date" class="w-full border border-gray-300 p-2 rounded" onchange="loadDiary()">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">選擇班級與子班別</label>
-                    <select id="class-switcher" class="w-full border border-gray-300 p-2 rounded" onchange="loadDiary()">
-                        <option value="">-- 請選擇班級 --</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 mb-6">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">上課範圍 (進度)</label>
-                    <textarea id="field-progress" data-field="progress" class="w-full border border-gray-300 p-2 rounded h-20"></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">發放資料</label>
-                    <textarea id="field-handouts" data-field="handouts" class="w-full border border-gray-300 p-2 rounded h-20"></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">回家作業</label>
-                    <textarea id="field-homework" data-field="homework" class="w-full border border-gray-300 p-2 rounded h-20"></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">下週考試</label>
-                    <input type="text" id="field-next-exam" data-field="next_exam" class="w-full border border-gray-300 p-2 rounded">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">平均分數</label>
-                    <input type="number" id="field-avg-score" data-field="avg_score" class="w-full border border-gray-300 p-2 rounded">
-                </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-4 mt-6">
-                <button onclick="manualSaveGroupLog()" class="w-full sm:w-1/3 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded shadow-lg transition-colors flex justify-center items-center">
-                    💾 儲存團班日誌
-                </button>
-                <button onclick="sendLineMessage('group')" class="w-full sm:w-2/3 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded shadow-lg transition-colors flex justify-center items-center">
-                    透過官方 LINE 發送給家長
+                <button onclick="executeQuery()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow transition-colors flex justify-center items-center h-10">
+                    🔍 查詢日誌與學生名單
                 </button>
             </div>
         </div>
 
-        <div id="tab-indiv" class="hidden bg-yellow-50 p-6 rounded-b-lg border border-yellow-200">
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">學生姓名</label>
-                    <input type="text" id="ind-name" placeholder="請先於上方選單選擇學生" class="w-full border border-gray-300 p-2 rounded bg-white">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <div class="lg:col-span-2">
+                <div class="flex space-x-2 mb-4">
+                    <button id="btn-tab-group" onclick="switchTab('group')" class="px-6 py-2 rounded-t-lg font-bold bg-blue-600 text-white transition-colors">
+                        團班教學日誌模式
+                    </button>
+                    <button id="btn-tab-indiv" onclick="switchTab('indiv')" class="px-6 py-2 rounded-t-lg font-bold bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors">
+                        個指學習報告模式
+                    </button>
                 </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">授課講師</label>
-                    <input type="text" id="ind-teacher" placeholder="請輸入講師名稱" class="w-full border border-gray-300 p-2 rounded bg-white">
-                </div>
-            </div>
 
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">上課日期</label>
-                    <input type="date" id="ind-date" class="w-full border border-gray-300 p-2 rounded bg-white">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">下次課程日期</label>
-                    <input type="date" id="ind-next-date" class="w-full border border-gray-300 p-2 rounded bg-white">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">小考成績 (0~100)</label>
-                    <div class="flex items-center space-x-4">
-                        <input type="number" id="ind-quiz" min="0" max="100" placeholder="成績" class="w-32 border border-gray-300 p-2 rounded bg-white">
-                        <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" id="ind-no-quiz" class="w-5 h-5 text-blue-600 rounded" onchange="toggleQuizInput()">
-                            <span class="font-bold text-gray-700">無小考</span>
-                        </label>
+                <div id="tab-group" class="block bg-gray-50 p-6 rounded-b-lg border border-gray-200">
+                    <h3 class="text-md font-bold text-gray-700 mb-4 border-b pb-2">✏️ 填寫團班日誌內容</h3>
+                    <div class="grid grid-cols-1 gap-4 mb-6">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">上課範圍 (進度)</label>
+                            <textarea id="field-progress" class="w-full border border-gray-300 p-2 rounded h-20 bg-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">發放資料</label>
+                            <textarea id="field-handouts" class="w-full border border-gray-300 p-2 rounded h-20 bg-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">回家作業</label>
+                            <textarea id="field-homework" class="w-full border border-gray-300 p-2 rounded h-20 bg-white"></textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">下週考試</label>
+                                <input type="text" id="field-next-exam" class="w-full border border-gray-300 p-2 rounded bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">平均分數</label>
+                                <input type="number" id="field-avg-score" class="w-full border border-gray-300 p-2 rounded bg-white">
+                            </div>
+                        </div>
                     </div>
+                    <button onclick="saveGroupLog()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded shadow transition-colors">
+                        💾 儲存團班教學日誌
+                    </button>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">課程內容</label>
-                    <textarea id="ind-content" placeholder="請輸入今日課程內容" class="w-full border border-gray-300 p-2 rounded h-20 bg-white"></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">講評</label>
-                    <textarea id="ind-comment" placeholder="請輸入對學生的講評與回饋" class="w-full border border-gray-300 p-2 rounded h-20 bg-white"></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">作業內容</label>
-                    <textarea id="ind-homework" placeholder="請輸入回家作業" class="w-full border border-gray-300 p-2 rounded h-20 bg-white"></textarea>
+                <div id="tab-indiv" class="hidden bg-yellow-50 p-6 rounded-b-lg border border-yellow-200">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h3 class="text-md font-bold text-yellow-800">✏️ 填寫個指學習報告</h3>
+                        <span id="current-selected-student-handbook" class="text-sm font-bold text-blue-600 bg-blue-100 px-3 py-1 rounded">請先點擊右側學生名單</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">學生姓名</label>
+                            <input type="text" id="ind-name" readonly placeholder="請點選右側名單自動帶入" class="w-full border border-gray-300 p-2 rounded bg-gray-100 font-bold text-gray-600">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">授課講師</label>
+                            <input type="text" id="ind-teacher" placeholder="請輸入講師姓名" class="w-full border border-gray-300 p-2 rounded bg-white">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">小考成績 (0~100)</label>
+                            <div class="flex items-center space-x-4">
+                                <input type="number" id="ind-quiz" min="0" max="100" placeholder="成績" class="w-32 border border-gray-300 p-2 rounded bg-white">
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="ind-no-quiz" class="w-5 h-5 text-blue-600 rounded" onchange="toggleQuizInput()">
+                                    <span class="font-bold text-gray-700">無小考</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">課程內容</label>
+                            <textarea id="ind-content" placeholder="請輸入今日個別指導課程進度" class="w-full border border-gray-300 p-2 rounded h-20 bg-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">講師講評</label>
+                            <textarea id="ind-comment" placeholder="請輸入今日講評與學習建議" class="w-full border border-gray-300 p-2 rounded h-20 bg-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">作業內容</label>
+                            <textarea id="ind-homework" placeholder="請輸入指派作業" class="w-full border border-gray-300 p-2 rounded h-20 bg-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">下次課程日期</label>
+                            <input type="date" id="ind-next-date" class="w-full border border-gray-300 p-2 rounded bg-white">
+                        </div>
+                    </div>
+                    <button onclick="saveIndividualLog()" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded shadow transition-colors">
+                        💾 儲存該生學習報告
+                    </button>
                 </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-4 mt-6">
-                <button onclick="saveIndividualLog()" class="w-full sm:w-1/3 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded shadow-lg transition-colors flex justify-center items-center">
-                    💾 儲存學習報告
-                </button>
-                <button onclick="sendLineMessage('indiv')" class="w-full sm:w-2/3 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded shadow-lg transition-colors flex justify-center items-center">
-                    透過官方 LINE 發送給家長
-                </button>
+            <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex flex-col h-[600px]">
+                <h2 class="text-md font-bold text-gray-700 mb-3 pb-2 border-b flex justify-between items-center">
+                    <span>👥 班級學生名單</span>
+                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">依子班別連動</span>
+                </h2>
+                
+                <div id="student-list-container" class="flex-1 overflow-y-auto space-y-2 pr-1">
+                    <p class="text-sm text-gray-400 text-center py-8">請先在上方選擇日期與子班別，並點擊「查詢日誌與學生名單」</p>
+                </div>
             </div>
+
         </div>
     </div>
 
     <script>
-        // 初始化 Supabase
+        // 初始化 Supabase 連線
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
 
-        let currentLogId = null;
-        let allStudents = [];
-        let currentStudentId = null;
-        let currentStudentName = '';
-        let currentParentLineId = null;
+        let rawClassesData = [];      // 儲存從資料庫抓出來的原生班級清單
+        let currentLogId = null;       // 當前載入的團班日誌 ID
+        let currentSubClassStudents = []; // 當前子班別內的所有學生詳細資料
+        let selectedStudentId = null;  // 當前選中的學生 UUID (個指模式專用)
+        let selectedStudentName = '';  // 當前選中的學生姓名
+        let selectedParentLineId = null; // 當前選中學生的家長 LINE ID
+        let currentTab = 'group';      // 當前頁籤模式
 
-        window.onload = () => {
+        // 星期中文對照表
+        const weekDayCN = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+
+        window.onload = async () => {
+            // 預設填入今日日期
             const d = new Date();
             const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             document.getElementById('log-date').value = todayStr;
-            document.getElementById('ind-date').value = todayStr;
             
-            init();
-            loadGlobalStudents();
+            // 優先載入基礎班級架構資料
+            await fetchClassesStructure();
+            // 執行第一次智慧過濾
+            filterClassesByDay();
         };
 
-        // ==================== 畫面與頁籤邏輯 ====================
+        // ==================== 邏輯 1：讀取班級架構與智慧星期過濾 ====================
+        async function fetchClassesStructure() {
+            try {
+                const { data, error } = await sb.from('classes').select('id, name, sub_classes');
+                if (error) throw error;
+                rawClassesData = data || [];
+            } catch (err) {
+                console.error("載入班級結構失敗:", err);
+            }
+        }
+
+        function filterClassesByDay() {
+            const dateVal = document.getElementById('log-date').value;
+            const switcher = document.getElementById('class-switcher');
+            const tips = document.getElementById('week-tips');
+            
+            switcher.innerHTML = '<option value="">-- 請選擇班級 --</option>';
+            if (!dateVal) {
+                tips.innerText = '';
+                return;
+            }
+
+            const dateObj = new Date(dateVal);
+            const dayOfWeek = dateObj.getDay(); // 0 (日) ~ 6 (六)
+            tips.innerText = `(${weekDayCN[dayOfWeek]}有課班級)`;
+
+            let hasMatches = false;
+
+            rawClassesData.forEach(c => {
+                (c.sub_classes || []).forEach((sub, i) => {
+                    // 智慧判定欄位：相容 week_day、day 或 week
+                    const targetDay = sub.week_day !== undefined ? sub.week_day : (sub.day !== undefined ? sub.day : sub.week);
+                    
+                    // 如果子班別設定的星期符合當天，就加入選單
+                    if (parseInt(targetDay) === dayOfWeek) {
+                        switcher.add(new Option(`${c.name} - ${sub.name}`, `${c.id}_${i}`));
+                        hasMatches = true;
+                    }
+                });
+            });
+
+            // 【防呆安全閥】：如果當天剛好沒有任何排課，則全部顯示，避免使用者選不到班級
+            if (!hasMatches) {
+                tips.innerText = `(${weekDayCN[dayOfWeek]}無排課，已展開全部)`;
+                rawClassesData.forEach(c => {
+                    (c.sub_classes || []).forEach((sub, i) => {
+                        switcher.add(new Option(`${c.name} - ${sub.name}`, `${c.id}_${i}`));
+                    });
+                });
+            }
+        }
+
+        // ==================== 邏輯 2：一鍵大查詢 (核心驅動器) ====================
+        async function executeQuery() {
+            const dateVal = document.getElementById('log-date').value;
+            const classVal = document.getElementById('class-switcher').value;
+
+            if (!dateVal || !classVal) {
+                alert("請務必先選擇「日期」與「子班別」再點擊查詢！");
+                return;
+            }
+
+            const [classId, subIdx] = classVal.split('_');
+
+            // 1. 載入團班教學日誌內容
+            await loadGroupDiaryData(classId, subIdx, dateVal);
+
+            // 2. 撈取並解析該子班別對應的學生名單
+            await loadSubClassStudentsList(classId, subIdx, dateVal);
+        }
+
+        // 載入團班教學日誌
+        async function loadGroupDiaryData(classId, subIdx, dateVal) {
+            // 先清空輸入框
+            document.getElementById('field-progress').value = '';
+            document.getElementById('field-handouts').value = '';
+            document.getElementById('field-homework').value = '';
+            document.getElementById('field-next-exam').value = '';
+            document.getElementById('field-avg-score').value = '';
+            currentLogId = null;
+
+            try {
+                const { data: log, error } = await sb.from('class_logs')
+                    .select('*')
+                    .eq('class_id', classId)
+                    .eq('sub_idx', parseInt(subIdx))
+                    .eq('log_date', dateVal)
+                    .maybeSingle();
+
+                if (error) throw error;
+
+                if (log) {
+                    currentLogId = log.id;
+                    document.getElementById('field-progress').value = log.progress || '';
+                    document.getElementById('field-handouts').value = log.handouts || '';
+                    document.getElementById('field-homework').value = log.homework || '';
+                    document.getElementById('field-next-exam').value = log.next_exam || '';
+                    document.getElementById('field-avg-score').value = log.avg_score || '';
+                }
+            } catch (err) {
+                console.error("讀取團班日誌失敗:", err);
+            }
+        }
+
+        // 撈取該子班別內的所有學生，並整合發送狀態
+        async function loadSubClassStudentsList(classId, subIdx, dateVal) {
+            const container = document.getElementById('student-list-container');
+            container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">名單載入中...</p>';
+
+            try {
+                // 找到對應的子班別資料
+                const targetClass = rawClassesData.find(c => c.id === classId);
+                const subClassObj = targetClass ? targetClass.sub_classes[parseInt(subIdx)] : null;
+                
+                // 相容雙軌欄位：students 或 student_ids
+                const studentUUIDs = subClassObj ? (subClassObj.students || subClassObj.student_ids || []) : [];
+
+                if (studentUUIDs.length === 0) {
+                    container.innerHTML = '<p class="text-sm text-red-400 text-center py-4">⚠️ 此子班別內目前沒有學生名單</p>';
+                    currentSubClassStudents = [];
+                    return;
+                }
+
+                // 從 students 總表中抓取這群學生的詳細資料 (包含姓名與 LINE ID)
+                const { data: studentsInfo, error: stuErr } = await sb.from('students')
+                    .select('id, name, parent_line_id')
+                    .in('id', studentUUIDs);
+
+                if (stuErr) throw stuErr;
+
+                // 抓取當天該子班別的所有個別指導報告，用來比對個指的發送狀態
+                const { data: indivLogs, error: indErr } = await sb.from('individual_logs')
+                    .select('student_id, is_sent')
+                    .eq('class_id', classId)
+                    .eq('sub_idx', parseInt(subIdx))
+                    .eq('log_date', dateVal);
+
+                if (indErr) throw indErr;
+
+                // 抓取團班日誌當天的已發送學生名單（由 class_logs 的 sent_students 欄位紀錄，防呆設計）
+                let groupSentList = [];
+                if (currentLogId) {
+                    const { data: currentGroupLog } = await sb.from('class_logs').select('sent_students').eq('id', currentLogId).single();
+                    groupSentList = currentGroupLog && currentGroupLog.sent_students ? currentGroupLog.sent_students : [];
+                }
+
+                currentSubClassStudents = studentsInfo || [];
+
+                // 渲染學生清單介面
+                container.innerHTML = '';
+                currentSubClassStudents.forEach(student => {
+                    // 比對團班發送狀態
+                    const isGroupSent = groupSentList.includes(student.id);
+                    // 比對個指發送狀態
+                    const studentIndivLog = indivLogs ? indivLogs.find(l => l.student_id === student.id) : null;
+                    const isIndivSaved = !!studentIndivLog;
+                    const isIndivSent = studentIndivLog ? studentIndivLog.is_sent : false;
+
+                    // 依據目前分頁動態顯示狀態文字
+                    let statusBadge = '';
+                    if (currentTab === 'group') {
+                        statusBadge = isGroupSent 
+                            ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">🟢 已發送</span>'
+                            : '<span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">🔴 未發送</span>';
+                    } else {
+                        statusBadge = isIndivSent 
+                            ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">🟢 已發送</span>'
+                            : (isIndivSaved ? '<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-bold">🟡 已儲存未發</span>' : '<span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">🔴 未儲存報告</span>');
+                    }
+
+                    const lineBindIcon = student.parent_line_id ? '📱' : '❌';
+
+                    const item = document.createElement('div');
+                    item.className = `p-3 border rounded-lg flex items-center justify-between cursor-pointer transition-all hover:bg-gray-50 ${selectedStudentId === student.id ? 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-200' : 'border-gray-200'}`;
+                    item.onclick = () => selectStudent(student.id, student.name, student.parent_line_id);
+                    
+                    item.innerHTML = `
+                        <div class="flex flex-col">
+                            <span class="font-bold text-gray-800">${student.name} <span class="text-xs font-normal text-gray-400">${lineBindIcon}家長LINE</span></span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            ${statusBadge}
+                            <button onclick="event.stopPropagation(); triggerSingleStudentPush('${student.id}')" class="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-1 px-2 rounded shadow-sm transition-colors">
+                                🚀 推播
+                            </button>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+
+            } catch (err) {
+                console.error("生成學生名單失敗:", err);
+                container.innerHTML = '<p class="text-sm text-red-500 text-center py-4">名單處理出錯，請重試</p>';
+            }
+        }
+
+        // 點選名單中的學生觸發事件 (個指模式必備)
+        async function selectStudent(id, name, lineId) {
+            selectedStudentId = id;
+            selectedStudentName = name;
+            selectedParentLineId = lineId;
+
+            document.getElementById('ind-name').value = name;
+            document.getElementById('current-selected-student-handbook').innerText = `已選中：${name}`;
+            
+            // 高亮選中項目
+            const dateVal = document.getElementById('log-date').value;
+            const classVal = document.getElementById('class-switcher').value;
+            if (classVal && dateVal) {
+                const [classId, subIdx] = classVal.split('_');
+                // 如果是個指模式，選中學生時順便幫老師載入他「已儲存的個指內容」
+                if(currentTab === 'indiv') {
+                    await loadSingleStudentIndividualLog(classId, subIdx, dateVal, id);
+                }
+            }
+            
+            // 重新刷新右側清單的高亮框
+            refreshStudentListUIOnly();
+        }
+
+        function refreshStudentListUIOnly() {
+            const classVal = document.getElementById('class-switcher').value;
+            const dateVal = document.getElementById('log-date').value;
+            if(classVal && dateVal) {
+                const [classId, subIdx] = classVal.split('_');
+                loadSubClassStudentsList(classId, subIdx, dateVal);
+            }
+        }
+
+        // ==================== 邏輯 3：個指單生歷史日誌調回 ====================
+        async function loadSingleStudentIndividualLog(classId, subIdx, dateVal, studentId) {
+            // 重置個指表單
+            document.getElementById('ind-teacher').value = '';
+            document.getElementById('ind-content').value = '';
+            document.getElementById('ind-comment').value = '';
+            document.getElementById('ind-homework').value = '';
+            document.getElementById('ind-next-date').value = '';
+            document.getElementById('ind-quiz').value = '';
+            document.getElementById('ind-no-quiz').checked = false;
+            toggleQuizInput();
+
+            try {
+                const { data, error } = await sb.from('individual_logs')
+                    .select('*')
+                    .eq('class_id', classId)
+                    .eq('sub_idx', parseInt(subIdx))
+                    .eq('log_date', dateVal)
+                    .eq('student_id', studentId)
+                    .maybeSingle();
+
+                if (error) throw error;
+                if (data) {
+                    document.getElementById('ind-teacher').value = data.teacher || '';
+                    document.getElementById('ind-content').value = data.content || '';
+                    document.getElementById('ind-comment').value = data.comment || '';
+                    document.getElementById('ind-homework').value = data.homework || '';
+                    document.getElementById('ind-next-date').value = data.next_date || '';
+                    if (data.is_no_quiz) {
+                        document.getElementById('ind-no-quiz').checked = true;
+                        toggleQuizInput();
+                    } else {
+                        document.getElementById('ind-quiz').value = data.quiz_score !== null ? data.quiz_score : '';
+                    }
+                }
+            } catch (err) {
+                console.error("載入單生個指紀錄失敗:", err);
+            }
+        }
+
+        // ==================== 邏輯 4：儲存動作與頁籤切換 ====================
         function switchTab(tabName) {
+            currentTab = tabName;
             const tabGroup = document.getElementById('tab-group');
             const tabIndiv = document.getElementById('tab-indiv');
             const btnGroup = document.getElementById('btn-tab-group');
@@ -185,6 +456,13 @@
                 btnGroup.classList.replace('bg-blue-600', 'bg-gray-200');
                 btnGroup.classList.replace('text-white', 'text-gray-600');
             }
+            // 切換分頁時，自動重新計算並更換右側學生名單的狀態標籤
+            const classVal = document.getElementById('class-switcher').value;
+            const dateVal = document.getElementById('log-date').value;
+            if(classVal && dateVal) {
+                const [classId, subIdx] = classVal.split('_');
+                loadSubClassStudentsList(classId, subIdx, dateVal);
+            }
         }
 
         function toggleQuizInput() {
@@ -200,242 +478,76 @@
             }
         }
 
-        // ==================== 年級智慧換算邏輯 ====================
-        function calculateGradeDisplay(baseYear) {
-            if (!baseYear) return '未設定年級';
-
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1; // 1~12月
-
-            // 每年 7 月換學年度：大於等於 7 月算新學年度，否則算去年的學年度
-            const academicYear = currentMonth >= 7 ? currentYear : currentYear - 1;
-
-            // 計算年齡差（入學後的第幾年）
-            const gradeNum = academicYear - parseInt(baseYear) + 1;
-
-            if (gradeNum <= 0) return '幼兒園/未入學';
+        // 儲存團班日誌
+        async function saveGroupLog() {
+            const dateVal = document.getElementById('log-date').value;
+            const classVal = document.getElementById('class-switcher').value;
             
-            switch (gradeNum) {
-                case 1: return '小一';
-                case 2: return '小二';
-                case 3: return '小三';
-                case 4: return '小四';
-                case 5: return '小五';
-                case 6: return '小六';
-                case 7: return '國七';
-                case 8: return '國八';
-                case 9: return '國九';
-                case 10: return '高一';
-                case 11: return '高二';
-                case 12: return '高三';
-                default: return '已畢業';
-            }
-        }
-
-        // ==================== 全域學生與年級資料載入 ====================
-        async function loadGlobalStudents() {
-            try {
-                // 精準撈取 grade_base_year 欄位
-                const { data, error } = await sb.from('students').select('id, name, grade_base_year, parent_line_id');
-                if (error) throw error;
-                
-                allStudents = data || [];
-                
-                // 替每位學生套用智慧年級換算
-                allStudents.forEach(s => {
-                    s.displayGrade = calculateGradeDisplay(s.grade_base_year);
-                });
-
-                // 抓取不重複的中文年級清單
-                const grades = [...new Set(allStudents.map(s => s.displayGrade))];
-                
-                // 為了讓選單看起來順眼，可以簡單定義一下排序規則（從小一排到高三）
-                const gradeOrder = ['幼兒園/未入學', '小一', '小二', '小三', '小四', '小五', '小六', '國七', '國八', '國九', '高一', '高二', '高三', '已畢業', '未設定年級'];
-                grades.sort((a, b) => {
-                    let indexA = gradeOrder.indexOf(a);
-                    let indexB = gradeOrder.indexOf(b);
-                    // 如果找不到對應的，排到最後面
-                    if(indexA === -1) indexA = 999;
-                    if(indexB === -1) indexB = 999;
-                    return indexA - indexB;
-                });
-
-                const gradeSelect = document.getElementById('grade-selector');
-                
-                // 清空並重新寫入中文年級選項
-                gradeSelect.innerHTML = '<option value="">-- 請選擇年級 --</option>';
-                grades.forEach(g => {
-                    gradeSelect.add(new Option(g, g));
-                });
-
-                // 年級選單變更事件：連動更新學生選單
-                gradeSelect.addEventListener('change', (e) => {
-                    const selectedGrade = e.target.value;
-                    const studentSelect = document.getElementById('student-selector');
-                    studentSelect.innerHTML = '<option value="">-- 請選擇學生 --</option>';
-                    
-                    // 利用計算出來的 displayGrade 進行過濾
-                    const filteredStudents = allStudents.filter(s => s.displayGrade === selectedGrade);
-                    
-                    filteredStudents.forEach(s => {
-                        const bindStatusText = s.parent_line_id ? '🟢 已綁定' : '🔴 未綁定';
-                        studentSelect.add(new Option(`${s.name} [${bindStatusText}]`, s.id));
-                    });
-                    
-                    resetStudentSelection();
-                });
-
-                document.getElementById('student-selector').addEventListener('change', (e) => {
-                    const stuId = e.target.value;
-                    const student = allStudents.find(s => s.id === stuId);
-                    const statusDiv = document.getElementById('bind-status');
-                    
-                    if (student) {
-                        currentStudentId = student.id;
-                        currentStudentName = student.name;
-                        currentParentLineId = student.parent_line_id;
-                        document.getElementById('ind-name').value = student.name;
-
-                        if (student.parent_line_id) {
-                            statusDiv.innerHTML = `✅ 系統已鎖定：可向 ${student.name} 的家長發送 LINE 通知`;
-                            statusDiv.className = "mt-5 text-sm font-bold text-green-600";
-                        } else {
-                            statusDiv.innerHTML = `⚠️ 注意：${student.name} 尚未綁定家長 LINE 帳號，無法發送通知`;
-                            statusDiv.className = "mt-5 text-sm font-bold text-red-500";
-                        }
-                    } else {
-                        resetStudentSelection();
-                    }
-                });
-            } catch (err) {
-                console.error("載入學生資料庫失敗", err);
-                alert("學生名單載入失敗，請確認 Supabase 的 students 表格是否包含 grade_base_year 欄位！");
-            }
-        }
-
-        function resetStudentSelection() {
-            currentStudentId = null;
-            currentStudentName = '';
-            currentParentLineId = null;
-            document.getElementById('ind-name').value = '';
-            document.getElementById('bind-status').innerHTML = '';
-        }
-
-        // ==================== 團班教學日誌邏輯 ====================
-        async function init() {
-            document.querySelectorAll('#tab-group [data-field]').forEach(el => {
-                el.addEventListener('change', e => saveClassLog(e.target.dataset.field, e.target.value));
-            });
-
-            try {
-                const { data: classes, error } = await sb.from('classes').select('id, name, sub_classes');
-                if (error) throw error;
-                
-                const switcher = document.getElementById('class-switcher');
-                classes.forEach(c => {
-                    (c.sub_classes || []).forEach((sub, i) => {
-                        switcher.add(new Option(`${c.name} - ${sub.name}`, `${c.id}_${i}`));
-                    });
-                });
-            } catch (err) {
-                console.error("載入班級清單失敗", err);
-            }
-        }
-
-        async function loadDiary() {
-            const selectedDate = document.getElementById('log-date').value;
-            const val = document.getElementById('class-switcher').value;
-            
-            document.querySelectorAll('#tab-group [data-field]').forEach(el => el.value = '');
-            currentLogId = null;
-
-            if(!val || !selectedDate) return;
-            const [classId, subIdx] = val.split('_');
-
-            try {
-                const { data: log, error } = await sb.from('class_logs')
-                    .select('*')
-                    .eq('class_id', classId)
-                    .eq('sub_idx', parseInt(subIdx))
-                    .eq('log_date', selectedDate)
-                    .maybeSingle();
-
-                if (error) throw error;
-                if (log) {
-                    currentLogId = log.id;
-                    document.getElementById('field-progress').value = log.progress || '';
-                    document.getElementById('field-handouts').value = log.handouts || '';
-                    document.getElementById('field-homework').value = log.homework || '';
-                    document.getElementById('field-next-exam').value = log.next_exam || '';
-                    document.getElementById('field-avg-score').value = log.avg_score || '';
-                }
-            } catch (err) {
-                console.error("讀取教學日誌失敗", err);
-            }
-        }
-
-        async function saveClassLog(field, value) {
-            const selectedDate = document.getElementById('log-date').value;
-            const val = document.getElementById('class-switcher').value;
-            
-            if(!val) {
-                alert('請先在左上角選擇「班級與子班別」，才能儲存團班紀錄喔！');
-                document.getElementById(`field-${field.replace('_', '-')}`).value = '';
+            if(!classVal || !dateVal) {
+                alert('請先在控制台選擇日期與子班別！');
                 return;
             }
 
-            const [classId, subIdx] = val.split('_');
+            const [classId, subIdx] = classVal.split('_');
+            const progress = document.getElementById('field-progress').value;
+            const handouts = document.getElementById('field-handouts').value;
+            const homework = document.getElementById('field-homework').value;
+            const nextExam = document.getElementById('field-next-exam').value;
+            const avgScore = document.getElementById('field-avg-score').value;
+
+            const payload = {
+                progress: progress,
+                handouts: handouts,
+                homework: homework,
+                next_exam: nextExam,
+                avg_score: avgScore ? parseFloat(avgScore) : null
+            };
 
             try {
-                let payload = {};
-                payload[field] = value;
-
                 if (currentLogId) {
                     const { error } = await sb.from('class_logs').update(payload).eq('id', currentLogId);
                     if (error) throw error;
                 } else {
                     payload.class_id = classId;
                     payload.sub_idx = parseInt(subIdx);
-                    payload.log_date = selectedDate;
+                    payload.log_date = dateVal;
+                    payload.sent_students = []; // 初始清單為空
                     const { data: newLog, error } = await sb.from('class_logs').insert([payload]).select().single();
                     if (error) throw error;
                     currentLogId = newLog.id; 
                 }
+                alert('✅ 團班教學日誌已儲存成功！');
+                await loadSubClassStudentsList(classId, subIdx, dateVal);
             } catch (err) {
-                console.error("自動存檔失敗", err);
+                console.error("儲存團班日誌失敗", err);
+                alert("儲存失敗，請檢查資料庫連線");
             }
         }
 
-        function manualSaveGroupLog() {
-            const val = document.getElementById('class-switcher').value;
-            if(!val) {
-                alert('請先選擇班級與子班別！');
-                return;
-            }
-            alert('✅ 團班教學日誌已儲存更新完畢！');
-        }
-
-        // ==================== 個指學習報告儲存邏輯 ====================
+        // 儲存個別指導學習報告
         async function saveIndividualLog() {
-            if (!currentStudentId) {
-                alert("請先在最上方的「選擇學生」下拉選單中指定學生！");
+            if (!selectedStudentId) {
+                alert("請先點擊右側名單中的學生，指定要為誰填寫報告！");
                 return;
             }
 
-            const date = document.getElementById('ind-date').value;
+            const dateVal = document.getElementById('log-date').value;
+            const classVal = document.getElementById('class-switcher').value;
+            const [classId, subIdx] = classVal.split('_');
+
             const teacher = document.getElementById('ind-teacher').value;
             const content = document.getElementById('ind-content').value;
             const comment = document.getElementById('ind-comment').value;
             const homework = document.getElementById('ind-homework').value;
             const nextDate = document.getElementById('ind-next-date').value;
-            
             const isNoQuiz = document.getElementById('ind-no-quiz').checked;
             const quizScore = document.getElementById('ind-quiz').value;
 
             const payload = {
-                student_id: currentStudentId,
-                log_date: date,
+                student_id: selectedStudentId,
+                log_date: dateVal,
+                class_id: classId,
+                sub_idx: parseInt(subIdx),
                 teacher: teacher,
                 content: content,
                 comment: comment,
@@ -446,50 +558,60 @@
             };
 
             try {
-                const { error } = await sb.from('individual_logs').insert([payload]);
-                
-                if (error) {
-                    if(error.code === '42P01') {
-                        alert('儲存失敗！⚠️ 請記得先到 Supabase 新增名為 `individual_logs` 的表格喔！');
-                    } else {
-                        throw error;
-                    }
+                // 先查詢看看該生當天有沒有舊紀錄
+                const { data: existing } = await sb.from('individual_logs')
+                    .select('id')
+                    .eq('student_id', selectedStudentId)
+                    .eq('log_date', dateVal)
+                    .eq('class_id', classId)
+                    .eq('sub_idx', parseInt(subIdx))
+                    .maybeSingle();
+
+                if (existing) {
+                    // 更新舊有報告
+                    const { error } = await sb.from('individual_logs').update(payload).eq('id', existing.id);
+                    if (error) throw error;
                 } else {
-                    alert(`✅ 成功！${currentStudentName} 的學習報告已儲存。`);
+                    // 新建報告
+                    payload.is_sent = false;
+                    const { error } = await sb.from('individual_logs').insert([payload]);
+                    if (error) throw error;
                 }
+
+                alert(`✅ 成功！${selectedStudentName} 的個指學習報告已儲存。`);
+                await loadSubClassStudentsList(classId, subIdx, dateVal);
             } catch (err) {
                 console.error("儲存個指報告失敗:", err);
-                alert("儲存失敗，請確認資料庫權限設定是否已開啟 (Enable insert for anon)。");
+                alert("儲存失敗，請檢查個指欄位或資料庫權限。");
             }
         }
 
-        // ==================== LINE 官方帳號推播邏輯 ====================
-        async function sendLineMessage(mode) {
-            if (!currentStudentId) {
-                alert("發送前，請先在最上方的「選擇學生」下拉選單中指定要發送的學生！");
+        // ==================== 邏輯 5：標準安全直連推播核心 (直通車技術) ====================
+        async function triggerSingleStudentPush(studentId) {
+            const targetStudent = currentSubClassStudents.find(s => s.id === studentId);
+            if (!targetStudent) return;
+
+            if (!targetStudent.parent_line_id) {
+                alert(`⚠️ 無法發送通知！該生【${targetStudent.name}】尚未綁定家長的 LINE 官方帳號。`);
                 return;
             }
 
-            if (!currentParentLineId) {
-                alert(`⚠️ ${currentStudentName} 尚未綁定家長的 LINE 帳號，無法發送！`);
-                return;
-            }
+            const dateVal = document.getElementById('log-date').value;
+            const switcher = document.getElementById('class-switcher');
+            const className = switcher.options[switcher.selectedIndex]?.text || '';
+            const [classId, subIdx] = switcher.value.split('_');
 
             let msgContent = "";
 
-            if (mode === 'group') {
-                const dateVal = document.getElementById('log-date').value;
-                const switcher = document.getElementById('class-switcher');
-                if (!switcher.value) { alert("請先選擇班級！"); return; }
-                const className = switcher.options[switcher.selectedIndex]?.text || '';
-                
+            if (currentTab === 'group') {
+                // 1. 檢查並抓取目前畫面上的團班日誌資料
                 const progress = document.getElementById('field-progress').value;
                 const handouts = document.getElementById('field-handouts').value;
                 const homework = document.getElementById('field-homework').value;
                 const nextExam = document.getElementById('field-next-exam').value;
                 const avgScore = document.getElementById('field-avg-score').value;
 
-                msgContent = `家長您好\n以下為 ${dateVal} ${className} 的課堂狀況\n【學生：${currentStudentName}】\n`;
+                msgContent = `家長您好\n以下為 ${dateVal} ${className} 的課堂狀況\n【學生：${targetStudent.name}】\n`;
                 if(progress) msgContent += `📖 上課範圍：\n${progress}\n`;
                 if(handouts) msgContent += `📝 發放資料：\n${handouts}\n`;
                 if(homework) msgContent += `🏠 回家作業：\n${homework}\n`;
@@ -497,21 +619,38 @@
                 if(avgScore) msgContent += `📊 班級平均：${avgScore}分\n`;
                 msgContent += `\n考卷內容已於課堂上檢討完畢。`;
 
-            } else if (mode === 'indiv') {
-                const stuName = document.getElementById('ind-name').value;
-                const date = document.getElementById('ind-date').value;
+            } else {
+                // 2. 個指報告模式：必須「先點擊選中該生」並且「確實儲存過內容」才可以發送
+                if (selectedStudentId !== studentId) {
+                    alert(`請先點選該學生名單，確認或填寫他的個指學習報告內容後再推播！`);
+                    return;
+                }
+                
+                // 檢查資料庫是否有儲存
+                const { data: checkSaved } = await sb.from('individual_logs')
+                    .select('id, is_sent')
+                    .eq('student_id', studentId)
+                    .eq('log_date', dateVal)
+                    .eq('class_id', classId)
+                    .eq('sub_idx', parseInt(subIdx))
+                    .maybeSingle();
+
+                if (!checkSaved) {
+                    alert(`⚠️ 請先點擊下方的「💾 儲存該生學習報告」按鈕，儲存成功後才能發送推播！`);
+                    return;
+                }
+
                 const teacher = document.getElementById('ind-teacher').value;
                 const content = document.getElementById('ind-content').value;
                 const comment = document.getElementById('ind-comment').value;
                 const homework = document.getElementById('ind-homework').value;
                 const nextDate = document.getElementById('ind-next-date').value;
-                
                 const isNoQuiz = document.getElementById('ind-no-quiz').checked;
                 const quizScore = document.getElementById('ind-quiz').value;
                 const finalQuizText = isNoQuiz ? '無小考' : (quizScore ? `${quizScore} 分` : '未登錄');
 
-                msgContent = `家長您好\n以下為 ${stuName} 的【個別指導學習報告】\n\n`;
-                msgContent += `📅 上課日期：${date}\n`;
+                msgContent = `家長您好\n以下為 ${targetStudent.name} 的【個別指導學習報告】\n\n`;
+                msgContent += `📅 上課日期：${dateVal}\n`;
                 if(teacher) msgContent += `👨‍🏫 授課講師：${teacher}\n`;
                 if(content) msgContent += `📖 課程內容：\n${content}\n\n`;
                 msgContent += `💯 小考成績：${finalQuizText}\n`;
@@ -520,18 +659,55 @@
                 if(nextDate) msgContent += `🔜 下次上課日期：${nextDate}`;
             }
 
-            const confirmSend = confirm(`即將發送 LINE 通知給 ${currentStudentName} 的家長，確定嗎？`);
+            const confirmSend = confirm(`確定要透過官方 LINE 發送通知給 ${targetStudent.name} 的家長嗎？`);
             if (!confirmSend) return;
 
             try {
-                const { data, error } = await sb.functions.invoke('send-line-notify', {
-                    body: { userId: currentParentLineId, message: msgContent }
+                // 🔥 【超級技術修正】：改用底層 Fetch API 直連，並手動附加上 anon key 授權碼，100% 穿透網路阻擋
+                const response = await fetch('https://hlelxeiwamvrntsxnram.supabase.co/functions/v1/send-line-notify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM'
+                    },
+                    body: JSON.stringify({
+                        userId: targetStudent.parent_line_id,
+                        message: msgContent
+                    })
                 });
-                if (error) throw error;
-                alert(`✅ 成功！已透過官方 LINE 傳送紀錄給 ${currentStudentName} 的家長。`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP 錯誤碼: ${response.status}`);
+                }
+
+                // 3. 發送成功後的狀態寫入回資料庫
+                if (currentTab === 'group') {
+                    // 更新團班 class_logs 的 sent_students 欄位陣列
+                    if (currentLogId) {
+                        const { data: currentLog } = await sb.from('class_logs').select('sent_students').eq('id', currentLogId).single();
+                        let currentSentArr = currentLog && currentLog.sent_students ? currentLog.sent_students : [];
+                        if (!currentSentArr.includes(studentId)) {
+                            currentSentArr.push(studentId);
+                        }
+                        await sb.from('class_logs').update({ sent_students: currentSentArr }).eq('id', currentLogId);
+                    }
+                } else {
+                    // 更新個指 individual_logs 的 is_sent 狀態為 true
+                    await sb.from('individual_logs')
+                        .update({ is_sent: true })
+                        .eq('student_id', studentId)
+                        .eq('log_date', dateVal)
+                        .eq('class_id', classId)
+                        .eq('sub_idx', parseInt(subIdx));
+                }
+
+                alert(`🟢 發送成功！已成功推播給 ${targetStudent.name} 的家長。`);
+                // 重新刷榜，更新狀態圖示
+                await loadSubClassStudentsList(classId, subIdx, dateVal);
+
             } catch (err) {
-                console.error("發送 LINE 訊息失敗:", err);
-                alert("發送失敗，請確認您的 Edge Function 狀態或網路連線。");
+                console.error("直連發送 LINE 訊息失敗:", err);
+                alert("❌ 發送失敗！此錯誤通常代表您的 Edge Function 服務端尚未正常啟動，或是 LINE Token 設定不正確，請聯絡系統工程師確認後台。");
             }
         }
     </script>

@@ -120,9 +120,6 @@
 </div>
 
 <script>
-const COOLDOWN_MINUTES = 3; // 設定防連點冷卻時間 (分鐘)
-const AUTO_CHECKOUT_MINUTES = 60; // 設定自動判斷離班的門檻 (分鐘)
-const recentScans = {}; // 用於暫存各學生的最後打卡時間： { 'student_uuid': timestamp }
     const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
 
     let db = { 
@@ -404,87 +401,86 @@ const recentScans = {}; // 用於暫存各學生的最後打卡時間： { 'stud
     }
 
     // 🌟 即時打卡函數（已串接 LINE 推播）
-async function executeCheckInDB(studentId, parentLineId) {
-    const now = new Date();
-    const currentTimeMs = now.getTime();
+    async function executeCheckInDB(student) {
+        if (!isToday) return showToast('⚠️ 只能針對「今日」進行打卡', false);
+        const todayStr = getLocalToday();
+        const timeNow = getNowTimeStr();
+        const studentUuid = student.id || student.student_id || student.UUID;
 
-    // 【步驟一】檢查是否在 3 分鐘內重複打卡
-    if (recentScans[studentId]) {
-        const timeDiffMs = currentTimeMs - recentScans[studentId];
-        const timeDiffMinutes = timeDiffMs / (1000 * 60);
-        
-        if (timeDiffMinutes < COOLDOWN_MINUTES) {
-            console.log(`擋下重複打卡：${studentId} 距離上次掃碼僅 ${timeDiffMinutes.toFixed(1)} 分鐘`);
-            return; // 直接中斷執行，不發送任何資料
+        if (!studentUuid) {
+            alert("❌ 程式錯誤：無法抓取該學生的 UUID，請檢查學生總檔！");
+            return;
         }
-    }
+        
+        let dataToUpsert = { 
+            student_id: studentUuid, 
+            check_date: todayStr,
+            check_time: timeNow
+        };
+        
+        let actionText = '';
+        if (currentMode === 'in') {
+            dataToUpsert.check_in_time = timeNow;
+            actionText = '到班';
+        } else {
+            dataToUpsert.check_out_time = timeNow;
+            actionText = '離班';
+        }
 
-    // 更新該學生的最後打卡時間為現在
-    recentScans[studentId] = currentTimeMs;
-
-    try {
-        // 取得今天的開始時間 (午夜 00:00:00) 用於查詢
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-
-        // 【步驟二】向 Supabase 查詢該學生今天的打卡紀錄
-        const { data: todayRecords, error: fetchError } = await supabase
+        const { data: existing } = await supabaseClient
             .from('attendance')
-            .select('created_at, status')
-            .eq('student_id', studentId)
-            .gte('created_at', todayStart)
-            .order('created_at', { ascending: true });
+            .select('id')
+            .eq('student_id', studentUuid)
+            .eq('check_date', todayStr)
+            .maybeSingle();
 
-        if (fetchError) throw fetchError;
+        let error;
+        if (existing) {
+            const res = await supabaseClient.from('attendance').update(dataToUpsert).eq('id', existing.id);
+            error = res.error;
+        } else {
+            const res = await supabaseClient.from('attendance').insert([dataToUpsert]);
+            error = res.error;
+        }
 
-        let finalStatus = '進班'; // 預設狀態為進班
-
-        // 尋找今天第一筆「進班」紀錄
-        const firstCheckIn = todayRecords.find(record => record.status === '進班');
-
-        // 【步驟三】判斷進離班狀態
-        if (firstCheckIn) {
-            const checkInTime = new Date(firstCheckIn.created_at).getTime();
-            const minutesSinceCheckIn = (currentTimeMs - checkInTime) / (1000 * 60);
-
-            if (minutesSinceCheckIn >= AUTO_CHECKOUT_MINUTES) {
-                finalStatus = '離班'; // 超過 60 分鐘，自動判斷為離班
+        if(!error) {
+            showToast(`✅ ${student.name} 打卡成功`, true);
+            switchClass(document.getElementById('class-switcher').value);
+            
+            // ==========================================
+            // 🌟 串接 LINE 推播：背景呼叫 Edge Function
+            // ==========================================
+            const parentLineId = student.parent_line_id; // 取得綁定的家長 LINE ID
+            
+            if (parentLineId) {
+                // 不使用 await，讓這段請求在背景默默執行，不影響櫃台下一位學生的打卡速度
+                supabaseClient.functions.invoke('send-line-notify', {
+                    body: {
+                        studentName: student.name,
+                        time: timeNow,
+                        action: actionText,
+                        parentLineId: parentLineId
+                    }
+                }).then(({ data, error }) => {
+                    if (error) {
+                        console.error("LINE 推播發送失敗:", error);
+                    } else {
+                        console.log("LINE 推播發送成功:", data);
+                    }
+                }).catch(err => {
+                    console.error("呼叫推播系統發生錯誤:", err);
+                });
             } else {
-                // 若不到 60 分鐘又再次掃碼，跳出提示並中斷執行
-                alert(`學生進班尚未滿 ${AUTO_CHECKOUT_MINUTES} 分鐘，請稍後再試。`);
-                return; 
+                console.log(`⚠️ ${student.name} 未綁定家長 LINE，已跳過推播。`);
             }
+            // ==========================================
+            
+        } else {
+            console.error(error);
+            alert("打卡失敗，詳細錯誤: " + error.message);
         }
-
-        // 【步驟四】將最終狀態寫入 Supabase 資料庫
-        const { error: insertError } = await supabase
-            .from('attendance')
-            .insert([{
-                student_id: studentId,
-                status: finalStatus,
-                created_at: now.toISOString()
-            }]);
-
-        if (insertError) throw insertError;
-
-        console.log(`成功寫入資料庫：學生 ${studentId}，狀態：${finalStatus}`);
-        
-        // 【步驟五】呼叫 Edge Function 發送 LINE 推播 (請替換為你原本寫好的推播函數)
-        if (parentLineId) {
-            // await sendLineNotify(studentId, finalStatus, parentLineId); 
-            console.log(`已觸發 LINE 推播給家長: ${parentLineId}`);
-        }
-
-        // 這裡可以補上你原本更新前端 UI (例如座位表格變色) 的邏輯
-        alert(`打卡成功！狀態：${finalStatus}`);
-
-    } catch (error) {
-        console.error('打卡程序發生錯誤：', error);
-        alert('打卡失敗，請檢查系統或網路連線。');
-        
-        // 若發生錯誤，清除防呆紀錄，讓使用者可以馬上重試
-        delete recentScans[studentId];
     }
-}
+
     // 🌟 手動補登函數（純紀錄，絕不會發送 LINE）
     async function saveRecord(studentId) {
         const selectedDate = document.getElementById('date-selector').value;

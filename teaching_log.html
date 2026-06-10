@@ -73,17 +73,21 @@
                 </div>
             </div>
 
-            <button onclick="sendLineMessage('group')" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded shadow-lg transition-colors flex justify-center items-center">
-                <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.036 9.608.391.084.922.258 1.057.592.122.303.04.708.019.998-.027.382-.178 1.077-.178 1.077s-.048.277.13.364c.178.087.822-.047.822-.047s3.834-1.745 6.012-3.666c2.457-2.164 4.102-4.646 4.102-7.534zM10.824 13.064h-2.58v-4.148h2.58c.364 0 .66.296.66.66v.852c0 .364-.296.66-.66.66h-1.56v1.316h1.56c.364 0 .66.296.66.66v.852c0 .364-.296.66-.66.66zM15.021 13.064h-1.021c-.364 0-.66-.296-.66-.66v-4.148c0-.364.296-.66.66-.66h1.021c.364 0 .66.296.66.66v4.148c0 .364-.296.66-.66.66zM18.842 13.064h-1.021c-.174 0-.34-.068-.466-.192l-2.023-2.023v2.01c0 .364-.296.66-.66.66h-1.021c-.364 0-.66-.296-.66-.66v-4.148c0-.364.296-.66.66-.66h1.021c.174 0 .34.068.466.192l2.023 2.023v-2.01c0-.364.296-.66.66-.66h1.021c.364 0 .66.296.66.66v4.148c0 .364-.296.66-.66.66zM6.924 13.064h-1.021c-.364 0-.66-.296-.66-.66v-4.148c0-.364.296-.66.66-.66h1.021c.364 0 .66.296.66.66v4.148c0 .364-.296.66-.66.66z"/></svg>
-                透過官方 LINE 發送日誌給家長
-            </button>
+            <div class="flex flex-col sm:flex-row gap-4 mt-6">
+                <button onclick="manualSaveGroupLog()" class="w-full sm:w-1/3 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded shadow-lg transition-colors flex justify-center items-center">
+                    💾 儲存團班日誌
+                </button>
+                <button onclick="sendLineMessage('group')" class="w-full sm:w-2/3 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded shadow-lg transition-colors flex justify-center items-center">
+                    透過官方 LINE 發送給家長
+                </button>
+            </div>
         </div>
 
         <div id="tab-indiv" class="hidden bg-yellow-50 p-6 rounded-b-lg border border-yellow-200">
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">學生姓名</label>
-                    <input type="text" id="ind-name" placeholder="請先於上方選單選擇學生，或手動輸入" class="w-full border border-gray-300 p-2 rounded bg-white">
+                    <input type="text" id="ind-name" placeholder="請先於上方選單選擇學生" class="w-full border border-gray-300 p-2 rounded bg-white">
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">授課講師</label>
@@ -106,7 +110,7 @@
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">小考成績 (0~100)</label>
                     <div class="flex items-center space-x-4">
-                        <input type="number" id="ind-quiz" min="0" max="100" placeholder="請輸入成績" class="w-32 border border-gray-300 p-2 rounded bg-white">
+                        <input type="number" id="ind-quiz" min="0" max="100" placeholder="成績" class="w-32 border border-gray-300 p-2 rounded bg-white">
                         <label class="flex items-center space-x-2 cursor-pointer">
                             <input type="checkbox" id="ind-no-quiz" class="w-5 h-5 text-blue-600 rounded" onchange="toggleQuizInput()">
                             <span class="font-bold text-gray-700">無小考</span>
@@ -128,10 +132,14 @@
                 </div>
             </div>
 
-            <button onclick="sendLineMessage('indiv')" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded shadow-lg transition-colors flex justify-center items-center mt-6">
-                <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.036 9.608.391.084.922.258 1.057.592.122.303.04.708.019.998-.027.382-.178 1.077-.178 1.077s-.048.277.13.364c.178.087.822-.047.822-.047s3.834-1.745 6.012-3.666c2.457-2.164 4.102-4.646 4.102-7.534zM10.824 13.064h-2.58v-4.148h2.58c.364 0 .66.296.66.66v.852c0 .364-.296.66-.66.66h-1.56v1.316h1.56c.364 0 .66.296.66.66v.852c0 .364-.296.66-.66.66zM15.021 13.064h-1.021c-.364 0-.66-.296-.66-.66v-4.148c0-.364.296-.66.66-.66h1.021c.364 0 .66.296.66.66v4.148c0 .364-.296.66-.66.66zM18.842 13.064h-1.021c-.174 0-.34-.068-.466-.192l-2.023-2.023v2.01c0 .364-.296.66-.66.66h-1.021c-.364 0-.66-.296-.66-.66v-4.148c0-.364.296-.66.66-.66h1.021c.174 0 .34.068.466.192l2.023 2.023v-2.01c0-.364.296-.66.66-.66h1.021c.364 0 .66.296.66.66v4.148c0 .364-.296.66-.66.66zM6.924 13.064h-1.021c-.364 0-.66-.296-.66-.66v-4.148c0-.364.296-.66.66-.66h1.021c.364 0 .66.296.66.66v4.148c0 .364-.296.66-.66.66z"/></svg>
-                透過官方 LINE 發送學習報告給家長
-            </button>
+            <div class="flex flex-col sm:flex-row gap-4 mt-6">
+                <button onclick="saveIndividualLog()" class="w-full sm:w-1/3 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded shadow-lg transition-colors flex justify-center items-center">
+                    💾 儲存學習報告
+                </button>
+                <button onclick="sendLineMessage('indiv')" class="w-full sm:w-2/3 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded shadow-lg transition-colors flex justify-center items-center">
+                    透過官方 LINE 發送給家長
+                </button>
+            </div>
         </div>
     </div>
 
@@ -146,7 +154,6 @@
         let currentParentLineId = null;
 
         window.onload = () => {
-            // 預設填入今日日期
             const d = new Date();
             const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             document.getElementById('log-date').value = todayStr;
@@ -166,7 +173,6 @@
             if (tabName === 'group') {
                 tabGroup.classList.remove('hidden');
                 tabIndiv.classList.add('hidden');
-                
                 btnGroup.classList.replace('bg-gray-200', 'bg-blue-600');
                 btnGroup.classList.replace('text-gray-600', 'text-white');
                 btnIndiv.classList.replace('bg-blue-600', 'bg-gray-200');
@@ -174,7 +180,6 @@
             } else {
                 tabGroup.classList.add('hidden');
                 tabIndiv.classList.remove('hidden');
-
                 btnIndiv.classList.replace('bg-gray-200', 'bg-blue-600');
                 btnIndiv.classList.replace('text-gray-600', 'text-white');
                 btnGroup.classList.replace('bg-blue-600', 'bg-gray-200');
@@ -198,37 +203,36 @@
         // ==================== 全域學生與年級資料載入 ====================
         async function loadGlobalStudents() {
             try {
-                // 撈取學生基本資料與綁定的 LINE ID
                 const { data, error } = await sb.from('students').select('id, name, grade, parent_line_id');
                 if (error) throw error;
                 
                 allStudents = data || [];
                 
-                // 抓取不重複的年級
-                const grades = [...new Set(allStudents.map(s => s.grade).filter(Boolean))];
+                // 【防呆機制】：如果資料庫中的 grade 是空的，自動替換為「未設定年級」
+                const grades = [...new Set(allStudents.map(s => s.grade ? s.grade : '未設定年級'))];
                 const gradeSelect = document.getElementById('grade-selector');
                 
                 grades.forEach(g => {
                     gradeSelect.add(new Option(g, g));
                 });
 
-                // 年級選單變更事件：連動更新學生選單
+                // 連動更新學生選單
                 gradeSelect.addEventListener('change', (e) => {
                     const selectedGrade = e.target.value;
                     const studentSelect = document.getElementById('student-selector');
                     studentSelect.innerHTML = '<option value="">-- 請選擇學生 --</option>';
                     
-                    const filteredStudents = allStudents.filter(s => s.grade === selectedGrade);
+                    // 【防呆機制】：過濾時也比對空值
+                    const filteredStudents = allStudents.filter(s => (s.grade ? s.grade : '未設定年級') === selectedGrade);
+                    
                     filteredStudents.forEach(s => {
                         const bindStatusText = s.parent_line_id ? '🟢 已綁定' : '🔴 未綁定';
                         studentSelect.add(new Option(`${s.name} [${bindStatusText}]`, s.id));
                     });
                     
-                    // 重置選中狀態
                     resetStudentSelection();
                 });
 
-                // 學生選單變更事件：設定全域推播目標
                 document.getElementById('student-selector').addEventListener('change', (e) => {
                     const stuId = e.target.value;
                     const student = allStudents.find(s => s.id === stuId);
@@ -238,8 +242,6 @@
                         currentStudentId = student.id;
                         currentStudentName = student.name;
                         currentParentLineId = student.parent_line_id;
-                        
-                        // 將姓名連動填入「個指學習報告」表單中
                         document.getElementById('ind-name').value = student.name;
 
                         if (student.parent_line_id) {
@@ -253,7 +255,6 @@
                         resetStudentSelection();
                     }
                 });
-
             } catch (err) {
                 console.error("載入學生資料庫失敗", err);
             }
@@ -267,15 +268,14 @@
             document.getElementById('bind-status').innerHTML = '';
         }
 
-        // ==================== 團班教學日誌邏輯 (保留並延續原架構) ====================
+        // ==================== 團班教學日誌邏輯 ====================
         async function init() {
-            // 綁定團班輸入框自動存檔功能
+            // 保留原本的「輸入即自動存檔」功能
             document.querySelectorAll('#tab-group [data-field]').forEach(el => {
                 el.addEventListener('change', e => saveClassLog(e.target.dataset.field, e.target.value));
             });
 
             try {
-                // 撈取班級資料
                 const { data: classes, error } = await sb.from('classes').select('id, name, sub_classes');
                 if (error) throw error;
                 
@@ -294,12 +294,10 @@
             const selectedDate = document.getElementById('log-date').value;
             const val = document.getElementById('class-switcher').value;
             
-            // 清空畫面
             document.querySelectorAll('#tab-group [data-field]').forEach(el => el.value = '');
             currentLogId = null;
 
             if(!val || !selectedDate) return;
-
             const [classId, subIdx] = val.split('_');
 
             try {
@@ -311,7 +309,6 @@
                     .maybeSingle();
 
                 if (error) throw error;
-
                 if (log) {
                     currentLogId = log.id;
                     document.getElementById('field-progress').value = log.progress || '';
@@ -330,7 +327,7 @@
             const val = document.getElementById('class-switcher').value;
             
             if(!val) {
-                alert('請先在左上角選擇「班級與子班別」，才能自動儲存團班紀錄喔！');
+                alert('請先在左上角選擇「班級與子班別」，才能儲存團班紀錄喔！');
                 document.getElementById(`field-${field.replace('_', '-')}`).value = '';
                 return;
             }
@@ -357,6 +354,65 @@
             }
         }
 
+        // 手動點擊儲存按鈕的視覺回饋
+        function manualSaveGroupLog() {
+            const val = document.getElementById('class-switcher').value;
+            if(!val) {
+                alert('請先選擇班級與子班別！');
+                return;
+            }
+            alert('✅ 團班教學日誌已儲存更新完畢！');
+        }
+
+        // ==================== 新增：個指學習報告儲存邏輯 ====================
+        async function saveIndividualLog() {
+            if (!currentStudentId) {
+                alert("請先在最上方的「選擇學生」下拉選單中指定學生！");
+                return;
+            }
+
+            const date = document.getElementById('ind-date').value;
+            const teacher = document.getElementById('ind-teacher').value;
+            const content = document.getElementById('ind-content').value;
+            const comment = document.getElementById('ind-comment').value;
+            const homework = document.getElementById('ind-homework').value;
+            const nextDate = document.getElementById('ind-next-date').value;
+            
+            const isNoQuiz = document.getElementById('ind-no-quiz').checked;
+            const quizScore = document.getElementById('ind-quiz').value;
+
+            // 準備寫入 Supabase 的資料格式
+            const payload = {
+                student_id: currentStudentId,
+                log_date: date,
+                teacher: teacher,
+                content: content,
+                comment: comment,
+                homework: homework,
+                next_date: nextDate || null,
+                is_no_quiz: isNoQuiz,
+                quiz_score: isNoQuiz ? null : (quizScore ? parseInt(quizScore) : null)
+            };
+
+            try {
+                // 將資料寫入新的 individual_logs 表格中
+                const { error } = await sb.from('individual_logs').insert([payload]);
+                
+                if (error) {
+                    if(error.code === '42P01') { // 表格不存在的錯誤碼
+                        alert('儲存失敗！⚠️ 請記得先到 Supabase 新增名為 `individual_logs` 的表格喔！');
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    alert(`✅ 成功！${currentStudentName} 的學習報告已儲存。`);
+                }
+            } catch (err) {
+                console.error("儲存個指報告失敗:", err);
+                alert("儲存失敗，請確認資料庫權限設定是否已開啟 (Enable insert for anon)。");
+            }
+        }
+
         // ==================== LINE 官方帳號推播邏輯 ====================
         async function sendLineMessage(mode) {
             if (!currentStudentId) {
@@ -372,7 +428,6 @@
             let msgContent = "";
 
             if (mode === 'group') {
-                // 整理團班日誌文字
                 const dateVal = document.getElementById('log-date').value;
                 const switcher = document.getElementById('class-switcher');
                 if (!switcher.value) { alert("請先選擇班級！"); return; }
@@ -393,7 +448,6 @@
                 msgContent += `\n考卷內容已於課堂上檢討完畢。`;
 
             } else if (mode === 'indiv') {
-                // 整理個指學習報告文字
                 const stuName = document.getElementById('ind-name').value;
                 const date = document.getElementById('ind-date').value;
                 const teacher = document.getElementById('ind-teacher').value;
@@ -416,21 +470,14 @@
                 if(nextDate) msgContent += `🔜 下次上課日期：${nextDate}`;
             }
 
-            // 呼叫 Supabase Edge Function 執行 LINE 推播
             const confirmSend = confirm(`即將發送 LINE 通知給 ${currentStudentName} 的家長，確定嗎？`);
             if (!confirmSend) return;
 
             try {
-                // 呼叫已建立的 Edge Function，傳遞家長 LINE ID 與準備好的訊息內容
                 const { data, error } = await sb.functions.invoke('send-line-notify', {
-                    body: { 
-                        userId: currentParentLineId, 
-                        message: msgContent 
-                    }
+                    body: { userId: currentParentLineId, message: msgContent }
                 });
-
                 if (error) throw error;
-                
                 alert(`✅ 成功！已透過官方 LINE 傳送紀錄給 ${currentStudentName} 的家長。`);
             } catch (err) {
                 console.error("發送 LINE 訊息失敗:", err);

@@ -200,42 +200,70 @@
             }
         }
 
-        // ==================== 年級計算邏輯 ====================
+        // ==================== 年級智慧換算邏輯 ====================
         function calculateGradeDisplay(baseYear) {
             if (!baseYear) return '未設定年級';
 
-            // 這裡抓取現在的年月，用來判斷是否已經過了 7 月
             const now = new Date();
             const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1;
-            
-            // 如果超過 7 月，學年度就算作今年，否則算去年
+            const currentMonth = now.getMonth() + 1; // 1~12月
+
+            // 每年 7 月換學年度：大於等於 7 月算新學年度，否則算去年的學年度
             const academicYear = currentMonth >= 7 ? currentYear : currentYear - 1;
 
-            // 目前先將 grade_base_year 當作分組依據直接顯示。
-            // 若之後想把如 "112" 換算成 "國二"，可在這段加上對應的數學相減或 switch 判斷。
-            return `基準年: ${baseYear}`;
+            // 計算年齡差（入學後的第幾年）
+            const gradeNum = academicYear - parseInt(baseYear) + 1;
+
+            if (gradeNum <= 0) return '幼兒園/未入學';
+            
+            switch (gradeNum) {
+                case 1: return '小一';
+                case 2: return '小二';
+                case 3: return '小三';
+                case 4: return '小四';
+                case 5: return '小五';
+                case 6: return '小六';
+                case 7: return '國七';
+                case 8: return '國八';
+                case 9: return '國九';
+                case 10: return '高一';
+                case 11: return '高二';
+                case 12: return '高三';
+                default: return '已畢業';
+            }
         }
 
         // ==================== 全域學生與年級資料載入 ====================
         async function loadGlobalStudents() {
             try {
-                // ✅ 修正：精準撈取 grade_base_year 欄位
+                // 精準撈取 grade_base_year 欄位
                 const { data, error } = await sb.from('students').select('id, name, grade_base_year, parent_line_id');
                 if (error) throw error;
                 
                 allStudents = data || [];
                 
-                // 替每位學生產生顯示用的年級字串
+                // 替每位學生套用智慧年級換算
                 allStudents.forEach(s => {
                     s.displayGrade = calculateGradeDisplay(s.grade_base_year);
                 });
 
-                // 抓取不重複的年級清單
+                // 抓取不重複的中文年級清單
                 const grades = [...new Set(allStudents.map(s => s.displayGrade))];
+                
+                // 為了讓選單看起來順眼，可以簡單定義一下排序規則（從小一排到高三）
+                const gradeOrder = ['幼兒園/未入學', '小一', '小二', '小三', '小四', '小五', '小六', '國七', '國八', '國九', '高一', '高二', '高三', '已畢業', '未設定年級'];
+                grades.sort((a, b) => {
+                    let indexA = gradeOrder.indexOf(a);
+                    let indexB = gradeOrder.indexOf(b);
+                    // 如果找不到對應的，排到最後面
+                    if(indexA === -1) indexA = 999;
+                    if(indexB === -1) indexB = 999;
+                    return indexA - indexB;
+                });
+
                 const gradeSelect = document.getElementById('grade-selector');
                 
-                // 清空並重新寫入年級選項
+                // 清空並重新寫入中文年級選項
                 gradeSelect.innerHTML = '<option value="">-- 請選擇年級 --</option>';
                 grades.forEach(g => {
                     gradeSelect.add(new Option(g, g));
@@ -296,7 +324,6 @@
 
         // ==================== 團班教學日誌邏輯 ====================
         async function init() {
-            // 保留原本的「輸入即自動存檔」功能
             document.querySelectorAll('#tab-group [data-field]').forEach(el => {
                 el.addEventListener('change', e => saveClassLog(e.target.dataset.field, e.target.value));
             });

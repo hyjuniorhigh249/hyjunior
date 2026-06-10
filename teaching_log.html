@@ -200,30 +200,55 @@
             }
         }
 
+        // ==================== 年級計算邏輯 ====================
+        function calculateGradeDisplay(baseYear) {
+            if (!baseYear) return '未設定年級';
+
+            // 這裡抓取現在的年月，用來判斷是否已經過了 7 月
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+            
+            // 如果超過 7 月，學年度就算作今年，否則算去年
+            const academicYear = currentMonth >= 7 ? currentYear : currentYear - 1;
+
+            // 目前先將 grade_base_year 當作分組依據直接顯示。
+            // 若之後想把如 "112" 換算成 "國二"，可在這段加上對應的數學相減或 switch 判斷。
+            return `基準年: ${baseYear}`;
+        }
+
         // ==================== 全域學生與年級資料載入 ====================
         async function loadGlobalStudents() {
             try {
-                const { data, error } = await sb.from('students').select('id, name, grade, parent_line_id');
+                // ✅ 修正：精準撈取 grade_base_year 欄位
+                const { data, error } = await sb.from('students').select('id, name, grade_base_year, parent_line_id');
                 if (error) throw error;
                 
                 allStudents = data || [];
                 
-                // 【防呆機制】：如果資料庫中的 grade 是空的，自動替換為「未設定年級」
-                const grades = [...new Set(allStudents.map(s => s.grade ? s.grade : '未設定年級'))];
+                // 替每位學生產生顯示用的年級字串
+                allStudents.forEach(s => {
+                    s.displayGrade = calculateGradeDisplay(s.grade_base_year);
+                });
+
+                // 抓取不重複的年級清單
+                const grades = [...new Set(allStudents.map(s => s.displayGrade))];
                 const gradeSelect = document.getElementById('grade-selector');
                 
+                // 清空並重新寫入年級選項
+                gradeSelect.innerHTML = '<option value="">-- 請選擇年級 --</option>';
                 grades.forEach(g => {
                     gradeSelect.add(new Option(g, g));
                 });
 
-                // 連動更新學生選單
+                // 年級選單變更事件：連動更新學生選單
                 gradeSelect.addEventListener('change', (e) => {
                     const selectedGrade = e.target.value;
                     const studentSelect = document.getElementById('student-selector');
                     studentSelect.innerHTML = '<option value="">-- 請選擇學生 --</option>';
                     
-                    // 【防呆機制】：過濾時也比對空值
-                    const filteredStudents = allStudents.filter(s => (s.grade ? s.grade : '未設定年級') === selectedGrade);
+                    // 利用計算出來的 displayGrade 進行過濾
+                    const filteredStudents = allStudents.filter(s => s.displayGrade === selectedGrade);
                     
                     filteredStudents.forEach(s => {
                         const bindStatusText = s.parent_line_id ? '🟢 已綁定' : '🔴 未綁定';
@@ -257,6 +282,7 @@
                 });
             } catch (err) {
                 console.error("載入學生資料庫失敗", err);
+                alert("學生名單載入失敗，請確認 Supabase 的 students 表格是否包含 grade_base_year 欄位！");
             }
         }
 
@@ -354,7 +380,6 @@
             }
         }
 
-        // 手動點擊儲存按鈕的視覺回饋
         function manualSaveGroupLog() {
             const val = document.getElementById('class-switcher').value;
             if(!val) {
@@ -364,7 +389,7 @@
             alert('✅ 團班教學日誌已儲存更新完畢！');
         }
 
-        // ==================== 新增：個指學習報告儲存邏輯 ====================
+        // ==================== 個指學習報告儲存邏輯 ====================
         async function saveIndividualLog() {
             if (!currentStudentId) {
                 alert("請先在最上方的「選擇學生」下拉選單中指定學生！");
@@ -381,7 +406,6 @@
             const isNoQuiz = document.getElementById('ind-no-quiz').checked;
             const quizScore = document.getElementById('ind-quiz').value;
 
-            // 準備寫入 Supabase 的資料格式
             const payload = {
                 student_id: currentStudentId,
                 log_date: date,
@@ -395,11 +419,10 @@
             };
 
             try {
-                // 將資料寫入新的 individual_logs 表格中
                 const { error } = await sb.from('individual_logs').insert([payload]);
                 
                 if (error) {
-                    if(error.code === '42P01') { // 表格不存在的錯誤碼
+                    if(error.code === '42P01') {
                         alert('儲存失敗！⚠️ 請記得先到 Supabase 新增名為 `individual_logs` 的表格喔！');
                     } else {
                         throw error;

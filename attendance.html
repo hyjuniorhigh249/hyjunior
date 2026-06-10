@@ -122,10 +122,9 @@
 <script>
     const supabaseClient = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
 
-    // === 新增：防連點與時間設定 ===
-    const COOLDOWN_MINUTES = 3; // 3分鐘內重複掃描無效
-    const AUTO_CHECKOUT_MINUTES = 60; // 進班超過60分鐘才允許判定為離班
-    const recentScans = {}; // 暫存掃碼時間
+    const COOLDOWN_MINUTES = 3; 
+    const AUTO_CHECKOUT_MINUTES = 60; 
+    const recentScans = {}; 
 
     let db = { 
         allClasses: [], allRooms: [], studentDetails: {}, idToName: {}, studentsById: {},
@@ -133,6 +132,7 @@
         currentRoom: null, currentSeats: [], currentAttendance: []
     };
 
+    // currentMode = 'in' 作為預設的「自動判斷」模式； 'out' 為「單次強制離班」模式
     let currentMode = 'in'; 
     let isToday = true;
     let html5QrcodeScanner = null;
@@ -142,9 +142,11 @@
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
+    
     function getNowTimeStr() {
         return new Date().toLocaleTimeString('en-GB'); 
     }
+    
     function showToast(msg, isSuccess = true) {
         const toast = document.getElementById('toast-msg');
         toast.innerHTML = msg;
@@ -241,6 +243,7 @@
         }
     }
 
+    // 切換按鈕狀態：in=自動模式, out=強制離班模式
     function setMode(mode) {
         if (!isToday) return showToast('只能對「今日」切換打卡模式', false);
         currentMode = mode;
@@ -251,7 +254,7 @@
             btnIn.className = "flex-1 py-1 text-sm font-bold rounded-md bg-emerald-500 text-white shadow transition-all";
             btnOut.className = "flex-1 py-1 text-sm font-bold rounded-md text-slate-500 hover:bg-slate-200 transition-all";
         } else {
-            btnOut.className = "flex-1 py-1 text-sm font-bold rounded-md bg-blue-500 text-white shadow transition-all";
+            btnOut.className = "flex-1 py-1 text-sm font-bold rounded-md bg-red-500 text-white shadow transition-all"; // 為了警示，強制離班換成紅色
             btnIn.className = "flex-1 py-1 text-sm font-bold rounded-md text-slate-500 hover:bg-slate-200 transition-all";
         }
     }
@@ -388,23 +391,19 @@
 
     async function processCheckInByInput(text) {
         if (!text) return;
-        
         let student = db.studentsById[text] || db.studentDetails[text];
-
         if (!student) {
             const name = db.idToName[text];
             if (name) student = db.studentDetails[name];
         }
-
         if (!student) {
             showToast(`❌ 找不到符合條件的學生: ${text}`, false);
             return;
         }
-
         await executeCheckInDB(student);
     }
 
-    // 🌟 全新升級：即時打卡函數（自動判斷進離班 + 防連點 + LINE推播）
+    // 🌟 加入手動強制離班機制的打卡函數
     async function executeCheckInDB(student) {
         if (!isToday) return showToast('⚠️ 只能針對「今日」進行打卡', false);
         const todayStr = getLocalToday();
@@ -440,34 +439,42 @@
             return;
         }
 
-        let actionText = '到班';
+        let actionText = '';
         let dataToUpsert = { 
             student_id: studentUuid, 
             check_date: todayStr,
             check_time: timeNow
         };
 
-        // --- 3. 智慧判斷進班或離班 ---
+        const isForceOut = (currentMode === 'out'); // 判斷是否點擊了「強制離班」按鈕
+
+        // --- 3. 智慧判斷進班或離班 (結合強制模式) ---
         if (existing && existing.check_in_time) {
-            // 已有進班紀錄，計算距離第一次進班的時間差
             const checkInDate = new Date(`${todayStr}T${existing.check_in_time}`);
             const currentNowDate = new Date();
             const diffMins = (currentNowDate - checkInDate) / (1000 * 60);
 
-            if (diffMins < AUTO_CHECKOUT_MINUTES) {
-                showToast(`🛑 ${student.name} 進班未滿 ${AUTO_CHECKOUT_MINUTES} 分鐘，尚無法離班`, false);
-                return; // 阻擋操作，且不紀錄本次掃碼時間，讓人員可以隨時重試
+            if (isForceOut) {
+                actionText = '提早離班'; // 手動強制模式觸發
+                dataToUpsert.check_out_time = timeNow;
+            } else if (diffMins < AUTO_CHECKOUT_MINUTES) {
+                // 自動模式下，未滿 60 分鐘阻擋打卡，並提示如何強制離班
+                showToast(`🛑 ${student.name} 進班未滿 ${AUTO_CHECKOUT_MINUTES} 分鐘。<br>若需提早離開，請點擊上方「離班」按鈕後再掃碼。`, false);
+                return; 
             } else {
-                actionText = '離班';
+                actionText = '離班'; // 自動模式觸發正常離班
                 dataToUpsert.check_out_time = timeNow;
             }
         } else {
-            // 今天沒有紀錄，或沒有 check_in_time，判定為第一次進班
-            actionText = '到班';
-            dataToUpsert.check_in_time = timeNow;
+            if (isForceOut) {
+                actionText = '離班'; // 若還沒進班就按強制離班，防呆直接記錄
+                dataToUpsert.check_out_time = timeNow;
+            } else {
+                actionText = '到班';
+                dataToUpsert.check_in_time = timeNow;
+            }
         }
 
-        // 通過所有檢查，更新該學生的最後掃碼時間為現在
         recentScans[studentUuid] = nowMs;
 
         // --- 4. 寫入 Supabase 資料庫 ---
@@ -484,6 +491,11 @@
             showToast(`✅ ${student.name} ${actionText}成功`, true);
             switchClass(document.getElementById('class-switcher').value);
             
+            // 防呆：如果剛才是使用「強制離班」，打卡完立刻幫櫃檯切回「自動模式」
+            if (isForceOut) {
+                setMode('in');
+            }
+
             // --- 5. 背景呼叫 Edge Function 發送 LINE 推播 ---
             const parentLineId = student.parent_line_id; 
             
@@ -501,14 +513,11 @@
                 }).catch(err => {
                     console.error("呼叫推播系統發生錯誤:", err);
                 });
-            } else {
-                console.log(`⚠️ ${student.name} 未綁定家長 LINE，已跳過推播。`);
             }
             
         } else {
             console.error(error);
             alert("打卡寫入失敗，詳細錯誤: " + error.message);
-            // 若發生嚴重錯誤，清除防呆紀錄，讓使用者可以馬上重試
             delete recentScans[studentUuid];
         }
     }

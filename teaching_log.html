@@ -11,7 +11,6 @@
     <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-8">
         <h1 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">📝 教學成績與學習報告管理</h1>
 
-        <!-- 第一步：選擇日期與子班別 (核心控制台) -->
         <div class="mb-6 p-5 bg-blue-50 border border-blue-100 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-1">1. 選擇日期</label>
@@ -30,12 +29,9 @@
             </div>
         </div>
 
-        <!-- 主要工作區：左邊輸入表單，右邊學生發送狀態清單 -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <!-- 左側：功能輸入表單 (佔 2 欄) -->
             <div class="lg:col-span-2">
-                <!-- 雙功能頁籤切換按鈕 -->
                 <div class="flex space-x-2 mb-4">
                     <button id="btn-tab-group" onclick="switchTab('group')" class="px-6 py-2 rounded-t-lg font-bold bg-blue-600 text-white transition-colors">
                         團班教學日誌模式
@@ -45,7 +41,6 @@
                     </button>
                 </div>
 
-                <!-- ==================== 模式一：團班教學日誌 ==================== -->
                 <div id="tab-group" class="block bg-gray-50 p-6 rounded-b-lg border border-gray-200 shadow-inner">
                     <h3 class="text-md font-bold text-gray-700 mb-4 border-b pb-2">✏️ 填寫團班日誌內容</h3>
                     <div class="grid grid-cols-1 gap-4 mb-6">
@@ -77,7 +72,6 @@
                     </button>
                 </div>
 
-                <!-- ==================== 模式二：個指學習報告 ==================== -->
                 <div id="tab-indiv" class="hidden bg-yellow-50 p-6 rounded-b-lg border border-yellow-200 shadow-inner">
                     <div class="flex justify-between items-center mb-4 border-b pb-2 border-yellow-300">
                         <h3 class="text-md font-bold text-yellow-800">✏️ 填寫個指學習報告</h3>
@@ -129,14 +123,12 @@
                 </div>
             </div>
 
-            <!-- 右側：該子班別的學生名單與 LINE 推播狀態控制台 (佔 1 欄) -->
             <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex flex-col h-[750px]">
                 <h2 class="text-md font-bold text-gray-700 mb-3 pb-2 border-b flex justify-between items-center">
                     <span>👥 班級發送名單</span>
                     <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">全自動連動</span>
                 </h2>
                 
-                <!-- 學生動態清單區 -->
                 <div id="student-list-container" class="flex-1 overflow-y-auto space-y-2 pr-1 pt-1">
                     <p class="text-sm text-gray-400 text-center py-8">請先在上方選擇日期與子班別，並點擊「查詢日誌與連動名單」</p>
                 </div>
@@ -149,7 +141,7 @@
         // 初始化 Supabase 連線
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
 
-        let allStudents = [];          // 全校學生名單 (用於精準比對與連動)
+        let allStudents = [];          // 全校學生名單
         let rawClassesData = [];       // 班級清單架構
         let currentLogId = null;       // 當前載入的團班日誌 ID
         let currentSubClassStudents = []; // 當前子班別內準備顯示的所有學生
@@ -165,7 +157,7 @@
             const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             document.getElementById('log-date').value = todayStr;
             
-            // 載入全校學生與班級架構
+            // 載入全校學生與包含 start_date, end_date 的班級架構
             await Promise.all([loadGlobalStudents(), fetchClassesStructure()]);
             filterClassesByDay();
         };
@@ -180,10 +172,11 @@
             }
         }
 
-        // ==================== 讀取班級架構與智慧星期過濾 ====================
+        // ==================== 讀取班級架構 (含修業期間) ====================
         async function fetchClassesStructure() {
             try {
-                const { data, error } = await sb.from('classes').select('id, name, sub_classes');
+                // 💡 升級點：把 start_date 和 end_date 一併抓下來
+                const { data, error } = await sb.from('classes').select('id, name, sub_classes, start_date, end_date');
                 if (error) throw error;
                 rawClassesData = data || [];
             } catch (err) {
@@ -191,34 +184,49 @@
             }
         }
 
+        // ==================== 雙重過濾：修業期間 + 星期 ====================
         function filterClassesByDay() {
-            const dateVal = document.getElementById('log-date').value;
+            const dateValStr = document.getElementById('log-date').value;
             const switcher = document.getElementById('class-switcher');
             const tips = document.getElementById('week-tips');
             
             switcher.innerHTML = '<option value="">-- 請選擇班級 --</option>';
-            if (!dateVal) {
+            if (!dateValStr) {
                 tips.innerText = '';
                 return;
             }
 
-            const dateObj = new Date(dateVal);
+            const dateObj = new Date(dateValStr);
             const dayOfWeek = dateObj.getDay(); 
-            tips.innerText = `(${weekDayCN[dayOfWeek]}有課班級)`;
+            tips.innerText = `(顯示修業期間內，且${weekDayCN[dayOfWeek]}有課的班級)`;
 
             let hasMatches = false;
+
             rawClassesData.forEach(c => {
-                (c.sub_classes || []).forEach((sub, i) => {
-                    const targetDay = sub.week_day !== undefined ? sub.week_day : (sub.day !== undefined ? sub.day : sub.week);
-                    if (parseInt(targetDay) === dayOfWeek) {
-                        switcher.add(new Option(`${c.name} - ${sub.name}`, `${c.id}_${i}`));
-                        hasMatches = true;
-                    }
-                });
+                // 1. 先判斷「選擇的日期」是否落在該班級的 start_date ~ end_date 之間
+                let isWithinPeriod = true;
+                if (c.start_date && dateValStr < c.start_date) {
+                    isWithinPeriod = false;
+                }
+                if (c.end_date && dateValStr > c.end_date) {
+                    isWithinPeriod = false;
+                }
+
+                // 2. 如果在修業期間內，再判斷該子班別的星期是否吻合
+                if (isWithinPeriod) {
+                    (c.sub_classes || []).forEach((sub, i) => {
+                        const targetDay = sub.week_day !== undefined ? sub.week_day : (sub.day !== undefined ? sub.day : sub.week);
+                        if (parseInt(targetDay) === dayOfWeek) {
+                            switcher.add(new Option(`${c.name} - ${sub.name}`, `${c.id}_${i}`));
+                            hasMatches = true;
+                        }
+                    });
+                }
             });
 
+            // 系統防呆防空轉：如果嚴格篩選後什麼都選不到，至少展開全部讓使用者手動挑選
             if (!hasMatches) {
-                tips.innerText = `(${weekDayCN[dayOfWeek]}無排課，已展開全部)`;
+                tips.innerText = `(無符合條件的班級，已展開全部)`;
                 rawClassesData.forEach(c => {
                     (c.sub_classes || []).forEach((sub, i) => {
                         switcher.add(new Option(`${c.name} - ${sub.name}`, `${c.id}_${i}`));
@@ -279,7 +287,7 @@
             }
         }
 
-        // ====== 💡 終極自動連動機制：暴力解析資料庫格式 ======
+        // ====== 智慧連動 ======
         async function loadSubClassStudentsList(classId, subIdx, dateVal) {
             const container = document.getElementById('student-list-container');
             container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">智慧連動中，請稍候...</p>';
@@ -290,7 +298,6 @@
                 
                 let rawList = [];
                 if (subClassObj) {
-                    // 1. 嘗試所有常見的學生名單欄位名稱
                     const possibleKeys = ['students', 'student_ids', 'studentList', 'student_list', 'roster', 'members'];
                     for (let k of possibleKeys) {
                         if (Array.isArray(subClassObj[k]) && subClassObj[k].length > 0) {
@@ -298,7 +305,6 @@
                             break;
                         }
                     }
-                    // 2. 如果都沒找到，自動掃描 JSON 結構中「任何型態為陣列」的欄位作為名單
                     if (rawList.length === 0) {
                         for (let k in subClassObj) {
                             if (Array.isArray(subClassObj[k])) {
@@ -309,7 +315,6 @@
                     }
                 }
 
-                // 3. 統一萃取：無論資料庫裡是存 UUID(純字串)、舊中文名(純字串)，還是複雜物件 [{id:"..."}]，一律強制轉出可比對的字串
                 let extractedIdentifiers = rawList.map(item => {
                     if (typeof item === 'object' && item !== null) {
                         return item.id || item.student_id || item.uuid || item.name || '';
@@ -317,7 +322,6 @@
                     return String(item).trim();
                 }).filter(Boolean);
 
-                // 4. 精準連動：將萃取出的字串與全校資料進行比對
                 let matchedStudents = allStudents.filter(s => 
                     extractedIdentifiers.includes(s.id) || 
                     extractedIdentifiers.includes(s.name.trim())
@@ -604,7 +608,7 @@
             }
         }
 
-        // ==================== LINE 發送直通車 ====================
+        // ====== 💡 官方 SDK 發送推播 ======
         async function triggerSingleStudentPush(studentId) {
             const targetStudent = currentSubClassStudents.find(s => s.id === studentId);
             if (!targetStudent) return;
@@ -678,22 +682,20 @@
             if (!confirmSend) return;
 
             try {
-                const response = await fetch('https://hlelxeiwamvrntsxnram.supabase.co/functions/v1/send-line-notify', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM'
-                    },
-                    body: JSON.stringify({
-                        userId: targetStudent.parent_line_id,
-                        message: msgContent
-                    })
+                // 💡 升級點：改回最穩定且能自動帶入驗證憑證的 Supabase SDK 原生寫法
+                const { data, error } = await sb.functions.invoke('send-line-notify', {
+                    body: { 
+                        userId: targetStudent.parent_line_id, 
+                        message: msgContent 
+                    }
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP 錯誤碼: ${response.status}`);
+                if (error) {
+                    console.error("Invoke Error Detail:", error);
+                    throw error;
                 }
 
+                // 發送成功後更新狀態
                 if (currentTab === 'group') {
                     if (currentLogId) {
                         const { data: currentLog } = await sb.from('class_logs').select('sent_students').eq('id', currentLogId).single();
@@ -716,8 +718,8 @@
                 refreshStudentListUIOnly();
 
             } catch (err) {
-                console.error("直連發送 LINE 訊息失敗:", err);
-                alert("❌ 發送失敗！請確認您的 Edge Function 服務端設定或網路狀態。");
+                console.error("發送 LINE 訊息失敗:", err);
+                alert("❌ 發送失敗！請確認 Supabase Edge Functions 已正確部署，並且程式碼中有加入 CORS Headers 處理跨網域請求。");
             }
         }
     </script>

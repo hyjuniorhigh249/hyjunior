@@ -252,16 +252,18 @@
             currentLogId = null;
 
             try {
-                const { data: log, error } = await sb.from('class_logs')
+                // 💡 修正點：使用 limit(1) 取代 maybeSingle()，避免多筆紀錄當機
+                const { data: logs, error } = await sb.from('class_logs')
                     .select('*')
                     .eq('class_id', classId)
                     .eq('sub_idx', parseInt(subIdx))
                     .eq('log_date', dateVal)
-                    .maybeSingle();
+                    .limit(1);
 
                 if (error) throw error;
 
-                if (log) {
+                if (logs && logs.length > 0) {
+                    const log = logs[0];
                     currentLogId = log.id;
                     document.getElementById('field-progress').value = log.progress || '';
                     document.getElementById('field-handouts').value = log.handouts || '';
@@ -333,7 +335,6 @@
 
                 if (indErr) throw indErr;
 
-                // 💡 修正：精準對應實際資料庫的欄位名稱 sent_student_ids
                 let groupSentList = [];
                 if (currentLogId) {
                     const { data: currentGroupLog } = await sb.from('class_logs').select('sent_student_ids').eq('id', currentLogId).single();
@@ -423,26 +424,28 @@
             toggleQuizInput();
 
             try {
+                // 💡 修正點：防重複機制 limit(1)
                 const { data, error } = await sb.from('individual_logs')
                     .select('*')
                     .eq('class_id', classId)
                     .eq('sub_idx', parseInt(subIdx))
                     .eq('log_date', dateVal)
                     .eq('student_id', studentId)
-                    .maybeSingle();
+                    .limit(1);
 
                 if (error) throw error;
-                if (data) {
-                    document.getElementById('ind-teacher').value = data.teacher || '';
-                    document.getElementById('ind-content').value = data.content || '';
-                    document.getElementById('ind-comment').value = data.comment || '';
-                    document.getElementById('ind-homework').value = data.homework || '';
-                    document.getElementById('ind-next-date').value = data.next_date || '';
-                    if (data.is_no_quiz) {
+                if (data && data.length > 0) {
+                    const row = data[0];
+                    document.getElementById('ind-teacher').value = row.teacher || '';
+                    document.getElementById('ind-content').value = row.content || '';
+                    document.getElementById('ind-comment').value = row.comment || '';
+                    document.getElementById('ind-homework').value = row.homework || '';
+                    document.getElementById('ind-next-date').value = row.next_date || '';
+                    if (row.is_no_quiz) {
                         document.getElementById('ind-no-quiz').checked = true;
                         toggleQuizInput();
                     } else {
-                        document.getElementById('ind-quiz').value = data.quiz_score !== null ? data.quiz_score : '';
+                        document.getElementById('ind-quiz').value = row.quiz_score !== null ? row.quiz_score : '';
                     }
                 }
             } catch (err) {
@@ -521,7 +524,6 @@
                     payload.class_id = classId;
                     payload.sub_idx = parseInt(subIdx);
                     payload.log_date = dateVal;
-                    // 💡 修正：使用 sent_student_ids
                     payload.sent_student_ids = []; 
                     const { data: newLog, error } = await sb.from('class_logs').insert([payload]).select().single();
                     if (error) throw error;
@@ -568,16 +570,19 @@
             };
 
             try {
-                const { data: existing } = await sb.from('individual_logs')
+                // 💡 修正點：防重複機制 limit(1) 避免儲存時產生無限多個複製品
+                const { data: existing, error: existErr } = await sb.from('individual_logs')
                     .select('id')
                     .eq('student_id', selectedStudentId)
                     .eq('log_date', dateVal)
                     .eq('class_id', classId)
                     .eq('sub_idx', parseInt(subIdx))
-                    .maybeSingle();
+                    .limit(1);
 
-                if (existing) {
-                    const { error } = await sb.from('individual_logs').update(payload).eq('id', existing.id);
+                if (existErr) throw existErr;
+
+                if (existing && existing.length > 0) {
+                    const { error } = await sb.from('individual_logs').update(payload).eq('id', existing[0].id);
                     if (error) throw error;
                 } else {
                     payload.is_sent = false;
@@ -636,15 +641,21 @@
                     return;
                 }
                 
-                const { data: checkSaved } = await sb.from('individual_logs')
+                // 💡 修正點：防重複檢查 limit(1)，只要有一筆就給過，不會因為歷史重複紀錄當機
+                const { data: checkSavedArr, error: checkErr } = await sb.from('individual_logs')
                     .select('id, is_sent')
                     .eq('student_id', studentId)
                     .eq('log_date', dateVal)
                     .eq('class_id', classId)
                     .eq('sub_idx', parseInt(subIdx))
-                    .maybeSingle();
+                    .limit(1);
 
-                if (!checkSaved) {
+                if (checkErr) {
+                    alert(`檢查發送狀態失敗: ${checkErr.message}`);
+                    return;
+                }
+
+                if (!checkSavedArr || checkSavedArr.length === 0) {
                     alert(`⚠️ 請先點擊下方的「💾 儲存該生學習報告」按鈕，儲存成功後才能發送推播！`);
                     return;
                 }
@@ -686,7 +697,6 @@
 
                 if (currentTab === 'group') {
                     if (currentLogId) {
-                        // 💡 修正：精準使用 sent_student_ids
                         const { data: currentLog } = await sb.from('class_logs').select('sent_student_ids').eq('id', currentLogId).single();
                         let currentSentArr = currentLog && currentLog.sent_student_ids ? currentLog.sent_student_ids : [];
                         if (!currentSentArr.includes(studentId)) {

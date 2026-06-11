@@ -4,19 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>昊學文教行政系統 - 個指管理</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-gray-100 font-sans text-gray-800">
+<body class="bg-slate-50 font-sans text-gray-800">
 
     <div class="flex h-screen overflow-hidden">
-        <div class="w-64 bg-gray-900 text-white flex flex-col p-4 space-y-4">
-            <div class="text-xl font-bold tracking-wider text-center py-2 border-b border-gray-700">昊學文教系統</div>
-            <nav class="flex-1 space-y-1">
-                <a href="#" class="block px-4 py-2 rounded bg-gray-800 text-white font-medium">個指管理</a>
-                </nav>
-        </div>
-
         <div class="flex-1 flex flex-col overflow-y-auto p-8">
             
             <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
@@ -26,7 +19,7 @@
 
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
                 
-                <div class="bg-white p-6 rounded-lg shadow border border-gray-200 flex flex-col h-[580px]">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-[600px]">
                     <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
                         <span class="w-6 h-6 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center mr-2">1</span>
                         選擇學生名單
@@ -34,7 +27,7 @@
                     
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-600 mb-1">依智慧年級篩選 (7月自動升級)</label>
-                        <select id="filter-grade" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                        <select id="filter-grade" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50">
                             <option value="ALL">全部年級</option>
                             <option value="小一">小一</option><option value="小二">小二</option><option value="小三">小三</option>
                             <option value="小四">小四</option><option value="小五">小五</option><option value="小六">小六</option>
@@ -43,16 +36,16 @@
                         </select>
                     </div>
 
-                    <div class="flex-1 border border-gray-200 rounded p-3 overflow-y-auto space-y-2 bg-gray-50" id="student-list-container">
-                        <p class="text-sm text-gray-400 text-center py-8">正在從學生總檔載入名單...</p>
+                    <div class="flex-1 border border-gray-200 rounded-lg p-3 overflow-y-auto space-y-2 bg-slate-50" id="student-list-container">
+                        <p class="text-sm text-gray-400 text-center py-8 font-bold">正在從資料庫載入名單...</p>
                     </div>
                     
-                    <div class="mt-3 text-xs text-gray-500" id="selected-count-display">
+                    <div class="mt-3 text-xs font-bold text-slate-500 text-right" id="selected-count-display">
                         已選定：0 位學生
                     </div>
                 </div>
 
-                <div class="xl:col-span-2 bg-white p-6 rounded-lg shadow border border-gray-200">
+                <div class="xl:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
                         <span class="w-6 h-6 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center mr-2">2</span>
                         設定班型與學費細項
@@ -61,7 +54,7 @@
                     <form id="individual-class-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">1. 班型</label>
-                            <select id="class-type" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                            <select id="class-type" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50">
                                 <option value="一對一">一對一</option>
                                 <option value="一對二">一對二</option>
                                 <option value="一對四">一對四</option>
@@ -70,7 +63,7 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">2. 適用年級</label>
-                            <select id="class-grade" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                            <select id="class-grade" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50">
                                 <option value="小一">小一</option><option value="小二">小二</option><option value="小三">小三</option>
                                 <option value="小四">小四</option><option value="小五">小五</option><option value="小六">小六</option>
                                 <option value="國一">國一</option><option value="國二">國二</option><option value="國三">國三</option>
@@ -80,7 +73,7 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">3. 課程級別</label>
-                            <select id="course-level" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                            <select id="course-level" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50">
                                 <option value="國中小">國中小</option>
                                 <option value="高中">高中</option>
                             </select>
@@ -89,7 +82,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">4. 科目</label>
                             <div class="flex space-x-1">
-                                <select id="subject" class="flex-1 border border-gray-300 rounded px-2 py-2 text-sm focus:outline-none focus:border-blue-500">
+                                <select id="subject" class="flex-1 border border-gray-300 rounded px-2 py-2 text-sm focus:outline-none focus:border-blue-500 bg-slate-50">
                                     <option value="國文">國文</option><option value="英文">英文</option><option value="數學">數學</option>
                                     <option value="自然">自然</option><option value="社會">社會</option><option value="物理">物理</option>
                                     <option value="化學">化學</option><option value="生物">生物</option><option value="地科">地科</option>
@@ -97,13 +90,13 @@
                                     <option value="公民">公民</option><option value="多益">多益</option><option value="英檢">英檢</option>
                                     <option value="程式">程式</option><option value="日文">日文</option>
                                 </select>
-                                <button type="button" id="btn-add-subject" class="bg-gray-200 text-gray-700 px-2 rounded hover:bg-gray-300 text-xs font-bold">+ 新增</button>
+                                <button type="button" id="btn-add-subject" class="bg-gray-200 text-gray-700 px-2 rounded hover:bg-gray-300 text-xs font-bold transition">+ 新增</button>
                             </div>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">5. 每堂時數 (小時)</label>
-                            <select id="hours-per-session" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                            <select id="hours-per-session" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50">
                                 <option value="0.5">0.5</option><option value="1" selected>1</option><option value="1.5">1.5</option>
                                 <option value="2">2</option><option value="2.5">2.5</option><option value="3">3</option>
                                 <option value="3.5">3.5</option><option value="4">4</option>
@@ -112,7 +105,7 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">6. 每週堂數</label>
-                            <select id="sessions-per-week" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                            <select id="sessions-per-week" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50">
                                 <option value="週一堂">週一堂</option><option value="週二堂">週二堂</option>
                                 <option value="週三堂">週三堂</option><option value="週四堂">週四堂</option>
                                 <option value="週五堂">週五堂</option><option value="週六堂">週六堂</option>
@@ -122,91 +115,91 @@
 
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">7. 總週數 (1~48)</label>
-                            <input type="number" id="total-weeks" min="1" max="48" value="12" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                            <input type="number" id="total-weeks" min="1" max="48" value="12" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-500 mb-1">8. 總堂數 (自動)</label>
-                            <input type="text" id="total-sessions" readonly class="w-full bg-gray-100 border border-gray-300 rounded px-3 py-2 font-mono text-gray-600">
+                            <label class="block text-sm font-medium text-gray-400 mb-1">8. 總堂數 (自動)</label>
+                            <input type="text" id="total-sessions" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 font-mono text-gray-500 cursor-not-allowed">
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-500 mb-1">9. 總時數 (自動)</label>
-                            <input type="text" id="total-hours" readonly class="w-full bg-gray-100 border border-gray-300 rounded px-3 py-2 font-mono text-gray-600">
+                            <label class="block text-sm font-medium text-gray-400 mb-1">9. 總時數 (自動)</label>
+                            <input type="text" id="total-hours" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 font-mono text-gray-500 cursor-not-allowed">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-orange-600 mb-1">10. 學費基底 (自動)</label>
-                            <input type="text" id="tuition-base" readonly class="w-full bg-orange-50 border border-orange-200 rounded px-3 py-2 font-mono font-bold text-orange-700">
+                            <input type="text" id="tuition-base" readonly class="w-full bg-orange-50 border border-orange-200 rounded px-3 py-2 font-mono font-bold text-orange-700 cursor-not-allowed">
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-500 mb-1">11. 教材費 (自動每堂$50)</label>
-                            <input type="text" id="materials-fee" readonly class="w-full bg-gray-100 border border-gray-300 rounded px-3 py-2 font-mono text-gray-600">
+                            <label class="block text-sm font-medium text-gray-400 mb-1">11. 教材費 (自動每堂$50)</label>
+                            <input type="text" id="materials-fee" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 font-mono text-gray-500 cursor-not-allowed">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">12. 雜費</label>
-                            <input type="number" id="misc-fee" min="0" value="0" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                            <input type="number" id="misc-fee" min="0" value="0" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 font-bold">
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-green-600 mb-1">13. 優惠折抵金額</label>
-                            <input type="number" id="discount" min="0" value="0" class="w-full border border-green-300 rounded px-3 py-2 focus:outline-none focus:border-green-500 bg-green-50/30">
+                            <label class="block text-sm font-medium text-emerald-600 mb-1">13. 優惠折抵金額</label>
+                            <input type="number" id="discount" min="0" value="0" class="w-full border border-emerald-300 rounded px-3 py-2 focus:outline-none focus:border-emerald-500 bg-emerald-50 font-bold text-emerald-700">
                         </div>
 
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-600 mb-1">14. 優惠原因說明</label>
-                            <input type="text" id="discount-reason" placeholder="如：無折扣免填 / 兄弟姊妹合報九折" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                            <input type="text" id="discount-reason" placeholder="如：無折扣免填 / 兄弟姊妹合報九折" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50">
                         </div>
 
-                        <div class="bg-blue-50 p-3 rounded border border-blue-200 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 items-center my-1">
+                        <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 items-center my-1 shadow-sm">
                             <div class="md:col-span-2">
-                                <span class="text-sm font-bold text-blue-800 block">15. 應繳總學費金額：</span>
-                                <span class="text-xs text-blue-600">(公式：學費 + 教材費 + 雜費 - 優惠)</span>
+                                <span class="text-base font-black text-blue-800 block">15. 應繳總學費金額：</span>
+                                <span class="text-xs font-bold text-blue-600 mt-1">(公式：學費 + 教材費 + 雜費 - 優惠)</span>
                             </div>
-                            <input type="text" id="total-tuition" readonly class="w-full bg-white border border-blue-400 rounded px-4 py-2 text-xl font-mono font-black text-blue-700 text-right">
+                            <input type="text" id="total-tuition" readonly class="w-full bg-white border-2 border-blue-400 rounded-lg px-4 py-2 text-2xl font-mono font-black text-blue-700 text-right shadow-inner">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">16. 排課起始日</label>
-                            <input type="date" id="start-date" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
-                            <span class="text-[11px] text-gray-500 block mt-0.5" id="end-date-preview">預計結束：--</span>
+                            <input type="date" id="start-date" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
+                            <span class="text-xs font-bold text-slate-400 block mt-1" id="end-date-preview">預計結束：--</span>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-600 mb-1">17. 經手承辦人</label>
-                            <input type="text" id="operator" value="系統管理員" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500">
+                            <input type="text" id="operator" value="系統管理員" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-400 mb-1">18. 開單日期 (今日)</label>
-                            <input type="date" id="issue-date" readonly class="w-full bg-gray-100 border border-gray-300 rounded px-3 py-2 text-gray-500">
+                            <input type="date" id="issue-date" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 text-gray-500 cursor-not-allowed">
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-red-600 mb-1">19. 繳費期限 (預設3日後)</label>
-                            <input type="date" id="due-date" class="w-full border border-red-300 rounded px-3 py-2 focus:outline-none focus:border-red-500 bg-red-50/20">
+                            <label class="block text-sm font-medium text-rose-600 mb-1">19. 繳費期限 (預設3日後)</label>
+                            <input type="date" id="due-date" class="w-full border border-rose-300 rounded px-3 py-2 focus:outline-none focus:border-rose-500 bg-rose-50 font-bold text-rose-700">
                         </div>
 
-                        <div class="md:col-span-2 flex items-end justify-end space-x-2 pt-4">
-                            <button type="button" id="btn-reset" class="px-4 py-2 border border-gray-300 text-gray-600 rounded hover:bg-gray-100 transition">清空重填</button>
-                            <button type="submit" class="flex-1 md:flex-none px-8 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 shadow transition">確立個指班別開單</button>
+                        <div class="md:col-span-2 flex items-end justify-end space-x-3 pt-4">
+                            <button type="button" id="btn-reset" class="px-5 py-2.5 border border-slate-300 text-slate-600 font-bold rounded-lg hover:bg-slate-100 transition shadow-sm">清空重填</button>
+                            <button type="submit" class="flex-1 md:flex-none px-8 py-2.5 bg-blue-600 text-white font-black rounded-lg hover:bg-blue-700 shadow-md transition transform hover:-translate-y-0.5">🚀 確立個指班別開單</button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-gray-800">已設立個指班別列表</h2>
-                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded" id="total-records-count">共 0 筆資料</span>
+                    <h2 class="text-lg font-bold text-slate-800">已設立個指班別列表</h2>
+                    <span class="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full border border-slate-200" id="total-records-count">共 0 筆資料</span>
                 </div>
                 
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="bg-gray-100 text-gray-700 text-sm font-bold border-b border-gray-200">
+                            <tr class="bg-slate-100 text-slate-600 text-sm font-bold border-b border-slate-200">
                                 <th class="p-3">開單日期</th>
                                 <th class="p-3">學生名單</th>
                                 <th class="p-3">班型/級別</th>
@@ -217,9 +210,9 @@
                                 <th class="p-3 text-center">操作動作</th>
                             </tr>
                         </thead>
-                        <tbody id="classes-list-table-body" class="text-sm divide-y divide-gray-100">
+                        <tbody id="classes-list-table-body" class="text-sm divide-y divide-slate-100">
                             <tr>
-                                <td colspan="8" class="p-4 text-center text-gray-400">正在讀取現有開班紀錄...</td>
+                                <td colspan="8" class="p-6 text-center text-slate-400 font-bold">正在讀取現有開班紀錄...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -229,41 +222,41 @@
         </div>
     </div>
 
-    <div id="edit-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
-            <h3 class="text-lg font-bold text-gray-900 mb-4">快速修改資料夾欄位</h3>
+    <div id="edit-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto border border-slate-200">
+            <h3 class="text-xl font-black text-slate-800 mb-5 pb-3 border-b">⚙️ 快速修改資料夾欄位</h3>
             <div class="space-y-4">
                 <input type="hidden" id="edit-id">
                 <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">雜費金額</label>
-                    <input type="number" id="edit-misc-fee" class="w-full border border-gray-300 rounded px-3 py-2">
+                    <label class="block text-sm font-bold text-slate-600 mb-1">雜費金額</label>
+                    <input type="number" id="edit-misc-fee" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">優惠金額</label>
-                    <input type="number" id="edit-discount" class="w-full border border-gray-300 rounded px-3 py-2">
+                    <label class="block text-sm font-bold text-slate-600 mb-1">優惠金額</label>
+                    <input type="number" id="edit-discount" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">優惠原因</label>
-                    <input type="text" id="edit-discount-reason" class="w-full border border-gray-300 rounded px-3 py-2">
+                    <label class="block text-sm font-bold text-slate-600 mb-1">優惠原因</label>
+                    <input type="text" id="edit-discount-reason" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-600 mb-1">繳費期限</label>
-                    <input type="date" id="edit-due-date" class="w-full border border-gray-300 rounded px-3 py-2">
+                    <label class="block text-sm font-bold text-slate-600 mb-1">繳費期限</label>
+                    <input type="date" id="edit-due-date" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
             </div>
-            <div class="flex justify-end space-x-2 mt-6">
-                <button type="button" id="btn-close-modal" class="px-4 py-2 border border-gray-300 text-gray-600 rounded hover:bg-gray-100">取消</button>
-                <button type="button" id="btn-save-modal" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold">確認儲存</button>
+            <div class="flex justify-end space-x-3 mt-6 pt-4 border-t">
+                <button type="button" id="btn-close-modal" class="px-5 py-2 border border-slate-300 text-slate-600 rounded-lg font-bold hover:bg-slate-100 transition">取消</button>
+                <button type="button" id="btn-save-modal" class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-black shadow-md transition">確認儲存</button>
             </div>
         </div>
     </div>
 
     <script>
         // ==========================================
-        // 核心設定：請替換成您 Supabase 的金鑰資訊
+        // 核心設定：已為您精準帶入專屬金鑰
         // ==========================================
-        const SUPABASE_URL = "https://hlelxeiwamvrntsxnram.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM";
+        const SUPABASE_URL = 'https://hlelxeiwamvrntsxnram.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM';
         
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -280,21 +273,15 @@
             setupSubjectHandler();
         });
 
-        // 1. 日期初始化處理 (項目 16, 18, 19)
+        // 1. 日期初始化處理
         function setupDates() {
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
             
-            // 系統目前時間顯示
             document.getElementById('current-time-display').innerText = today.toLocaleString('zh-TW');
-            
-            // 開單日唯讀鎖定
             document.getElementById('issue-date').value = todayStr;
-            
-            // 排課起始日預設為今日
             document.getElementById('start-date').value = todayStr;
             
-            // 繳費期限預設 3 日後
             const dueDate = new Date();
             dueDate.setDate(today.getDate() + 3);
             document.getElementById('due-date').value = dueDate.toISOString().split('T')[0];
@@ -302,21 +289,19 @@
             updateEndDatePreview();
         }
 
-        // 智慧年級換算邏輯 (核心架構：每年7月自動換算)
+        // 智慧年級換算邏輯 (每年7月自動換算)
         function calculateGradeByBaseYear(gradeBaseYear) {
             if (!gradeBaseYear) return "未設定";
             const today = new Date();
             const currentYear = today.getFullYear();
-            const currentMonth = today.getMonth() + 1; // JS 月份為 0~11
+            const currentMonth = today.getMonth() + 1; 
             
-            // 若目前月份大於等於 7 月則直接相減，否則相減後要扣 1 年
             let delta = currentYear - parseInt(gradeBaseYear);
             if (currentMonth < 7) {
                 delta--;
             }
             
-            if (delta === 0) return "小一"; // 入學當年度 7 月前
-            if (delta === 1) return "小一";
+            if (delta === 0 || delta === 1) return "小一";
             if (delta === 2) return "小二";
             if (delta === 3) return "小三";
             if (delta === 4) return "小四";
@@ -328,16 +313,16 @@
             if (delta === 10) return "高一";
             if (delta === 11) return "高二";
             if (delta === 12) return "高三";
-            return "已畢業/大專以上";
+            return "已畢業";
         }
 
-        // 2. 從「學生總檔 (students)」撈取資料
+        // 2. 從「學生總檔」撈取資料
         async function fetchStudents() {
             try {
-                // 讀取學生總檔的 id, name, grade_base_year 欄位
                 const { data, error } = await supabase
                     .from('students')
-                    .select('id, name, grade_base_year');
+                    .select('id, name, grade_base_year')
+                    .order('name');
                 
                 if (error) throw error;
                 
@@ -346,11 +331,11 @@
             } catch (err) {
                 console.error("載入學生檔案失敗:", err);
                 document.getElementById('student-list-container').innerHTML = 
-                    `<p class="text-sm text-red-500 text-center py-4">無法取得學生總檔資料，請確認 students 資料表狀態</p>`;
+                    `<p class="text-sm text-rose-500 font-bold text-center py-4 bg-rose-50 rounded border border-rose-200">讀取失敗，請確認資料庫狀態</p>`;
             }
         }
 
-        // 渲染左側篩選後的學生CheckBox名單
+        // 渲染左側篩選後的學生名單
         function renderStudentList() {
             const filterGrade = document.getElementById('filter-grade').value;
             const container = document.getElementById('student-list-container');
@@ -369,22 +354,21 @@
             }
 
             if (filtered.length === 0) {
-                container.innerHTML = `<p class="text-sm text-gray-400 text-center py-6">此年級目前無學生資料</p>`;
+                container.innerHTML = `<p class="text-sm text-slate-400 font-bold text-center py-6">此年級目前無學生資料</p>`;
                 return;
             }
 
             filtered.forEach(student => {
                 const div = document.createElement('label');
-                div.className = "flex items-center space-x-3 p-2 bg-white hover:bg-blue-50 rounded border border-gray-100 cursor-pointer transition text-sm shadow-sm";
+                div.className = "flex items-center space-x-3 p-2.5 bg-white hover:bg-blue-50 rounded-lg border border-slate-100 cursor-pointer transition text-sm shadow-sm";
                 div.innerHTML = `
-                    <input type="checkbox" name="selected-students" value="${student.id}" data-name="${student.name}" class="student-checkbox w-4 h-4 text-blue-600 rounded border-gray-300">
-                    <span class="font-medium text-gray-800">${student.name}</span>
-                    <span class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded ml-auto">${student.calculatedGrade}</span>
+                    <input type="checkbox" name="selected-students" value="${student.id}" data-name="${student.name}" class="student-checkbox w-4 h-4 text-blue-600 rounded border-slate-300">
+                    <span class="font-bold text-slate-700">${student.name}</span>
+                    <span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded ml-auto">${student.calculatedGrade}</span>
                 `;
                 container.appendChild(div);
             });
 
-            // 重新綁定事件
             document.querySelectorAll('.student-checkbox').forEach(cb => {
                 cb.addEventListener('change', countSelectedStudents);
             });
@@ -399,11 +383,9 @@
         // 綁定年級篩選切換
         document.getElementById('filter-grade').addEventListener('change', renderStudentList);
 
-        // 3. 智慧計費與堂數連動計算引擎 (項目 8, 9, 10, 11, 15)
+        // 3. 智慧計費與堂數連動計算引擎
         function performCalculations() {
-            // 每堂時數
             const hoursPerSession = parseFloat(document.getElementById('hours-per-session').value) || 0;
-            // 每週堂數對應數字
             const sessionsPerWeekStr = document.getElementById('sessions-per-week').value;
             let weekSessionsNum = 1;
             if (sessionsPerWeekStr === "週一堂") weekSessionsNum = 1;
@@ -414,84 +396,72 @@
             else if (sessionsPerWeekStr === "週六堂") weekSessionsNum = 6;
             else if (sessionsPerWeekStr === "週七堂") weekSessionsNum = 7;
 
-            // 總週數
             const totalWeeks = parseInt(document.getElementById('total-weeks').value) || 0;
 
-            // 8. 總堂數 = 每週堂數 * 總週數
             const totalSessions = weekSessionsNum * totalWeeks;
             document.getElementById('total-sessions').value = totalSessions + " 堂";
 
-            // 9. 總時數 = 每堂時數 * 總堂數
             const totalHours = hoursPerSession * totalSessions;
             document.getElementById('total-hours').value = totalHours.toFixed(1) + " 小時";
 
-            // 10. 學費費率計算 (依班型、級別與每週堂數遞減)
-            const classType = document.getElementById('class-type').value; // 一對一, 一對二, 一對四
-            const courseLevel = document.getElementById('course-level').value; // 國中小, 高中
+            const classType = document.getElementById('class-type').value; 
+            const courseLevel = document.getElementById('course-level').value; 
             
             let hourlyRate = 0;
 
-            // 基礎費率 (週一堂)
             if (courseLevel === "國中小") {
                 if (classType === "一對一") hourlyRate = 1200;
                 else if (classType === "一對二") hourlyRate = 800;
                 else if (classType === "一對四") hourlyRate = 600;
-            } else { // 高中
+            } else { 
                 if (classType === "一對一") hourlyRate = 1450;
                 else if (classType === "一對二") hourlyRate = 1000;
                 else if (classType === "一對四") hourlyRate = 800;
             }
 
-            // 根據每週堂數進行鐘點減免折扣
             if (sessionsPerWeekStr === "週二堂") {
                 if (classType === "一對一") hourlyRate -= 150;
                 else if (classType === "一對二") hourlyRate -= 100;
                 else if (classType === "一對四") hourlyRate -= 50;
-            } else if (weekSessionsNum >= 3) { // 週三堂及週四堂以上
-                if (classType === "一對一") hourlyRate -= 300; // 比週二堂再扣150，等同共扣300
-                else if (classType === "一對二") hourlyRate -= 200; // 共扣200
-                else if (classType === "一對四") hourlyRate -= 100; // 共扣100
+            } else if (weekSessionsNum >= 3) { 
+                if (classType === "一對一") hourlyRate -= 300; 
+                else if (classType === "一對二") hourlyRate -= 200; 
+                else if (classType === "一對四") hourlyRate -= 100; 
             }
 
-            // 計算出學費基底
             const tuitionBase = hourlyRate * totalHours;
             document.getElementById('tuition-base').value = Math.round(tuitionBase);
 
-            // 11. 教材費 = 每堂50 * 總堂數
             const materialsFee = 50 * totalSessions;
             document.getElementById('materials-fee').value = materialsFee;
 
-            // 12, 13 雜費與優惠
             const miscFee = parseFloat(document.getElementById('misc-fee').value) || 0;
             const discount = parseFloat(document.getElementById('discount').value) || 0;
 
-            // 15. 總學費 = 學費 + 教材費 + 雜費 - 優惠
             const totalTuition = tuitionBase + materialsFee + miscFee - discount;
             document.getElementById('total-tuition').value = Math.round(totalTuition);
         }
 
-        // 推算總週數後的結束週日 (項目 16)
+        // 推算總週數後的結束週日
         function updateEndDatePreview() {
             const startDateVal = document.getElementById('start-date').value;
             const totalWeeks = parseInt(document.getElementById('total-weeks').value) || 0;
             if (!startDateVal || totalWeeks <= 0) return;
 
             let startDate = new Date(startDateVal);
-            // 增加總週數的天數 (totalWeeks * 7 天)
             let targetDate = new Date(startDate.getTime() + (totalWeeks * 7 * 24 * 60 * 60 * 1000));
             
-            // 找尋該週的週日 (JS 0為週日，1為週一...6為週六)
             let dayOfWeek = targetDate.getDay();
             let daysToSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
             
             let endSunday = new Date(targetDate.getTime() + (daysToSunday * 24 * 60 * 60 * 1000));
             const endSundayStr = endSunday.toISOString().split('T')[0];
             
-            document.getElementById('end-date-preview').innerText = `預訂結束週日：${endSundayStr}`;
+            document.getElementById('end-date-preview').innerText = `預計結束：${endSundayStr}`;
             document.getElementById('end-date-preview').setAttribute('data-date', endSundayStr);
         }
 
-        // 綁定所有即時防呆與連動計算事件
+        // 綁定計算事件
         function bindCalculationEvents() {
             const targets = ['class-type', 'course-level', 'hours-per-session', 'sessions-per-week', 'total-weeks', 'misc-fee', 'discount'];
             targets.forEach(id => {
@@ -502,11 +472,10 @@
             document.getElementById('total-weeks').addEventListener('input', updateEndDatePreview);
             document.getElementById('start-date').addEventListener('change', updateEndDatePreview);
             
-            // 初始執行一次
             performCalculations();
         }
 
-        // 4. 新增客製化科目彈性設定 (項目 4)
+        // 4. 新增科目
         function setupSubjectHandler() {
             document.getElementById('btn-add-subject').addEventListener('click', () => {
                 const newSubject = prompt("請輸入想要新增的新科目名稱：");
@@ -517,19 +486,17 @@
                     opt.innerText = newSubject.trim();
                     opt.selected = true;
                     select.appendChild(opt);
-                    alert(`已成功將「${newSubject}」加入科目選單中。`);
                 }
             });
         }
 
-        // 5. 確立開單提交：寫入資料庫 (項目 20)
+        // 5. 確立開單提交
         document.getElementById('individual-class-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            // 搜集勾選的學生
             const checkedBoxes = document.querySelectorAll('.student-checkbox:checked');
             if (checkedBoxes.length === 0) {
-                alert("【開單失敗】請先在左側欄位篩選並勾選欲加入此個指班別的學生（可多選）！");
+                alert("⚠️ 請先在左側欄位篩選並勾選欲加入此個指班別的學生！");
                 return;
             }
 
@@ -541,11 +508,9 @@
                 });
             });
 
-            // 確保日期格式正確
             updateEndDatePreview();
             const endDateStr = document.getElementById('end-date-preview').getAttribute('data-date');
 
-            // 包裝完整 JSON 資料儲存
             const insertData = {
                 student_ids: studentIdsArray,
                 class_type: document.getElementById('class-type').value,
@@ -577,9 +542,8 @@
 
                 if (error) throw error;
 
-                alert("🎉 個指班別設立成功！已同步產生繳費記錄，即刻連動至繳費作業系統。");
+                alert("🎉 個指班別設立成功！即刻連動至繳費作業系統。");
                 
-                // 重設表單與列表重整
                 document.getElementById('individual-class-form').reset();
                 setupDates();
                 performCalculations();
@@ -588,11 +552,11 @@
 
             } catch (err) {
                 console.error("儲存失敗:", err);
-                alert("資料庫寫入失敗，請確認 Supabase Table 設定與 RLS 開放政策。");
+                alert("資料庫寫入失敗，請確認 Supabase 設定。");
             }
         });
 
-        // 6. 讀取並顯示現有開班列表
+        // 6. 讀取現有開班列表
         async function fetchIndividualClasses() {
             try {
                 const { data, error } = await supabase
@@ -607,27 +571,26 @@
                 tbody.innerHTML = "";
 
                 if (!data || data.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-400">目前尚無已創立的個指指導紀錄</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400 font-bold">目前尚無已創立的紀錄</td></tr>`;
                     return;
                 }
 
                 data.forEach(item => {
-                    // 解析內含的學生姓名串
                     const studentNames = item.student_ids ? item.student_ids.map(s => s.student_name).join(', ') : '未命名';
                     
                     const tr = document.createElement('tr');
-                    tr.className = "hover:bg-gray-50/80 transition border-b border-gray-100";
+                    tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
                     tr.innerHTML = `
-                        <td class="p-3 font-mono text-gray-600">${item.issue_date}</td>
-                        <td class="p-3"><span class="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">${studentNames}</span></td>
-                        <td class="p-3 text-gray-700">${item.class_type} / <span class="text-xs bg-purple-50 text-purple-700 px-1 rounded">${item.course_level}</span></td>
-                        <td class="p-3 text-gray-600">${item.subject} (${item.hours_per_session}H * ${item.total_sessions})</td>
-                        <td class="p-3 text-xs font-mono text-gray-500">${item.start_date} ~ <br>${item.end_date}</td>
-                        <td class="p-3 text-right font-mono font-bold text-gray-900">$${item.total_tuition}</td>
-                        <td class="p-3 text-gray-600">${item.operator}</td>
-                        <td class="p-3 text-center space-x-1">
-                            <button onclick="openEditModal('${item.id}', ${item.misc_fee}, ${item.discount}, '${item.discount_reason || ''}', '${item.due_date}')" class="text-xs bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600 transition">編輯</button>
-                            <button onclick="deleteClass('${item.id}')" class="text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition">刪除</button>
+                        <td class="p-3 font-mono text-slate-500">${item.issue_date}</td>
+                        <td class="p-3"><span class="font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-lg">${studentNames}</span></td>
+                        <td class="p-3 font-bold text-slate-700">${item.class_type} / <span class="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">${item.course_level}</span></td>
+                        <td class="p-3 font-bold text-slate-600">${item.subject} <span class="text-xs text-slate-400 font-normal">(${item.hours_per_session}H * ${item.total_sessions})</span></td>
+                        <td class="p-3 text-xs font-mono font-bold text-slate-500">${item.start_date} ~ <br>${item.end_date}</td>
+                        <td class="p-3 text-right font-mono font-black text-rose-600 text-base">$${item.total_tuition}</td>
+                        <td class="p-3 font-bold text-slate-500">${item.operator}</td>
+                        <td class="p-3 text-center space-x-1 whitespace-nowrap">
+                            <button onclick="openEditModal('${item.id}', ${item.misc_fee}, ${item.discount}, '${item.discount_reason || ''}', '${item.due_date}')" class="text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1.5 rounded hover:bg-amber-200 transition">編輯</button>
+                            <button onclick="deleteClass('${item.id}')" class="text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1.5 rounded hover:bg-rose-200 transition">刪除</button>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -640,7 +603,7 @@
 
         // 7. 刪除班別功能
         async function deleteClass(id) {
-            if (!confirm("確定要刪除此個指班別嗎？此動作將會一併移除後續繳費作業中該對應的開單通知。")) return;
+            if (!confirm("⚠️ 確定要刪除此個指班別嗎？")) return;
             try {
                 const { error } = await supabase
                     .from('individual_classes')
@@ -648,10 +611,10 @@
                     .eq('id', id);
 
                 if (error) throw error;
-                alert("已成功刪除該筆個指紀錄。");
+                alert("🗑️ 已成功刪除。");
                 await fetchIndividualClasses();
             } catch (err) {
-                alert("刪除失敗，請檢查資料夾權限。");
+                alert("刪除失敗。");
             }
         }
 
@@ -668,14 +631,12 @@
             modal.classList.add('flex');
         }
 
-        // 關閉視窗
         document.getElementById('btn-close-modal').addEventListener('click', () => {
             const modal = document.getElementById('edit-modal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
         });
 
-        // 儲存編輯內容並重新計算總學費
         document.getElementById('btn-save-modal').addEventListener('click', async () => {
             const id = document.getElementById('edit-id').value;
             const miscFee = parseFloat(document.getElementById('edit-misc-fee').value) || 0;
@@ -684,7 +645,6 @@
             const dueDate = document.getElementById('edit-due-date').value;
 
             try {
-                // 先撈出原始學費跟教材費
                 const { data: orig, error: fetchErr } = await supabase
                     .from('individual_classes')
                     .select('tuition, materials_fee')
@@ -693,10 +653,8 @@
 
                 if (fetchErr) throw fetchErr;
 
-                // 重新換算最新總和
                 const newTotal = orig.tuition + orig.materials_fee + miscFee - discount;
 
-                // 執行更新
                 const { error: updateErr } = await supabase
                     .from('individual_classes')
                     .update({
@@ -710,17 +668,16 @@
 
                 if (updateErr) throw updateErr;
 
-                alert("欄位修改成功！總應繳金額已自動完成更新沖算。");
+                alert("✅ 欄位修改成功！總應繳金額已自動完成更新。");
                 document.getElementById('edit-modal').classList.add('hidden');
                 await fetchIndividualClasses();
 
             } catch (err) {
                 console.error(err);
-                alert("修改更新失敗，請檢查輸入內容。");
+                alert("修改更新失敗。");
             }
         });
 
-        // 重置表單按鈕
         document.getElementById('btn-reset').addEventListener('click', () => {
             document.getElementById('individual-class-form').reset();
             setupDates();

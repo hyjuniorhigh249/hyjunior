@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>昊學文教 - 員工管理系統 v3.0</title>
+    <title>昊學文教 - 員工管理系統 v3.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
@@ -30,7 +30,7 @@
 <body class="bg-gray-50 text-gray-800 font-sans">
 
     <nav class="bg-blue-800 text-white shadow-md p-4 flex justify-between items-center no-print">
-        <h1 class="text-xl font-bold">昊學文教行政系統 - 員工管理 v3.0</h1>
+        <h1 class="text-xl font-bold">昊學文教行政系統 - 員工管理 v3.1</h1>
         <div class="space-x-2 flex items-center">
             <div class="relative">
                 <button onclick="toggleColumnMenu()" class="bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-bold hover:bg-blue-600 transition">
@@ -101,7 +101,7 @@
                     <div class="grid grid-cols-3 gap-4">
                         <div class="col-span-1">
                             <label class="block text-sm font-medium text-gray-700 mb-1">員工編號 (系統自動產生)</label>
-                            <input type="text" id="employee_serial" readonly class="w-full border border-gray-300 rounded-md p-2 bg-gray-100 text-gray-600 outline-none font-mono">
+                            <input type="text" id="employee_serial" readonly class="w-full border border-gray-300 rounded-md p-2 bg-gray-100 text-gray-600 outline-none font-mono font-bold">
                         </div>
                         <div class="col-span-1">
                             <label class="block text-sm font-medium text-gray-700 mb-1">在/離職狀態</label>
@@ -270,7 +270,7 @@
             const toggles = document.querySelectorAll('.col-toggle');
             toggles.forEach(t => {
                 const colClass = t.getAttribute('onchange').match(/'([^']+)'/)[1];
-                if(colClass === 'col-name') return; // 姓名不可隱藏
+                if(colClass === 'col-name') return; 
                 if (prefs[colClass] !== undefined) {
                     t.checked = prefs[colClass];
                     applyColStyle(colClass, t.checked);
@@ -286,7 +286,6 @@
             const isChecked = document.querySelector(`input[onchange="toggleCol('${colClass}')"]`).checked;
             applyColStyle(colClass, isChecked);
             
-            // 儲存設定
             const prefs = JSON.parse(localStorage.getItem('empColPrefs')) || {};
             prefs[colClass] = isChecked;
             localStorage.setItem('empColPrefs', JSON.stringify(prefs));
@@ -326,7 +325,6 @@
                 }
 
                 data.forEach(emp => {
-                    // 正確對應舊有檔案的欄位名稱
                     let docsHtml = '';
                     if(emp.education_cert_url) docsHtml += `<span class="inline-block bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded mr-1 mb-1">學歷</span>`;
                     if(emp.police_check_url) docsHtml += `<span class="inline-block bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded mr-1 mb-1">良民</span>`;
@@ -372,7 +370,6 @@
                     `;
                     listContainer.innerHTML += row;
 
-                    // 產生 Base64 圖片 QR
                     setTimeout(() => {
                         QRCode.toDataURL(emp.id, { width: 100, margin: 1 }, function (err, url) {
                             if(!err) document.getElementById(`qr_img_${emp.id}`).src = url;
@@ -380,7 +377,7 @@
                     }, 10);
                 });
 
-                loadColumnPrefs(); // 套用自訂欄位
+                loadColumnPrefs(); 
             } catch (err) {
                 console.error(err);
             }
@@ -392,8 +389,10 @@
         }
 
         // ==========================================
-        // 3. 新增與編輯表單控制
+        // 3. 新增與編輯表單控制 (✅ 修正自動生成邏輯)
         // ==========================================
+        
+        // 強化版：能自動過濾掉不小心存進去的中文或空值
         async function generateSerial() {
             const rocYear = new Date().getFullYear() - 1911;
             const prefix = rocYear.toString();
@@ -402,12 +401,24 @@
                 .from('employees')
                 .select('employee_serial')
                 .like('employee_serial', `${prefix}%`)
-                .order('employee_serial', { ascending: false })
-                .limit(1);
+                .order('employee_serial', { ascending: false });
 
-            if (data && data.length > 0 && data[0].employee_serial) {
-                const lastNum = parseInt(data[0].employee_serial.slice(3));
-                return `${prefix}${(lastNum + 1).toString().padStart(3, '0')}`;
+            let maxNum = 0;
+            if (data && data.length > 0) {
+                for (let i = 0; i < data.length; i++) {
+                    const serialStr = data[i].employee_serial;
+                    if (serialStr && serialStr.startsWith(prefix)) {
+                        const numPart = serialStr.replace(prefix, '');
+                        if (!isNaN(numPart) && numPart.trim() !== '') {
+                            const num = parseInt(numPart);
+                            if (num > maxNum) maxNum = num;
+                        }
+                    }
+                }
+            }
+
+            if (maxNum > 0) {
+                return `${prefix}${(maxNum + 1).toString().padStart(3, '0')}`;
             } else {
                 return `${prefix}001`;
             }
@@ -428,10 +439,9 @@
             document.getElementById('employeeForm').reset();
             document.getElementById('employeeId').value = '';
             document.getElementById('modalTitle').innerText = '新增員工';
-            document.getElementById('employee_serial').value = await generateSerial(); // 自動取號
+            document.getElementById('employee_serial').value = await generateSerial(); 
             document.getElementById('status').value = '在職';
             
-            // 清空檔案連結顯示
             ['education', 'police', 'contract', 'bank', 'idcard', 'resume'].forEach(f => {
                 document.getElementById(`link_${f}`).classList.add('hidden');
             });
@@ -442,13 +452,20 @@
 
         function closeModal() { document.getElementById('employeeModal').classList.add('hidden'); }
 
-        function editEmployee(id) {
+        // ✅ 修正點：點擊編輯時，如果是舊員工沒編號，立刻現場發一組給他！
+        async function editEmployee(id) {
             const emp = globalEmployees.find(e => e.id === id);
             if (!emp) return;
             
+            let currentSerial = emp.employee_serial;
+            // 抓出空值，或是之前被誤存的字眼
+            if (!currentSerial || currentSerial === '需重新儲存以產生' || currentSerial === '未定') {
+                currentSerial = await generateSerial();
+            }
+
             document.getElementById('modalTitle').innerText = '編輯員工';
             document.getElementById('employeeId').value = emp.id;
-            document.getElementById('employee_serial').value = emp.employee_serial || '需重新儲存以產生';
+            document.getElementById('employee_serial').value = currentSerial;
             document.getElementById('status').value = emp.status || '在職';
             document.getElementById('name').value = emp.name;
             document.getElementById('stage_name').value = emp.stage_name;
@@ -459,7 +476,6 @@
             document.getElementById('teachable_subjects').value = emp.teachable_subjects;
             document.getElementById('teachable_grades').value = emp.teachable_grades;
             
-            // 恢復舊檔案連結
             const fileMaps = [
                 { dbCol: 'education_cert_url', linkId: 'link_education', label: '學歷' },
                 { dbCol: 'police_check_url', linkId: 'link_police', label: '良民證' },
@@ -531,7 +547,6 @@
                     if (error) throw error;
                 }
 
-                // 明確對應每個檔案欄位，確保不遺漏
                 const fileUpdates = {};
                 const eduUrl = await uploadFile('file_education', currentEmpId, 'education');
                 if (eduUrl) fileUpdates.education_cert_url = eduUrl;
@@ -569,16 +584,15 @@
         }
 
         // ==========================================
-        // 5. 鏡頭考勤系統 (防呆與離職阻擋)
+        // 5. 鏡頭考勤系統
         // ==========================================
         function openAttendanceModal() {
             document.getElementById('attendanceModal').classList.remove('hidden');
             fetchTodayAttendance();
             
-            // 啟動鏡頭
             if (!html5QrcodeScanner) {
                 html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-                html5QrcodeScanner.render(onScanSuccess, (err) => {/* ignore scan errors */});
+                html5QrcodeScanner.render(onScanSuccess, (err) => {});
             }
         }
         
@@ -597,7 +611,6 @@
             
             await executeClockAction(decodedText);
             
-            // 等待 3 秒後自動恢復掃描，避免連續逼逼逼
             setTimeout(() => {
                 if(html5QrcodeScanner) html5QrcodeScanner.resume();
                 document.getElementById('clockStatusMsg').innerHTML = '等待下一位員工掃描...';
@@ -701,7 +714,7 @@
         }
 
         // ==========================================
-        // 7. QR碼 完美列印機制 (Base64 Image)
+        // 7. QR碼 完美列印機制 
         // ==========================================
         function printSelectedQRs() {
             const checkboxes = document.querySelectorAll('.qr-cb:checked');
@@ -719,7 +732,6 @@
                     card.style.width = "240px";
                     card.style.height = "320px";
                     
-                    // 使用 img 標籤存放 Base64，保證印表機印得出來
                     card.innerHTML = `
                         <h2 class="text-2xl font-black text-slate-800">${emp.name}</h2>
                         <p class="text-sm text-blue-600 font-bold mb-3">${emp.role_type} | ${emp.employee_serial}</p>
@@ -728,11 +740,9 @@
                     `;
                     printArea.appendChild(card);
 
-                    // 轉換 QR 為圖片網址
                     QRCode.toDataURL(emp.id, { width: 256, margin: 1 }, function (err, url) {
                         if(!err) document.getElementById(`print_img_${emp.id}`).src = url;
                         count++;
-                        // 等所有勾選的 QR 圖都轉好後再觸發列印
                         if(count === checkboxes.length) {
                             setTimeout(() => { window.print(); }, 300);
                         }

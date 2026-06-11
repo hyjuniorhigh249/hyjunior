@@ -261,7 +261,7 @@
         let allStudents = [];
         let currentEditingRecord = null;
 
-        // 【修復點】：改用強制執行的啟動模式 (跟 billing.html 完全一致)
+        // 強制啟動模式
         async function init() {
             setupDates();
             await fetchStudents();
@@ -287,30 +287,30 @@
             updateEndDatePreview();
         }
 
-        // 智慧年級換算邏輯
+        // 【精準同步換算點】：修改為與 billing.html 邏輯完全對齊的專業級距換算公式
         function calculateGradeByBaseYear(gradeBaseYear) {
             if (!gradeBaseYear) return "未設定";
             const today = new Date();
-            const currentYear = today.getFullYear();
             const currentMonth = today.getMonth() + 1; 
             
-            let delta = currentYear - parseInt(gradeBaseYear);
-            if (currentMonth < 7) {
-                delta--;
-            }
+            // 與 billing.html 的 getAcademicYear() 完全同等邏輯
+            const academicYear = currentMonth >= 7 ? today.getFullYear() : today.getFullYear() - 1;
             
-            if (delta === 0 || delta === 1) return "小一";
-            if (delta === 2) return "小二";
-            if (delta === 3) return "小三";
-            if (delta === 4) return "小四";
-            if (delta === 5) return "小五";
-            if (delta === 6) return "小六";
-            if (delta === 7) return "國一";
-            if (delta === 8) return "國二";
-            if (delta === 9) return "國三";
-            if (delta === 10) return "高一";
-            if (delta === 11) return "高二";
-            if (delta === 12) return "高三";
+            // 計算精準年級數字 (7 代表國一、10 代表高一)
+            const gradeNum = academicYear - parseInt(gradeBaseYear) + 1;
+            
+            if (gradeNum === 1) return "小一";
+            if (gradeNum === 2) return "小二";
+            if (gradeNum === 3) return "小三";
+            if (gradeNum === 4) return "小四";
+            if (gradeNum === 5) return "小五";
+            if (gradeNum === 6) return "小六";
+            if (gradeNum === 7) return "國一";
+            if (gradeNum === 8) return "國二";
+            if (gradeNum === 9) return "國三";
+            if (gradeNum === 10) return "高一";
+            if (gradeNum === 11) return "高二";
+            if (gradeNum === 12) return "高三";
             return "已畢業";
         }
 

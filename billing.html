@@ -301,6 +301,8 @@
                 classes = clsData || [];
                 
                 currentEnrolled = [];
+                
+                // 1. 抓取團班資料
                 classes.forEach(c => (c.sub_classes || []).forEach((sub, idx) => {
                     if(sub.members && sub.members.includes(name)) {
                         currentEnrolled.push({
@@ -311,8 +313,54 @@
                     }
                 }));
 
+                // 2. 抓取「個指班別」資料並無縫合併
+                const { data: indData } = await sb.from('individual_classes').select('*');
+                const individualClasses = indData || [];
+                
+                individualClasses.forEach(ic => {
+                    let isEnrolled = false;
+                    if (Array.isArray(ic.student_ids)) {
+                        isEnrolled = ic.student_ids.some(s => s.student_name === name || s.student_id === currentStudentId);
+                    }
+                    if (isEnrolled) {
+                        currentEnrolled.push({
+                            class_id: ic.id, 
+                            sub_idx: 0, // 個指統一用 0 作為索引防呆
+                            main_name: "個指班", 
+                            sub_name: `${ic.subject} (${ic.class_type})`,
+                            fee: Number(ic.tuition) || 0, 
+                            tb_fee: Number(ic.materials_fee) || 0, 
+                            m_fee: Number(ic.misc_fee) || 0,
+                            start: ic.start_date, 
+                            end: ic.end_date
+                        });
+                    }
+                });
+
+                // 3. 讀取過往手動設定的折扣紀錄
                 const { data: bData } = await sb.from('student_bills').select('*').eq('student_id', currentStudentId); 
                 bills = bData || [];
+                
+                // 將個指本身帶有的優惠，同步作為預設值呈現到畫面上
+                individualClasses.forEach(ic => {
+                    let isEnrolled = false;
+                    if (Array.isArray(ic.student_ids)) {
+                        isEnrolled = ic.student_ids.some(s => s.student_name === name || s.student_id === currentStudentId);
+                    }
+                    if (isEnrolled) {
+                        // 如果 student_bills 裡面還沒有特別存過，就讀取個指建檔時的優惠金額
+                        const existingBill = bills.find(b => b.class_id === ic.id && b.sub_idx === 0);
+                        if (!existingBill && (Number(ic.discount) > 0 || ic.discount_reason)) {
+                            bills.push({
+                                class_id: ic.id,
+                                sub_idx: 0,
+                                discount_amount: Number(ic.discount) || 0,
+                                discount_reason: ic.discount_reason || ''
+                            });
+                        }
+                    }
+                });
+
                 const { data: pData } = await sb.from('payment_logs').select('*').eq('student_id', currentStudentId).order('pay_date', { ascending: false }); 
                 payments = pData || [];
                 
@@ -387,19 +435,37 @@
             const rsn = document.getElementById(`rsn-${cId}-${sIdx}`).value.trim();
             
             try {
-                const { data: existing, error: findErr } = await sb.from('student_bills')
-                    .select('id').eq('student_id', currentStudentId).eq('class_id', cId).eq('sub_idx', sIdx).maybeSingle();
-                if (findErr) throw findErr;
+                // 判斷此修改針對的是「團班」還是「個指班」，進行雙軌防呆更新
+                const targetEnrolled = currentEnrolled.find(e => e.class_id === cId && e.sub_idx === sIdx);
+                const isIndividualClass = targetEnrolled && targetEnrolled.main_name === "個指班";
 
-                if (existing) {
-                    const { error: updErr } = await sb.from('student_bills').update({ discount_amount: amt, discount_reason: rsn }).eq('id', existing.id);
+                if (isIndividualClass) {
+                    // 若是個指班，直接同步更新 individual_classes 表格內的欄位
+                    const newTotalTuition = targetEnrolled.fee + targetEnrolled.tb_fee + targetEnrolled.m_fee - amt;
+                    
+                    const { error: updErr } = await sb.from('individual_classes').update({ 
+                        discount: amt, 
+                        discount_reason: rsn,
+                        total_tuition: newTotalTuition
+                    }).eq('id', cId);
+                    
                     if (updErr) throw updErr;
                 } else {
-                    const { error: insErr } = await sb.from('student_bills').insert([{ student_id: currentStudentId, class_id: cId, sub_idx: sIdx, discount_amount: amt, discount_reason: rsn }]);
-                    if (insErr) throw insErr;
+                    // 若是團班，則維持原有寫入 student_bills 紀錄檔的邏輯
+                    const { data: existing, error: findErr } = await sb.from('student_bills')
+                        .select('id').eq('student_id', currentStudentId).eq('class_id', cId).eq('sub_idx', sIdx).maybeSingle();
+                    if (findErr) throw findErr;
+
+                    if (existing) {
+                        const { error: updErr } = await sb.from('student_bills').update({ discount_amount: amt, discount_reason: rsn }).eq('id', existing.id);
+                        if (updErr) throw updErr;
+                    } else {
+                        const { error: insErr } = await sb.from('student_bills').insert([{ student_id: currentStudentId, class_id: cId, sub_idx: sIdx, discount_amount: amt, discount_reason: rsn }]);
+                        if (insErr) throw insErr;
+                    }
                 }
                 
-                alert("✅ 優惠折扣已成功儲存！"); 
+                alert("✅ 優惠折扣已成功儲存並同步更新！"); 
                 loadStudentData(currentStudent);
             } catch (error) {
                 alert("儲存失敗，請檢查資料庫連線：" + error.message);

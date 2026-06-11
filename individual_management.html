@@ -13,7 +13,7 @@
         <div class="flex-1 flex flex-col overflow-y-auto p-8">
             
             <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                <h1 class="text-2xl font-bold text-gray-900">個別指導指導管理</h1>
+                <h1 class="text-2xl font-bold text-gray-900">個別指導管理</h1>
                 <div class="text-sm text-gray-500">當前系統時間：<span id="current-time-display"></span></div>
             </div>
 
@@ -252,27 +252,24 @@
     </div>
 
     <script>
-        // ==========================================
-        // 核心設定：已為您精準帶入專屬金鑰
-        // ==========================================
+        // 核心設定
         const SUPABASE_URL = 'https://hlelxeiwamvrntsxnram.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM';
         
-        // 【修復點】：這裡將變數 supabase 改為 sb，避免與套件本身的名稱衝突
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // 全域變數存放
         let allStudents = [];
         let currentEditingRecord = null;
 
-        // 初始化網頁
-        document.addEventListener("DOMContentLoaded", async () => {
+        // 【修復點】：改用強制執行的啟動模式 (跟 billing.html 完全一致)
+        async function init() {
             setupDates();
             await fetchStudents();
             await fetchIndividualClasses();
             bindCalculationEvents();
             setupSubjectHandler();
-        });
+        }
+        window.onload = init;
 
         // 1. 日期初始化處理
         function setupDates() {
@@ -290,7 +287,7 @@
             updateEndDatePreview();
         }
 
-        // 智慧年級換算邏輯 (每年7月自動換算)
+        // 智慧年級換算邏輯
         function calculateGradeByBaseYear(gradeBaseYear) {
             if (!gradeBaseYear) return "未設定";
             const today = new Date();
@@ -320,7 +317,6 @@
         // 2. 從「學生總檔」撈取資料
         async function fetchStudents() {
             try {
-                // 【修復點】：對應上述更改，這裡改為 sb.from
                 const { data, error } = await sb
                     .from('students')
                     .select('id, name, grade_base_year')
@@ -337,7 +333,7 @@
             }
         }
 
-        // 渲染左側篩選後的學生名單
+        // 渲染名單
         function renderStudentList() {
             const filterGrade = document.getElementById('filter-grade').value;
             const container = document.getElementById('student-list-container');
@@ -376,16 +372,14 @@
             });
         }
 
-        // 統計已勾選人數
         function countSelectedStudents() {
             const checked = document.querySelectorAll('.student-checkbox:checked');
             document.getElementById('selected-count-display').innerText = `已選定：${checked.length} 位學生`;
         }
 
-        // 綁定年級篩選切換
         document.getElementById('filter-grade').addEventListener('change', renderStudentList);
 
-        // 3. 智慧計費與堂數連動計算引擎
+        // 3. 智慧計費
         function performCalculations() {
             const hoursPerSession = parseFloat(document.getElementById('hours-per-session').value) || 0;
             const sessionsPerWeekStr = document.getElementById('sessions-per-week').value;
@@ -444,7 +438,6 @@
             document.getElementById('total-tuition').value = Math.round(totalTuition);
         }
 
-        // 推算總週數後的結束週日
         function updateEndDatePreview() {
             const startDateVal = document.getElementById('start-date').value;
             const totalWeeks = parseInt(document.getElementById('total-weeks').value) || 0;
@@ -463,7 +456,6 @@
             document.getElementById('end-date-preview').setAttribute('data-date', endSundayStr);
         }
 
-        // 綁定計算事件
         function bindCalculationEvents() {
             const targets = ['class-type', 'course-level', 'hours-per-session', 'sessions-per-week', 'total-weeks', 'misc-fee', 'discount'];
             targets.forEach(id => {
@@ -477,7 +469,6 @@
             performCalculations();
         }
 
-        // 4. 新增科目
         function setupSubjectHandler() {
             document.getElementById('btn-add-subject').addEventListener('click', () => {
                 const newSubject = prompt("請輸入想要新增的新科目名稱：");
@@ -492,7 +483,6 @@
             });
         }
 
-        // 5. 確立開單提交
         document.getElementById('individual-class-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -538,7 +528,6 @@
             };
 
             try {
-                // 【修復點】：sb.from
                 const { error } = await sb
                     .from('individual_classes')
                     .insert([insertData]);
@@ -559,10 +548,8 @@
             }
         });
 
-        // 6. 讀取現有開班列表
         async function fetchIndividualClasses() {
             try {
-                // 【修復點】：sb.from
                 const { data, error } = await sb
                     .from('individual_classes')
                     .select('*')
@@ -605,11 +592,9 @@
             }
         }
 
-        // 7. 刪除班別功能
         async function deleteClass(id) {
             if (!confirm("⚠️ 確定要刪除此個指班別嗎？")) return;
             try {
-                // 【修復點】：sb.from
                 const { error } = await sb
                     .from('individual_classes')
                     .delete()
@@ -623,7 +608,6 @@
             }
         }
 
-        // 8. 彈出編輯視窗
         function openEditModal(id, miscFee, discount, reason, dueDate) {
             document.getElementById('edit-id').value = id;
             document.getElementById('edit-misc-fee').value = miscFee;
@@ -650,7 +634,6 @@
             const dueDate = document.getElementById('edit-due-date').value;
 
             try {
-                // 【修復點】：sb.from
                 const { data: orig, error: fetchErr } = await sb
                     .from('individual_classes')
                     .select('tuition, materials_fee')
@@ -661,7 +644,6 @@
 
                 const newTotal = orig.tuition + orig.materials_fee + miscFee - discount;
 
-                // 【修復點】：sb.from
                 const { error: updateErr } = await sb
                     .from('individual_classes')
                     .update({

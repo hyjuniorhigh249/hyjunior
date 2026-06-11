@@ -128,11 +128,10 @@
         // 1. 初始化 Supabase
         // ==========================================
         const SUPABASE_URL = 'https://hlelxeiwamvrntsxnram.supabase.co';
-        // ★ 已替換為與首頁完全相同、保證能順利連線的長金鑰
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // 全域變數：暫存員工資料，避免按鈕傳遞複雜 JSON 時產生語法錯誤
+        // 全域變數：暫存員工資料
         let globalEmployees = [];
 
         // ==========================================
@@ -256,14 +255,12 @@
         // ==========================================
         async function uploadFile(fileInputId, employeeId, filePrefix) {
             const fileInput = document.getElementById(fileInputId);
-            if (!fileInput.files || fileInput.files.length === 0) return null; // 沒有選檔案
+            if (!fileInput.files || fileInput.files.length === 0) return null;
 
             const file = fileInput.files[0];
-            // 檔名加上 timestamp 避免快取問題：員工ID_檔案類型_時間戳.副檔名
             const fileExt = file.name.split('.').pop();
             const filePath = `${employeeId}_${filePrefix}_${Date.now()}.${fileExt}`;
 
-            // 上傳檔案到 employee_documents
             const { data, error } = await supabase.storage
                 .from('employee_documents')
                 .upload(filePath, file, { upsert: true });
@@ -274,7 +271,6 @@
                 return null;
             }
 
-            // 取得公開連結
             const { data: publicUrlData } = supabase.storage
                 .from('employee_documents')
                 .getPublicUrl(filePath);
@@ -286,7 +282,7 @@
         // 5. 核心功能：儲存員工資料與檔案
         // ==========================================
         async function saveEmployee(event) {
-            event.preventDefault(); // 防止表單重整
+            event.preventDefault();
             
             const btn = document.getElementById('saveBtn');
             btn.innerText = '儲存中...(若有檔案上傳請稍候)';
@@ -295,7 +291,6 @@
             const empId = document.getElementById('employeeId').value;
             const isEditing = empId !== '';
 
-            // 基本文字資料
             const basicData = {
                 name: document.getElementById('name').value,
                 stage_name: document.getElementById('stage_name').value,
@@ -307,18 +302,15 @@
             try {
                 let currentEmpId = empId;
 
-                // 邏輯：先儲存文字資料以取得 ID (如果是新增)，再處理檔案上傳
                 if (!isEditing) {
-                    // 新增模式
                     const { data, error } = await supabase
                         .from('employees')
                         .insert([basicData])
-                        .select(); // select() 會回傳剛新增的資料包含新 UUID
+                        .select();
                     
                     if (error) throw error;
-                    currentEmpId = data[0].id; // 拿到新產生的 UUID
+                    currentEmpId = data[0].id;
                 } else {
-                    // 編輯模式，先更新基本資料
                     const { error } = await supabase
                         .from('employees')
                         .update(basicData)
@@ -326,7 +318,6 @@
                     if (error) throw error;
                 }
 
-                // 處理檔案上傳 (使用剛剛拿到的或既有的 currentEmpId)
                 const updatesWithFiles = {};
                 
                 const eduUrl = await uploadFile('file_education', currentEmpId, 'education');
@@ -347,7 +338,6 @@
                 const resumeUrl = await uploadFile('file_resume', currentEmpId, 'resume');
                 if (resumeUrl) updatesWithFiles.resume_url = resumeUrl;
 
-                // 如果有上傳新檔案，再做第二次更新把 URL 寫入資料庫
                 if (Object.keys(updatesWithFiles).length > 0) {
                     const { error: fileUpdateError } = await supabase
                         .from('employees')
@@ -359,7 +349,7 @@
 
                 alert(isEditing ? "更新成功！" : "新增成功！");
                 closeModal();
-                fetchEmployees(); // 重新讀取畫面
+                fetchEmployees();
 
             } catch (error) {
                 console.error("儲存失敗", error);
@@ -389,7 +379,6 @@
             }
         }
 
-        // 頁面載入時執行
         window.onload = fetchEmployees;
     </script>
 </body>

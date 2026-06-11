@@ -127,64 +127,74 @@
         // ==========================================
         // 1. 初始化 Supabase
         // ==========================================
-        const SUPABASE_URL = 'https://hlelxeiwamvrntsxnram.supabase.co'; // ★ 請替換
-        const SUPABASE_ANON_KEY = 'sb_publishable_5tb8v_4dixg1uk76ShWCqw_TopZcFVF'; // ★ 請替換
+        const SUPABASE_URL = 'https://hlelxeiwamvrntsxnram.supabase.co';
+        // ★ 已替換為與首頁完全相同、保證能順利連線的長金鑰
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // 全域變數：暫存員工資料，避免按鈕傳遞複雜 JSON 時產生語法錯誤
+        let globalEmployees = [];
 
         // ==========================================
         // 2. 核心功能：讀取員工列表
         // ==========================================
         async function fetchEmployees() {
             const listContainer = document.getElementById('employeeList');
+            if (!listContainer) return;
             listContainer.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-500">載入中...</td></tr>';
             
-            const { data, error } = await supabase
-                .from('employees')
-                .select('*')
-                .order('created_at', { ascending: false });
+            try {
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .order('created_at', { ascending: false });
 
-            if (error) {
-                console.error("讀取失敗", error);
-                alert("讀取員工資料失敗，請重新整理頁面。");
-                return;
+                if (error) {
+                    console.error("讀取失敗", error);
+                    listContainer.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-red-500 font-bold">讀取失敗！請確認是否已在 Supabase 建立 employees 資料表。</td></tr>';
+                    return;
+                }
+
+                listContainer.innerHTML = '';
+                globalEmployees = data; // 存入全域變數
+                
+                if (!data || data.length === 0) {
+                    listContainer.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-500">目前沒有員工資料</td></tr>';
+                    return;
+                }
+
+                data.forEach(emp => {
+                    // 產生檔案狀態小標籤
+                    let docsHtml = '';
+                    if(emp.education_cert_url) docsHtml += `<a href="${emp.education_cert_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">學歷</a>`;
+                    if(emp.police_check_url) docsHtml += `<a href="${emp.police_check_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">良民證</a>`;
+                    if(emp.contract_url) docsHtml += `<a href="${emp.contract_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">合約</a>`;
+                    if(emp.bank_passbook_url) docsHtml += `<a href="${emp.bank_passbook_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">存摺</a>`;
+                    if(emp.id_card_url) docsHtml += `<a href="${emp.id_card_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">身分證</a>`;
+                    if(emp.resume_url) docsHtml += `<a href="${emp.resume_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">履歷</a>`;
+                    if(!docsHtml) docsHtml = '<span class="text-gray-400 text-sm">無檔案</span>';
+
+                    const row = `
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="p-4 border-b">
+                                <div class="font-bold text-gray-900">${emp.name}</div>
+                                <div class="text-sm text-blue-600">${emp.stage_name}</div>
+                            </td>
+                            <td class="p-4 border-b text-gray-700">${emp.phone}</td>
+                            <td class="p-4 border-b text-gray-700">${emp.teachable_subjects}</td>
+                            <td class="p-4 border-b text-gray-700">${emp.teachable_grades}</td>
+                            <td class="p-4 border-b">${docsHtml}</td>
+                            <td class="p-4 border-b text-center space-x-2">
+                                <button onclick="editEmployee('${emp.id}')" class="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600">編輯</button>
+                                <button onclick="deleteEmployee('${emp.id}')" class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">刪除</button>
+                            </td>
+                        </tr>
+                    `;
+                    listContainer.innerHTML += row;
+                });
+            } catch (err) {
+                console.error("執行讀取時發生錯誤", err);
             }
-
-            listContainer.innerHTML = '';
-            
-            if (data.length === 0) {
-                listContainer.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-500">目前沒有員工資料</td></tr>';
-                return;
-            }
-
-            data.forEach(emp => {
-                // 產生檔案狀態小標籤
-                let docsHtml = '';
-                if(emp.education_cert_url) docsHtml += `<a href="${emp.education_cert_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">學歷</a>`;
-                if(emp.police_check_url) docsHtml += `<a href="${emp.police_check_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">良民證</a>`;
-                if(emp.contract_url) docsHtml += `<a href="${emp.contract_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">合約</a>`;
-                if(emp.bank_passbook_url) docsHtml += `<a href="${emp.bank_passbook_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">存摺</a>`;
-                if(emp.id_card_url) docsHtml += `<a href="${emp.id_card_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">身分證</a>`;
-                if(emp.resume_url) docsHtml += `<a href="${emp.resume_url}" target="_blank" class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded mr-1 mb-1 hover:bg-green-200">履歷</a>`;
-                if(!docsHtml) docsHtml = '<span class="text-gray-400 text-sm">無檔案</span>';
-
-                const row = `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="p-4 border-b">
-                            <div class="font-bold text-gray-900">${emp.name}</div>
-                            <div class="text-sm text-blue-600">${emp.stage_name}</div>
-                        </td>
-                        <td class="p-4 border-b text-gray-700">${emp.phone}</td>
-                        <td class="p-4 border-b text-gray-700">${emp.teachable_subjects}</td>
-                        <td class="p-4 border-b text-gray-700">${emp.teachable_grades}</td>
-                        <td class="p-4 border-b">${docsHtml}</td>
-                        <td class="p-4 border-b text-center space-x-2">
-                            <button onclick='editEmployee(${JSON.stringify(emp).replace(/'/g, "&apos;")})' class="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600">編輯</button>
-                            <button onclick="deleteEmployee('${emp.id}')" class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">刪除</button>
-                        </td>
-                    </tr>
-                `;
-                listContainer.innerHTML += row;
-            });
         }
 
         // ==========================================
@@ -209,7 +219,10 @@
             document.getElementById('employeeModal').classList.add('hidden');
         }
 
-        function editEmployee(emp) {
+        function editEmployee(id) {
+            const emp = globalEmployees.find(e => e.id === id);
+            if (!emp) return;
+
             openModal();
             document.getElementById('modalTitle').innerText = '編輯員工';
             document.getElementById('employeeId').value = emp.id;
@@ -328,7 +341,7 @@
                 const bankUrl = await uploadFile('file_bank', currentEmpId, 'bank');
                 if (bankUrl) updatesWithFiles.bank_passbook_url = bankUrl;
 
-                const idcardUrl = await uploadFile('file_idcard', currentcurrentEmpId, 'idcard');
+                const idcardUrl = await uploadFile('file_idcard', currentEmpId, 'idcard');
                 if (idcardUrl) updatesWithFiles.id_card_url = idcardUrl;
 
                 const resumeUrl = await uploadFile('file_resume', currentEmpId, 'resume');

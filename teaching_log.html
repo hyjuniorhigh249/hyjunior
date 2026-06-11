@@ -141,10 +141,10 @@
         // 初始化 Supabase 連線
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
 
-        let allStudents = [];          // 全校學生名單
-        let rawClassesData = [];       // 班級清單架構
-        let currentLogId = null;       // 當前載入的團班日誌 ID
-        let currentSubClassStudents = []; // 當前子班別內準備顯示的所有學生
+        let allStudents = [];          
+        let rawClassesData = [];       
+        let currentLogId = null;       
+        let currentSubClassStudents = []; 
         let selectedStudentId = null;  
         let selectedStudentName = '';  
         let selectedParentLineId = null; 
@@ -252,7 +252,6 @@
             currentLogId = null;
 
             try {
-                // 💡 修正點：使用 limit(1) 取代 maybeSingle()，避免多筆紀錄當機
                 const { data: logs, error } = await sb.from('class_logs')
                     .select('*')
                     .eq('class_id', classId)
@@ -424,7 +423,6 @@
             toggleQuizInput();
 
             try {
-                // 💡 修正點：防重複機制 limit(1)
                 const { data, error } = await sb.from('individual_logs')
                     .select('*')
                     .eq('class_id', classId)
@@ -570,9 +568,9 @@
             };
 
             try {
-                // 💡 修正點：防重複機制 limit(1) 避免儲存時產生無限多個複製品
+                // 💡 修正點：使用 student_id 取代 id 判斷是否存在，完全不依賴 id 欄位
                 const { data: existing, error: existErr } = await sb.from('individual_logs')
-                    .select('id')
+                    .select('student_id')
                     .eq('student_id', selectedStudentId)
                     .eq('log_date', dateVal)
                     .eq('class_id', classId)
@@ -582,7 +580,12 @@
                 if (existErr) throw existErr;
 
                 if (existing && existing.length > 0) {
-                    const { error } = await sb.from('individual_logs').update(payload).eq('id', existing[0].id);
+                    // 更新：直接利用複合條件來指定要更新哪一筆，不需要依賴 id
+                    const { error } = await sb.from('individual_logs').update(payload)
+                        .eq('student_id', selectedStudentId)
+                        .eq('log_date', dateVal)
+                        .eq('class_id', classId)
+                        .eq('sub_idx', parseInt(subIdx));
                     if (error) throw error;
                 } else {
                     payload.is_sent = false;
@@ -641,9 +644,9 @@
                     return;
                 }
                 
-                // 💡 修正點：防重複檢查 limit(1)，只要有一筆就給過，不會因為歷史重複紀錄當機
+                // 💡 修正點：只撈取 is_sent，不撈取 id
                 const { data: checkSavedArr, error: checkErr } = await sb.from('individual_logs')
-                    .select('id, is_sent')
+                    .select('is_sent')
                     .eq('student_id', studentId)
                     .eq('log_date', dateVal)
                     .eq('class_id', classId)
@@ -705,6 +708,7 @@
                         await sb.from('class_logs').update({ sent_student_ids: currentSentArr }).eq('id', currentLogId);
                     }
                 } else {
+                    // 💡 修正點：利用複合條件更新發送狀態，不依賴 id
                     await sb.from('individual_logs')
                         .update({ is_sent: true })
                         .eq('student_id', studentId)

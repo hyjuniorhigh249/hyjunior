@@ -19,17 +19,16 @@
     
     <header class="flex justify-between items-center mb-6 shrink-0 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
         <h1 class="text-2xl font-black text-slate-800">班級組織與成員管理</h1>
-        <button onclick="openRateModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-indigo-100 transition border border-indigo-100">
+        <button type="button" onclick="openRateModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-indigo-100 transition border border-indigo-100">
             ⚙️ 鐘點級別設定
         </button>
     </header>
     
     <div class="flex gap-6 flex-1 min-h-0">
-        
         <div class="w-1/3 max-w-sm bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
             <div class="p-4 border-b bg-slate-50 flex justify-between items-center shrink-0">
                 <h2 class="font-black text-slate-700">📂 班級列表</h2>
-                <button onclick="openClassModal()" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg font-black shadow-sm hover:bg-slate-700 transition">＋ 主班級</button>
+                <button type="button" onclick="openClassModal()" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg font-black shadow-sm hover:bg-slate-700 transition">＋ 主班級</button>
             </div>
             <div id="left-class-list" class="flex-1 overflow-y-auto scroll-area">
                 <p class="text-center py-10 text-slate-400 font-bold">讀取中...</p>
@@ -41,7 +40,6 @@
                 <div class="flex items-center justify-center h-full text-slate-400 font-bold">請從左側選擇或建立班級</div>
             </div>
         </div>
-
     </div>
 
     <div id="class-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
@@ -73,8 +71,8 @@
             <input type="text" id="cls-note" class="w-full p-2 border rounded-lg mb-6 font-bold bg-slate-50">
             
             <div class="flex gap-2">
-                <button onclick="closeModal('class-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 text-slate-600">取消</button>
-                <button onclick="saveClass()" class="flex-1 py-2 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700">儲存</button>
+                <button type="button" onclick="closeModal('class-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 text-slate-600">取消</button>
+                <button type="button" onclick="saveClass()" class="flex-1 py-2 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700">儲存</button>
             </div>
         </div>
     </div>
@@ -138,8 +136,8 @@
                 </select>
 
             <div class="flex gap-2">
-                <button onclick="closeModal('sub-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 text-slate-600">取消</button>
-                <button onclick="saveSubClass()" class="flex-1 py-2 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700">儲存</button>
+                <button type="button" onclick="closeModal('sub-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 text-slate-600">取消</button>
+                <button type="button" onclick="saveSubClass()" class="flex-1 py-2 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700">儲存</button>
             </div>
         </div>
     </div>
@@ -156,7 +154,7 @@
             </select>
             <input type="text" id="stu-search" oninput="filterStudents()" placeholder="搜尋姓名..." class="w-full p-2 border rounded-lg text-sm font-bold mb-4 bg-slate-50 outline-none focus:bg-white">
             <div id="student-list-container" class="flex-1 overflow-y-auto space-y-1 scroll-area"></div>
-            <button onclick="closeModal('student-modal')" class="w-full py-3 mt-4 bg-slate-100 text-slate-700 hover:bg-slate-200 transition rounded-xl font-black">完成</button>
+            <button type="button" onclick="closeModal('student-modal')" class="w-full py-3 mt-4 bg-slate-100 text-slate-700 hover:bg-slate-200 transition rounded-xl font-black">完成</button>
         </div>
     </div>
 
@@ -164,12 +162,12 @@
         <div class="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-black text-slate-800">⚙️ 鐘點級別全域設定</h3>
-                <button onclick="closeModal('rate-modal')" class="text-slate-400 hover:text-rose-500 font-bold text-lg px-2">✕</button>
+                <button type="button" onclick="closeModal('rate-modal')" class="text-slate-400 hover:text-rose-500 font-bold text-lg px-2">✕</button>
             </div>
             
             <div class="flex gap-2 mb-4">
-                <button onclick="switchRateTab('國中小')" id="tab-btn-國中小" class="flex-1 py-2 rounded-lg font-black bg-indigo-600 text-white shadow">國中小標準</button>
-                <button onclick="switchRateTab('高中')" id="tab-btn-高中" class="flex-1 py-2 rounded-lg font-black bg-slate-100 text-slate-600 hover:bg-slate-200">高中標準</button>
+                <button type="button" onclick="switchRateTab('國中小')" id="tab-btn-國中小" class="flex-1 py-2 rounded-lg font-black bg-indigo-600 text-white shadow">國中小標準</button>
+                <button type="button" onclick="switchRateTab('高中')" id="tab-btn-高中" class="flex-1 py-2 rounded-lg font-black bg-slate-100 text-slate-600 hover:bg-slate-200">高中標準</button>
             </div>
 
             <div class="flex-1 overflow-y-auto scroll-area bg-slate-50 rounded-xl border border-slate-200 p-3" id="rate-container">
@@ -177,7 +175,7 @@
             </div>
 
             <div class="mt-4">
-                <button onclick="saveRateSettings()" class="w-full py-3 bg-slate-800 text-white rounded-xl font-black shadow hover:bg-slate-700 transition">💾 儲存並套用所有變更</button>
+                <button type="button" onclick="saveRateSettings(this)" class="w-full py-3 bg-slate-800 text-white rounded-xl font-black shadow hover:bg-slate-700 transition">💾 儲存並套用所有變更</button>
             </div>
         </div>
     </div>
@@ -188,11 +186,10 @@
         let selectedClassId = null; 
         let stuMap = {}; 
         
-        // 全域變數
         let activeEmployees = []; 
         let allRates = [];
         let currentRateTab = '國中小';
-        let draftRates = []; // 供彈窗編輯使用的草稿陣列
+        let draftRates = [];
 
         const dayMap = { '0': '日', '1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六' };
 
@@ -239,7 +236,6 @@
         }
 
         function render() {
-            // 1. 渲染左側班級列表
             const leftList = document.getElementById('left-class-list');
             if (allClassData.length === 0) {
                 leftList.innerHTML = '<p class="text-center py-10 text-slate-400 font-bold">目前無班級資料</p>';
@@ -254,7 +250,6 @@
                 `).join('');
             }
 
-            // 2. 渲染右側詳細面板
             const rightPane = document.getElementById('right-class-detail');
             const cls = allClassData.find(c => c.id === selectedClassId);
             
@@ -275,12 +270,12 @@
                             </div>
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="openClassModal('${cls.id}')" class="text-xs bg-slate-100 text-slate-600 px-4 py-2 rounded-lg font-black hover:bg-slate-200 transition shadow-sm">⚙️ 編輯</button>
-                            <button onclick="deleteClass('${cls.id}')" class="text-xs bg-rose-50 text-rose-600 px-4 py-2 rounded-lg font-black hover:bg-rose-100 transition shadow-sm">🗑️ 刪除</button>
+                            <button type="button" onclick="openClassModal('${cls.id}')" class="text-xs bg-slate-100 text-slate-600 px-4 py-2 rounded-lg font-black hover:bg-slate-200 transition shadow-sm">⚙️ 編輯</button>
+                            <button type="button" onclick="deleteClass('${cls.id}')" class="text-xs bg-rose-50 text-rose-600 px-4 py-2 rounded-lg font-black hover:bg-rose-100 transition shadow-sm">🗑️ 刪除</button>
                         </div>
                     </div>
                     <div class="absolute -bottom-4 right-6">
-                        <button onclick="openSubModal('${cls.id}')" class="text-sm bg-emerald-500 text-white px-5 py-2 rounded-full font-black shadow-lg hover:bg-emerald-600 transition hover:-translate-y-1">＋ 新增子班別</button>
+                        <button type="button" onclick="openSubModal('${cls.id}')" class="text-sm bg-emerald-500 text-white px-5 py-2 rounded-full font-black shadow-lg hover:bg-emerald-600 transition hover:-translate-y-1">＋ 新增子班別</button>
                     </div>
                 </div>
 
@@ -308,14 +303,14 @@
                                     </div>
                                 </div>
                                 <div class="flex gap-1 flex-col h-fit shrink-0">
-                                    <button onclick="openSubModal('${cls.id}', ${idx})" class="text-[10px] bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-black hover:bg-slate-200 text-left">⚙️ 編輯</button>
-                                    <button onclick="deleteSub('${cls.id}', ${idx})" class="text-[10px] bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg font-black hover:bg-rose-100 text-left">🗑️ 刪除</button>
+                                    <button type="button" onclick="openSubModal('${cls.id}', ${idx})" class="text-[10px] bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-black hover:bg-slate-200 text-left">⚙️ 編輯</button>
+                                    <button type="button" onclick="deleteSub('${cls.id}', ${idx})" class="text-[10px] bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg font-black hover:bg-rose-100 text-left">🗑️ 刪除</button>
                                 </div>
                             </div>
                             
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-xs font-bold text-slate-400">目前人數: ${(sub.members||[]).length}</span>
-                                <button onclick="openStudentModal('${cls.id}', ${idx})" class="text-[10px] bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700 font-black">＋ 加入學生</button>
+                                <button type="button" onclick="openStudentModal('${cls.id}', ${idx})" class="text-[10px] bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700 font-black">＋ 加入學生</button>
                             </div>
                             
                             <div class="flex flex-wrap gap-1.5 bg-slate-50 p-2 rounded-lg min-h-[50px] items-start content-start border border-slate-100">
@@ -333,9 +328,6 @@
             `;
         }
 
-        // ==========================================
-        // Modal 與資料儲存操作
-        // ==========================================
         function openClassModal(id = null) {
             document.getElementById('cls-id').value = id || '';
             if(id) {
@@ -387,7 +379,6 @@
             init();
         }
 
-        // --- 子班別表單連動功能 ---
         function toggleFixedRate() {
             const rateLevel = document.getElementById('sub-rate-level').value;
             const fixedContainer = document.getElementById('fixed-rate-container');
@@ -398,7 +389,6 @@
             }
         }
 
-        // 動態生成選單 (從目前資料庫抓取的級別)
         function updateRateDropdown() {
             const cLevel = document.getElementById('sub-course-level').value;
             const rules = allRates.filter(r => r.course_level === cLevel);
@@ -434,7 +424,7 @@
                 document.getElementById('sub-misc').value = sub.misc_fee !== undefined ? sub.misc_fee : (cls.default_misc_fee || 0);
                 
                 document.getElementById('sub-course-level').value = sub.course_level || '國中小';
-                updateRateDropdown(); // 根據課程級別刷新下拉
+                updateRateDropdown(); 
                 document.getElementById('sub-rate-level').value = sub.rate_level || 'S';
                 document.getElementById('sub-fixed-rate').value = sub.fixed_rate || '';
                 
@@ -519,7 +509,7 @@
         }
 
         // ==========================================
-        // 全域鐘點設定操作 (高彈性版)
+        // 全域鐘點設定操作 (智慧切割天花板升級版)
         // ==========================================
         function openRateModal() {
             document.getElementById('rate-modal').classList.add('active');
@@ -531,12 +521,14 @@
             document.getElementById('tab-btn-國中小').className = level === '國中小' ? 'flex-1 py-2 rounded-lg font-black bg-indigo-600 text-white shadow' : 'flex-1 py-2 rounded-lg font-black bg-slate-100 text-slate-600 hover:bg-slate-200';
             document.getElementById('tab-btn-高中').className = level === '高中' ? 'flex-1 py-2 rounded-lg font-black bg-indigo-600 text-white shadow' : 'flex-1 py-2 rounded-lg font-black bg-slate-100 text-slate-600 hover:bg-slate-200';
             
-            // 複製一份草稿供使用者編輯，不直接改動原資料直到按下儲存
             draftRates = JSON.parse(JSON.stringify(allRates.filter(r => r.course_level === level)));
             renderRateUI();
         }
 
         function renderRateUI() {
+            // 每次渲染前，強力確保陣列按人數起點排序，畫面保證不出錯
+            draftRates.sort((a, b) => a.min_students - b.min_students);
+
             const container = document.getElementById('rate-container');
             const levels = [...new Set(draftRates.map(r => r.rate_level))];
             
@@ -546,7 +538,7 @@
                 <div class="mb-5 bg-white p-4 rounded-xl shadow-sm border border-slate-200 relative">
                     <div class="flex justify-between items-center mb-3 border-b pb-2">
                         <h4 class="font-black text-lg text-slate-800 border-l-4 border-indigo-500 pl-2">${rateLvl} 級</h4>
-                        <button onclick="deleteLevelDraft('${rateLvl}')" class="text-[11px] text-rose-500 bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded font-bold transition">🗑️ 刪除整個級別</button>
+                        <button type="button" onclick="deleteLevelDraft('${rateLvl}')" class="text-[11px] text-rose-500 bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded font-bold transition">🗑️ 刪除整個級別</button>
                     </div>
                     <div class="space-y-2">`;
                 
@@ -556,40 +548,69 @@
                         <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100 flex-wrap">
                             <input type="number" value="${r.min_students}" onchange="draftRates[${i}].min_students=parseInt(this.value)||0" class="w-16 p-1.5 text-sm border rounded font-bold text-center outline-none focus:border-indigo-500">
                             <span class="text-xs text-slate-400 font-bold">~</span>
-                            <input type="number" value="${r.max_students}" onchange="draftRates[${i}].max_students=parseInt(this.value)||0" class="w-16 p-1.5 text-sm border rounded font-bold text-center outline-none focus:border-indigo-500">
-                            <span class="text-xs text-slate-400 font-bold">人</span>
+                            <input type="number" value="${r.max_students}" onchange="draftRates[${i}].max_students=parseInt(this.value)||0" class="w-16 p-1.5 text-sm border rounded font-bold text-center outline-none ${r.max_students >= 999 ? 'text-indigo-600 bg-indigo-50 border-indigo-200' : ''}">
+                            <span class="text-xs text-slate-400 font-bold">人 ${r.max_students >= 999 ? '(以上防呆)' : ''}</span>
                             <span class="text-xs font-bold text-slate-400 ml-auto">金額:</span>
                             <input type="number" value="${r.amount}" onchange="draftRates[${i}].amount=parseInt(this.value)||0" class="w-20 p-1.5 text-sm border rounded font-black text-emerald-600 outline-none focus:border-indigo-500 text-right">
-                            <button onclick="deleteRuleDraft(${i})" class="text-slate-300 hover:text-rose-500 font-black px-2 py-1 text-lg leading-none transition>×</button>
+                            <button type="button" onclick="deleteRuleDraft(${i})" class="text-slate-300 hover:text-rose-500 font-black px-2 py-1 text-lg leading-none transition">×</button>
                         </div>`;
                     }
                 });
 
                 html += `
                     </div>
-                    <button onclick="addRuleDraft('${rateLvl}')" class="mt-3 text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded-lg font-black hover:bg-slate-200 w-full transition border border-slate-200 border-dashed">＋ 新增人數區間</button>
+                    <button type="button" onclick="addRuleDraft('${rateLvl}')" class="mt-3 text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded-lg font-black hover:bg-slate-200 w-full transition border border-slate-200 border-dashed">＋ 新增人數區間</button>
                 </div>`;
             });
 
-            html += `<button onclick="addLevelDraft()" class="w-full py-4 border-2 border-dashed border-indigo-300 text-indigo-600 rounded-xl font-black hover:bg-indigo-50 transition bg-white shadow-sm">＋ 新增全新鐘點級別 (例如：A級、SSSS級)</button>`;
+            html += `<button type="button" onclick="addLevelDraft()" class="w-full py-4 border-2 border-dashed border-indigo-300 text-indigo-600 rounded-xl font-black hover:bg-indigo-50 transition bg-white shadow-sm">＋ 新增全新鐘點級別 (例如：A級、SSSS級)</button>`;
             
             container.innerHTML = html;
         }
 
-        // 草稿陣列的操作函式
         function deleteRuleDraft(index) {
             draftRates.splice(index, 1);
             renderRateUI();
         }
 
+        // 🧠 智慧切割邏輯：解決「新增」時把天花板擠掉的問題
         function addRuleDraft(rateLvl) {
-            // 抓出該級別最大的人數加1作為新區間起點
-            const currentRules = draftRates.filter(r => r.rate_level === rateLvl);
-            let nextMin = 1;
-            if (currentRules.length > 0) {
-                nextMin = Math.max(...currentRules.map(r => r.max_students)) + 1;
+            // 先抓出屬於這個級別的所有規則，並確保已經排序好
+            const currentRules = draftRates.filter(r => r.rate_level === rateLvl).sort((a, b) => a.min_students - b.min_students);
+            
+            if (currentRules.length === 0) {
+                draftRates.push({ course_level: currentRateTab, rate_level: rateLvl, min_students: 1, max_students: 999, amount: 0 });
+            } else {
+                // 找出該級別目前的「最後一個區間（通常是天花板）」
+                let lastRule = currentRules[currentRules.length - 1];
+                
+                // 判斷：如果這個最後的區間是無限大 (>= 100 就當作是天花板)
+                if (lastRule.max_students >= 100) {
+                    const oldMin = lastRule.min_students;
+                    // 1. 把舊的無限大天花板「封頂」(縮小為 5 人間距)
+                    lastRule.max_students = oldMin + 5;
+                    
+                    // 2. 自動在後面生出一個「全新的天花板」頂上去
+                    draftRates.push({ 
+                        course_level: currentRateTab, 
+                        rate_level: rateLvl, 
+                        min_students: oldMin + 6, 
+                        max_students: 999, 
+                        amount: lastRule.amount + 100 
+                    });
+                } else {
+                    // 如果最後一個本來就不是無限大，正常在後面加上去
+                    const nextMin = lastRule.max_students + 1;
+                    draftRates.push({ 
+                        course_level: currentRateTab, 
+                        rate_level: rateLvl, 
+                        min_students: nextMin, 
+                        max_students: 999, // 預設新產生的永遠當天花板防呆
+                        amount: lastRule.amount + 100 
+                    });
+                }
             }
-            draftRates.push({ course_level: currentRateTab, rate_level: rateLvl, min_students: nextMin, max_students: nextMin + 5, amount: 0 });
+            // 重新渲染畫面時，會根據剛剛修改與 push 的陣列重新排序顯示
             renderRateUI();
         }
 
@@ -605,19 +626,17 @@
             if(newLvl && newLvl.trim()) {
                 const lvlName = newLvl.trim();
                 if(draftRates.some(r => r.rate_level === lvlName)) return alert("此級別名稱已存在！");
-                draftRates.push({ course_level: currentRateTab, rate_level: lvlName, min_students: 1, max_students: 10, amount: 500 });
+                draftRates.push({ course_level: currentRateTab, rate_level: lvlName, min_students: 1, max_students: 999, amount: 500 });
                 renderRateUI();
             }
         }
 
-        async function saveRateSettings() {
-            const btn = event.target;
-            btn.innerText = "儲存中...";
+        async function saveRateSettings(btnElem) {
+            const originalText = btnElem.innerText;
+            btnElem.innerText = "儲存中...";
             
-            // 1. 直接將該課程級別(高中/國中小)的舊資料全數刪除，以利直接覆蓋
             await sb.from('hourly_rate_rules').delete().eq('course_level', currentRateTab);
             
-            // 2. 將畫面上的草稿陣列插回資料庫 (移除舊的 uuid 以免發生衝突)
             const insertData = draftRates.map(r => {
                 const { id, ...rest } = r; 
                 return rest;
@@ -627,20 +646,17 @@
                 await sb.from('hourly_rate_rules').insert(insertData);
             }
             
-            // 3. 重新讀取全域設定
             const { data } = await sb.from('hourly_rate_rules').select('*').order('course_level').order('rate_level').order('min_students');
             allRates = data || [];
             
-            btn.innerText = "💾 儲存並套用所有變更";
+            btnElem.innerText = originalText;
             alert(`${currentRateTab} 的鐘點設定已儲存並套用成功！`);
             closeModal('rate-modal');
-            
-            // 由於可能新增了級別，刷新主畫面以確保子班別連動正常
             init(); 
         }
 
         // ==========================================
-        // 學生名單操作 (保留原狀)
+        // 學生名單操作
         // ==========================================
         function getAcademicYear() { const d = new Date(); return (d.getMonth() + 1) >= 7 ? d.getFullYear() : d.getFullYear() - 1; }
         function calculateDisplayGrade(baseYear) { if (!baseYear) return null; const grade = getAcademicYear() - baseYear + 1; return grade > 12 ? 13 : grade; }

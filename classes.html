@@ -19,6 +19,9 @@
     
     <header class="flex justify-between items-center mb-6 shrink-0 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
         <h1 class="text-2xl font-black text-slate-800">班級組織與成員管理</h1>
+        <button onclick="openRateModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-indigo-100 transition border border-indigo-100">
+            ⚙️ 鐘點級別設定
+        </button>
     </header>
     
     <div class="flex gap-6 flex-1 min-h-0">
@@ -77,7 +80,7 @@
     </div>
 
     <div id="sub-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto scroll-area">
             <h3 id="sub-modal-title" class="text-lg font-black mb-4">設定子班別</h3>
             <input type="hidden" id="sub-clsId">
             <input type="hidden" id="sub-idx">
@@ -109,8 +112,30 @@
                 <div><label class="block text-[10px] font-bold text-slate-400 mb-1">雜費</label><input type="number" id="sub-misc" class="w-full p-2 border rounded-lg font-bold bg-slate-50"></div>
             </div>
 
-            <label class="block text-xs font-bold text-slate-400 mb-1">授課老師</label>
-            <input type="text" id="sub-teacher" class="w-full p-2 border rounded-lg mb-6 font-bold bg-slate-50">
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">課程級別</label>
+                    <select id="sub-course-level" onchange="updateRateDropdown()" class="w-full p-2 border rounded-lg font-bold text-sm bg-indigo-50 text-indigo-700">
+                        <option value="國中小">國中小</option>
+                        <option value="高中">高中</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">鐘點級別</label>
+                    <select id="sub-rate-level" onchange="toggleFixedRate()" class="w-full p-2 border rounded-lg font-bold text-sm bg-purple-50 text-purple-700">
+                        </select>
+                </div>
+            </div>
+
+            <div id="fixed-rate-container" class="mb-3 hidden">
+                <label class="block text-xs font-bold text-rose-500 mb-1">設定固定鐘點金額</label>
+                <input type="number" id="sub-fixed-rate" class="w-full p-2 border border-rose-200 rounded-lg font-bold text-rose-600 bg-rose-50" placeholder="輸入固定金額...">
+            </div>
+
+            <label class="block text-xs font-bold text-slate-400 mb-1">授課老師 (連動在職員工)</label>
+            <select id="sub-teacher-id" class="w-full p-2 border rounded-lg mb-6 font-bold bg-slate-50">
+                <option value="">請選擇授課老師...</option>
+                </select>
 
             <div class="flex gap-2">
                 <button onclick="closeModal('sub-modal')" class="flex-1 py-2 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 text-slate-600">取消</button>
@@ -135,36 +160,68 @@
         </div>
     </div>
 
+    <div id="rate-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-black text-slate-800">⚙️ 鐘點級別全域設定</h3>
+                <button onclick="closeModal('rate-modal')" class="text-slate-400 hover:text-rose-500 font-bold text-lg px-2">✕</button>
+            </div>
+            
+            <div class="flex gap-2 mb-4">
+                <button onclick="switchRateTab('國中小')" id="tab-btn-國中小" class="flex-1 py-2 rounded-lg font-black bg-indigo-600 text-white shadow">國中小標準</button>
+                <button onclick="switchRateTab('高中')" id="tab-btn-高中" class="flex-1 py-2 rounded-lg font-black bg-slate-100 text-slate-600 hover:bg-slate-200">高中標準</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto scroll-area bg-slate-50 rounded-xl border border-slate-200 p-3" id="rate-container">
+                <p class="text-center py-10 text-slate-400 font-bold">載入中...</p>
+            </div>
+
+            <div class="mt-4">
+                <button onclick="saveRateSettings()" class="w-full py-3 bg-slate-800 text-white rounded-xl font-black shadow hover:bg-slate-700 transition">💾 儲存並套用所有變更</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
         let allClassData = [], allStudents = [], targetClassId = '', targetSubIdx = 0;
-        let selectedClassId = null; // 紀錄左側目前選取的班級 ID
-        let stuMap = {}; // 用來翻譯 student_id 到 姓名
+        let selectedClassId = null; 
+        let stuMap = {}; 
+        
+        // 全域變數
+        let activeEmployees = []; 
+        let allRates = [];
+        let currentRateTab = '國中小';
+        let draftRates = []; // 供彈窗編輯使用的草稿陣列
+
         const dayMap = { '0': '日', '1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六' };
 
         async function init() {
             const { data: classes } = await sb.from('classes').select('*').order('created_at', { ascending: false });
             const { data: students } = await sb.from('students').select('*');
+            const { data: employees } = await sb.from('employees').select('id, name, stage_name, status').eq('status', '在職');
+            const { data: rates, error: rateErr } = await sb.from('hourly_rate_rules').select('*').order('course_level').order('rate_level').order('min_students');
+
             allClassData = classes || [];
             allStudents = students || [];
-            
-            // 建立姓名翻譯字典
+            activeEmployees = employees || [];
+            if(!rateErr && rates) allRates = rates;
+
             stuMap = {};
             allStudents.forEach(s => { stuMap[s.id] = s.name; });
 
-            // 如果有資料且尚未選取，預設選取第一筆
             if (allClassData.length > 0 && !selectedClassId) {
                 selectedClassId = allClassData[0].id;
             }
 
             render();
+            renderTeacherOptions();
         }
 
-        // 智能顯示學生名稱 (相容舊版名字與新版 UUID)
         function getMemberDisplayName(m) {
-            if (stuMap[m]) return stuMap[m]; // 是 UUID 且找得到人
-            if (m.length > 20) return '已刪除學生'; // 是 UUID 但找不到人
-            return m; // 是舊版的中文名字字串
+            if (stuMap[m]) return stuMap[m]; 
+            if (m.length > 20) return '已刪除學生'; 
+            return m; 
         }
 
         function selectClass(id) {
@@ -172,10 +229,17 @@
             render();
         }
 
+        function renderTeacherOptions() {
+            const select = document.getElementById('sub-teacher-id');
+            select.innerHTML = '<option value="">請選擇授課老師...</option>' + 
+                activeEmployees.map(emp => {
+                    const displayName = emp.stage_name ? emp.stage_name : emp.name;
+                    return `<option value="${emp.id}">${displayName}</option>`;
+                }).join('');
+        }
+
         function render() {
-            // =========================
             // 1. 渲染左側班級列表
-            // =========================
             const leftList = document.getElementById('left-class-list');
             if (allClassData.length === 0) {
                 leftList.innerHTML = '<p class="text-center py-10 text-slate-400 font-bold">目前無班級資料</p>';
@@ -190,9 +254,7 @@
                 `).join('');
             }
 
-            // =========================
             // 2. 渲染右側詳細面板
-            // =========================
             const rightPane = document.getElementById('right-class-detail');
             const cls = allClassData.find(c => c.id === selectedClassId);
             
@@ -238,9 +300,14 @@
                                     <p class="text-xs text-slate-500 font-bold mt-1.5 flex items-center gap-1">
                                         🕒 每週${sub.day ? dayMap[sub.day] : '未定'} | ${sub.start || '--:--'} ~ ${sub.end || '--:--'}
                                     </p>
-                                    <p class="text-[11px] text-blue-600 font-bold mt-1 bg-blue-50 w-fit px-2 py-0.5 rounded">👨‍🏫 老師：${sub.teacher || '未定'}</p>
+                                    
+                                    <div class="flex flex-wrap gap-1 mt-2">
+                                        <span class="text-[11px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">👨‍🏫 老師：${sub.teacher || '未定'}</span>
+                                        ${sub.course_level ? `<span class="text-[11px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">🎓 ${sub.course_level}</span>` : ''}
+                                        ${sub.rate_level ? `<span class="text-[11px] text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded border border-purple-100">💰 ${sub.rate_level} ${sub.rate_level === '固定鐘點' ? `($${sub.fixed_rate||0})` : ''}</span>` : ''}
+                                    </div>
                                 </div>
-                                <div class="flex gap-1 flex-col h-fit">
+                                <div class="flex gap-1 flex-col h-fit shrink-0">
                                     <button onclick="openSubModal('${cls.id}', ${idx})" class="text-[10px] bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-black hover:bg-slate-200 text-left">⚙️ 編輯</button>
                                     <button onclick="deleteSub('${cls.id}', ${idx})" class="text-[10px] bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg font-black hover:bg-rose-100 text-left">🗑️ 刪除</button>
                                 </div>
@@ -314,10 +381,40 @@
             } else { 
                 payload.sub_classes = []; 
                 const { data } = await sb.from('classes').insert([payload]).select();
-                if(data && data.length > 0) selectedClassId = data[0].id; // 新增後自動選取
+                if(data && data.length > 0) selectedClassId = data[0].id;
             }
             closeModal('class-modal'); 
             init();
+        }
+
+        // --- 子班別表單連動功能 ---
+        function toggleFixedRate() {
+            const rateLevel = document.getElementById('sub-rate-level').value;
+            const fixedContainer = document.getElementById('fixed-rate-container');
+            if (rateLevel === '固定鐘點') {
+                fixedContainer.classList.remove('hidden');
+            } else {
+                fixedContainer.classList.add('hidden');
+            }
+        }
+
+        // 動態生成選單 (從目前資料庫抓取的級別)
+        function updateRateDropdown() {
+            const cLevel = document.getElementById('sub-course-level').value;
+            const rules = allRates.filter(r => r.course_level === cLevel);
+            const uniqueLevels = [...new Set(rules.map(r => r.rate_level))];
+            
+            const sel = document.getElementById('sub-rate-level');
+            const currentVal = sel.value;
+            
+            sel.innerHTML = uniqueLevels.map(l => `<option value="${l}">${l}</option>`).join('') + `<option value="固定鐘點">固定鐘點</option>`;
+            
+            if (uniqueLevels.includes(currentVal) || currentVal === '固定鐘點') {
+                sel.value = currentVal;
+            } else if (uniqueLevels.length > 0) {
+                sel.value = uniqueLevels[0];
+            }
+            toggleFixedRate();
         }
 
         function openSubModal(clsId, idx = null) {
@@ -332,21 +429,38 @@
                 document.getElementById('sub-day').value = sub.day || '1';
                 document.getElementById('sub-start').value = sub.start || '';
                 document.getElementById('sub-end').value = sub.end || '';
-                document.getElementById('sub-teacher').value = sub.teacher || '';
                 document.getElementById('sub-fee').value = sub.fee !== undefined ? sub.fee : (cls.default_fee || 0);
                 document.getElementById('sub-textbook').value = sub.textbook_fee !== undefined ? sub.textbook_fee : (cls.default_textbook_fee || 0);
                 document.getElementById('sub-misc').value = sub.misc_fee !== undefined ? sub.misc_fee : (cls.default_misc_fee || 0);
+                
+                document.getElementById('sub-course-level').value = sub.course_level || '國中小';
+                updateRateDropdown(); // 根據課程級別刷新下拉
+                document.getElementById('sub-rate-level').value = sub.rate_level || 'S';
+                document.getElementById('sub-fixed-rate').value = sub.fixed_rate || '';
+                
+                if (sub.teacher_id) {
+                    document.getElementById('sub-teacher-id').value = sub.teacher_id;
+                } else {
+                    const matchEmp = activeEmployees.find(e => e.stage_name === sub.teacher || e.name === sub.teacher);
+                    document.getElementById('sub-teacher-id').value = matchEmp ? matchEmp.id : '';
+                }
             } else {
                 document.getElementById('sub-modal-title').innerText = "新增子班別";
                 document.getElementById('sub-name').value = '';
                 document.getElementById('sub-day').value = '1';
                 document.getElementById('sub-start').value = '';
                 document.getElementById('sub-end').value = '';
-                document.getElementById('sub-teacher').value = '';
                 document.getElementById('sub-fee').value = cls.default_fee || 0; 
                 document.getElementById('sub-textbook').value = cls.default_textbook_fee || 0; 
                 document.getElementById('sub-misc').value = cls.default_misc_fee || 0; 
+                
+                document.getElementById('sub-course-level').value = '國中小';
+                updateRateDropdown();
+                document.getElementById('sub-fixed-rate').value = '';
+                document.getElementById('sub-teacher-id').value = '';
             }
+            
+            toggleFixedRate();
             document.getElementById('sub-modal').classList.add('active');
         }
 
@@ -356,6 +470,11 @@
             const name = document.getElementById('sub-name').value.trim();
             
             if(!name) return alert("名稱必填！");
+
+            const teacherSelect = document.getElementById('sub-teacher-id');
+            const teacherId = teacherSelect.value;
+            const teacherText = teacherId ? teacherSelect.options[teacherSelect.selectedIndex].text : '';
+
             const cls = allClassData.find(c => c.id === clsId);
             let subs = cls.sub_classes ? [...cls.sub_classes] : [];
             const data = { 
@@ -366,7 +485,11 @@
                 day: document.getElementById('sub-day').value, 
                 start: document.getElementById('sub-start').value, 
                 end: document.getElementById('sub-end').value, 
-                teacher: document.getElementById('sub-teacher').value.trim() 
+                teacher_id: teacherId,     
+                teacher: teacherText,      
+                course_level: document.getElementById('sub-course-level').value,
+                rate_level: document.getElementById('sub-rate-level').value,
+                fixed_rate: parseInt(document.getElementById('sub-fixed-rate').value) || 0
             };
             
             if(idxStr !== '') subs[parseInt(idxStr)] = { ...subs[parseInt(idxStr)], ...data };
@@ -380,7 +503,7 @@
         async function deleteClass(id) { 
             if(confirm("確定要刪除整個主班級與底下的所有子班別嗎？\n注意：此動作無法復原！")) { 
                 await sb.from('classes').delete().eq('id', id); 
-                selectedClassId = null; // 重置選取狀態
+                selectedClassId = null; 
                 init(); 
             } 
         }
@@ -396,7 +519,128 @@
         }
 
         // ==========================================
-        // 學生名單操作 (改用 UUID 連動)
+        // 全域鐘點設定操作 (高彈性版)
+        // ==========================================
+        function openRateModal() {
+            document.getElementById('rate-modal').classList.add('active');
+            switchRateTab('國中小');
+        }
+
+        function switchRateTab(level) {
+            currentRateTab = level;
+            document.getElementById('tab-btn-國中小').className = level === '國中小' ? 'flex-1 py-2 rounded-lg font-black bg-indigo-600 text-white shadow' : 'flex-1 py-2 rounded-lg font-black bg-slate-100 text-slate-600 hover:bg-slate-200';
+            document.getElementById('tab-btn-高中').className = level === '高中' ? 'flex-1 py-2 rounded-lg font-black bg-indigo-600 text-white shadow' : 'flex-1 py-2 rounded-lg font-black bg-slate-100 text-slate-600 hover:bg-slate-200';
+            
+            // 複製一份草稿供使用者編輯，不直接改動原資料直到按下儲存
+            draftRates = JSON.parse(JSON.stringify(allRates.filter(r => r.course_level === level)));
+            renderRateUI();
+        }
+
+        function renderRateUI() {
+            const container = document.getElementById('rate-container');
+            const levels = [...new Set(draftRates.map(r => r.rate_level))];
+            
+            let html = '';
+            levels.forEach(rateLvl => {
+                html += `
+                <div class="mb-5 bg-white p-4 rounded-xl shadow-sm border border-slate-200 relative">
+                    <div class="flex justify-between items-center mb-3 border-b pb-2">
+                        <h4 class="font-black text-lg text-slate-800 border-l-4 border-indigo-500 pl-2">${rateLvl} 級</h4>
+                        <button onclick="deleteLevelDraft('${rateLvl}')" class="text-[11px] text-rose-500 bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded font-bold transition">🗑️ 刪除整個級別</button>
+                    </div>
+                    <div class="space-y-2">`;
+                
+                draftRates.forEach((r, i) => {
+                    if (r.rate_level === rateLvl) {
+                        html += `
+                        <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-100 flex-wrap">
+                            <input type="number" value="${r.min_students}" onchange="draftRates[${i}].min_students=parseInt(this.value)||0" class="w-16 p-1.5 text-sm border rounded font-bold text-center outline-none focus:border-indigo-500">
+                            <span class="text-xs text-slate-400 font-bold">~</span>
+                            <input type="number" value="${r.max_students}" onchange="draftRates[${i}].max_students=parseInt(this.value)||0" class="w-16 p-1.5 text-sm border rounded font-bold text-center outline-none focus:border-indigo-500">
+                            <span class="text-xs text-slate-400 font-bold">人</span>
+                            <span class="text-xs font-bold text-slate-400 ml-auto">金額:</span>
+                            <input type="number" value="${r.amount}" onchange="draftRates[${i}].amount=parseInt(this.value)||0" class="w-20 p-1.5 text-sm border rounded font-black text-emerald-600 outline-none focus:border-indigo-500 text-right">
+                            <button onclick="deleteRuleDraft(${i})" class="text-slate-300 hover:text-rose-500 font-black px-2 py-1 text-lg leading-none transition>×</button>
+                        </div>`;
+                    }
+                });
+
+                html += `
+                    </div>
+                    <button onclick="addRuleDraft('${rateLvl}')" class="mt-3 text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded-lg font-black hover:bg-slate-200 w-full transition border border-slate-200 border-dashed">＋ 新增人數區間</button>
+                </div>`;
+            });
+
+            html += `<button onclick="addLevelDraft()" class="w-full py-4 border-2 border-dashed border-indigo-300 text-indigo-600 rounded-xl font-black hover:bg-indigo-50 transition bg-white shadow-sm">＋ 新增全新鐘點級別 (例如：A級、SSSS級)</button>`;
+            
+            container.innerHTML = html;
+        }
+
+        // 草稿陣列的操作函式
+        function deleteRuleDraft(index) {
+            draftRates.splice(index, 1);
+            renderRateUI();
+        }
+
+        function addRuleDraft(rateLvl) {
+            // 抓出該級別最大的人數加1作為新區間起點
+            const currentRules = draftRates.filter(r => r.rate_level === rateLvl);
+            let nextMin = 1;
+            if (currentRules.length > 0) {
+                nextMin = Math.max(...currentRules.map(r => r.max_students)) + 1;
+            }
+            draftRates.push({ course_level: currentRateTab, rate_level: rateLvl, min_students: nextMin, max_students: nextMin + 5, amount: 0 });
+            renderRateUI();
+        }
+
+        function deleteLevelDraft(rateLvl) {
+            if(confirm(`確定要刪除整個「${rateLvl}」的所有設定嗎？`)) {
+                draftRates = draftRates.filter(r => r.rate_level !== rateLvl);
+                renderRateUI();
+            }
+        }
+
+        function addLevelDraft() {
+            const newLvl = prompt("請輸入新級別名稱 (例如：A級、SSSS級)：");
+            if(newLvl && newLvl.trim()) {
+                const lvlName = newLvl.trim();
+                if(draftRates.some(r => r.rate_level === lvlName)) return alert("此級別名稱已存在！");
+                draftRates.push({ course_level: currentRateTab, rate_level: lvlName, min_students: 1, max_students: 10, amount: 500 });
+                renderRateUI();
+            }
+        }
+
+        async function saveRateSettings() {
+            const btn = event.target;
+            btn.innerText = "儲存中...";
+            
+            // 1. 直接將該課程級別(高中/國中小)的舊資料全數刪除，以利直接覆蓋
+            await sb.from('hourly_rate_rules').delete().eq('course_level', currentRateTab);
+            
+            // 2. 將畫面上的草稿陣列插回資料庫 (移除舊的 uuid 以免發生衝突)
+            const insertData = draftRates.map(r => {
+                const { id, ...rest } = r; 
+                return rest;
+            });
+            
+            if(insertData.length > 0) {
+                await sb.from('hourly_rate_rules').insert(insertData);
+            }
+            
+            // 3. 重新讀取全域設定
+            const { data } = await sb.from('hourly_rate_rules').select('*').order('course_level').order('rate_level').order('min_students');
+            allRates = data || [];
+            
+            btn.innerText = "💾 儲存並套用所有變更";
+            alert(`${currentRateTab} 的鐘點設定已儲存並套用成功！`);
+            closeModal('rate-modal');
+            
+            // 由於可能新增了級別，刷新主畫面以確保子班別連動正常
+            init(); 
+        }
+
+        // ==========================================
+        // 學生名單操作 (保留原狀)
         // ==========================================
         function getAcademicYear() { const d = new Date(); return (d.getMonth() + 1) >= 7 ? d.getFullYear() : d.getFullYear() - 1; }
         function calculateDisplayGrade(baseYear) { if (!baseYear) return null; const grade = getAcademicYear() - baseYear + 1; return grade > 12 ? 13 : grade; }
@@ -422,7 +666,6 @@
             );
             
             document.getElementById('student-list-container').innerHTML = filtered.map(s => {
-                // ✅ 同時檢查 UUID 與 舊版名字 是否已存在名單中
                 const isAdded = currentMembers.includes(s.id) || currentMembers.includes(s.name);
                 return `<div class="p-3 border-b flex justify-between items-center ${isAdded ? 'bg-slate-50 opacity-50' : 'cursor-pointer hover:bg-slate-100 transition'}" onclick="${isAdded ? '' : `addStudent('${s.id}')`}">
                     <span class="font-bold text-sm text-slate-700">${s.name}</span>
@@ -434,7 +677,6 @@
         async function addStudent(stuId) { 
             const cls = allClassData.find(c => c.id === targetClassId); 
             let subs = [...cls.sub_classes]; 
-            // ✅ 現在加入名單的是 student_id (UUID)
             subs[targetSubIdx].members = [...(subs[targetSubIdx].members || []), stuId]; 
             await sb.from('classes').update({ sub_classes: subs }).eq('id', targetClassId); 
             cls.sub_classes = subs; 
@@ -447,7 +689,6 @@
             if(confirm(`確定要將 ${dispName} 從這個班別移除嗎？`)) { 
                 const cls = allClassData.find(c => c.id === clsId); 
                 let subs = [...cls.sub_classes]; 
-                // ✅ 無論他是舊版名字還是新版 UUID，精準移除該值
                 subs[idx].members = subs[idx].members.filter(m => m !== memberValue); 
                 await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId); 
                 init(); 

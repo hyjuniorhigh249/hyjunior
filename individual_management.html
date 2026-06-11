@@ -258,7 +258,8 @@
         const SUPABASE_URL = 'https://hlelxeiwamvrntsxnram.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM';
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // 【修復點】：這裡將變數 supabase 改為 sb，避免與套件本身的名稱衝突
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // 全域變數存放
         let allStudents = [];
@@ -319,7 +320,8 @@
         // 2. 從「學生總檔」撈取資料
         async function fetchStudents() {
             try {
-                const { data, error } = await supabase
+                // 【修復點】：對應上述更改，這裡改為 sb.from
+                const { data, error } = await sb
                     .from('students')
                     .select('id, name, grade_base_year')
                     .order('name');
@@ -536,7 +538,8 @@
             };
 
             try {
-                const { error } = await supabase
+                // 【修復點】：sb.from
+                const { error } = await sb
                     .from('individual_classes')
                     .insert([insertData]);
 
@@ -559,7 +562,8 @@
         // 6. 讀取現有開班列表
         async function fetchIndividualClasses() {
             try {
-                const { data, error } = await supabase
+                // 【修復點】：sb.from
+                const { data, error } = await sb
                     .from('individual_classes')
                     .select('*')
                     .order('created_at', { ascending: false });
@@ -605,7 +609,8 @@
         async function deleteClass(id) {
             if (!confirm("⚠️ 確定要刪除此個指班別嗎？")) return;
             try {
-                const { error } = await supabase
+                // 【修復點】：sb.from
+                const { error } = await sb
                     .from('individual_classes')
                     .delete()
                     .eq('id', id);
@@ -645,7 +650,8 @@
             const dueDate = document.getElementById('edit-due-date').value;
 
             try {
-                const { data: orig, error: fetchErr } = await supabase
+                // 【修復點】：sb.from
+                const { data: orig, error: fetchErr } = await sb
                     .from('individual_classes')
                     .select('tuition, materials_fee')
                     .eq('id', id)
@@ -655,7 +661,8 @@
 
                 const newTotal = orig.tuition + orig.materials_fee + miscFee - discount;
 
-                const { error: updateErr } = await supabase
+                // 【修復點】：sb.from
+                const { error: updateErr } = await sb
                     .from('individual_classes')
                     .update({
                         misc_fee: miscFee,

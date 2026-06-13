@@ -60,7 +60,6 @@
             
             .deadline-box { font-size: 18px; font-weight: 900; border: 2px dashed #be123c; padding: 6px 12px; display: inline-block; margin-top: 8px; background-color: #fff1f2 !important; color: #be123c !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-radius: 6px; }
             
-            /* ✅ 新增下次繳費提醒框樣式 */
             .next-pay-box { font-size: 16px; font-weight: 900; border: 2px solid #f59e0b; padding: 6px 12px; display: inline-block; margin-top: 8px; background-color: #fffbeb !important; color: #d97706 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-radius: 6px; }
         }
     </style>
@@ -308,7 +307,8 @@
                         currentEnrolled.push({
                             class_id: c.id, sub_idx: idx, main_name: c.name, sub_name: sub.name,
                             fee: sub.fee||0, tb_fee: sub.textbook_fee||0, m_fee: sub.misc_fee||0,
-                            start: c.start_date, end: c.end_date
+                            start: c.start_date, end: c.end_date,
+                            is_individual: false // 標記為團班
                         });
                     }
                 }));
@@ -325,14 +325,16 @@
                     if (isEnrolled) {
                         currentEnrolled.push({
                             class_id: ic.id, 
-                            sub_idx: 0, // 個指統一用 0 作為索引防呆
+                            sub_idx: 0,
+                            is_individual: true, // 標記為個指班
                             main_name: "個指班", 
                             sub_name: `${ic.subject} (${ic.class_type})`,
                             fee: Number(ic.tuition) || 0, 
                             tb_fee: Number(ic.materials_fee) || 0, 
                             m_fee: Number(ic.misc_fee) || 0,
                             start: ic.start_date, 
-                            end: ic.end_date
+                            end: ic.end_date,
+                            ic_data: ic // 將個指班的所有原始參數存起來，供列印使用
                         });
                     }
                 });
@@ -341,14 +343,12 @@
                 const { data: bData } = await sb.from('student_bills').select('*').eq('student_id', currentStudentId); 
                 bills = bData || [];
                 
-                // 將個指本身帶有的優惠，同步作為預設值呈現到畫面上
                 individualClasses.forEach(ic => {
                     let isEnrolled = false;
                     if (Array.isArray(ic.student_ids)) {
                         isEnrolled = ic.student_ids.some(s => s.student_name === name || s.student_id === currentStudentId);
                     }
                     if (isEnrolled) {
-                        // 如果 student_bills 裡面還沒有特別存過，就讀取個指建檔時的優惠金額
                         const existingBill = bills.find(b => b.class_id === ic.id && b.sub_idx === 0);
                         if (!existingBill && (Number(ic.discount) > 0 || ic.discount_reason)) {
                             bills.push({
@@ -435,23 +435,18 @@
             const rsn = document.getElementById(`rsn-${cId}-${sIdx}`).value.trim();
             
             try {
-                // 判斷此修改針對的是「團班」還是「個指班」，進行雙軌防呆更新
                 const targetEnrolled = currentEnrolled.find(e => e.class_id === cId && e.sub_idx === sIdx);
-                const isIndividualClass = targetEnrolled && targetEnrolled.main_name === "個指班";
+                const isIndividualClass = targetEnrolled && targetEnrolled.is_individual;
 
                 if (isIndividualClass) {
-                    // 若是個指班，直接同步更新 individual_classes 表格內的欄位
                     const newTotalTuition = targetEnrolled.fee + targetEnrolled.tb_fee + targetEnrolled.m_fee - amt;
-                    
                     const { error: updErr } = await sb.from('individual_classes').update({ 
                         discount: amt, 
                         discount_reason: rsn,
                         total_tuition: newTotalTuition
                     }).eq('id', cId);
-                    
                     if (updErr) throw updErr;
                 } else {
-                    // 若是團班，則維持原有寫入 student_bills 紀錄檔的邏輯
                     const { data: existing, error: findErr } = await sb.from('student_bills')
                         .select('id').eq('student_id', currentStudentId).eq('class_id', cId).eq('sub_idx', sIdx).maybeSingle();
                     if (findErr) throw findErr;
@@ -472,7 +467,6 @@
             }
         }
 
-        // 監聽金額變動以顯示下次繳費日期
         function setupAmountListener() {
             document.getElementById('pay-amount').addEventListener('input', function() {
                 const amt = parseInt(this.value) || 0;
@@ -502,7 +496,6 @@
             document.getElementById('pay-method').value = '現金';
             toggleBankInput();
             
-            // 動態生成子班別清單
             const allocList = document.getElementById('allocation-list');
             allocList.innerHTML = currentEnrolled.map((en, index) => {
                 const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0 };
@@ -516,12 +509,10 @@
                 </div>`;
             }).join('');
 
-            // 觸發一次金額檢查
             document.getElementById('pay-amount').dispatchEvent(new Event('input'));
             document.getElementById('pay-modal').classList.add('active'); 
         }
 
-        // 一鍵平均分配邏輯
         function autoDistribute() {
             const totalAmount = parseInt(document.getElementById('pay-amount').value) || 0;
             if(totalAmount <= 0) return alert("請先輸入本次繳費總金額！");
@@ -532,7 +523,7 @@
             const baseAmount = Math.floor(totalAmount / checkedBoxes.length);
             let remainder = totalAmount % checkedBoxes.length;
 
-            document.querySelectorAll('.alloc-amt').forEach(input => input.value = ''); // 清空
+            document.querySelectorAll('.alloc-amt').forEach(input => input.value = '');
             checkedBoxes.forEach((chk, idx) => {
                 const container = chk.closest('.flex');
                 const amtInput = container.querySelector('.alloc-amt');
@@ -552,7 +543,6 @@
             if(method === '匯款' && !bankLast5) return alert("請輸入匯款帳號末 5 碼！");
             if(amt < currentTotalDebt && !nextPayDate) return alert("繳費後尚有欠款，請設定「下次繳費日期」！");
 
-            // 收集分配明細
             let allocationDetails = [];
             const allocContainers = document.querySelectorAll('.alloc-chk:checked');
             allocContainers.forEach(chk => {
@@ -565,7 +555,6 @@
                 }
             });
 
-            // 檢查分配總和是否等於輸入總和
             const checkSum = allocationDetails.reduce((sum, item) => sum + item.amount, 0);
             if(checkSum > 0 && checkSum !== amt) {
                 if(!confirm(`⚠️ 警告：您手動分配的金額總和 ($${checkSum}) 與本次繳費總金額 ($${amt}) 不符！\n\n是否仍要強制寫入入帳紀錄？`)) return;
@@ -599,7 +588,6 @@
             }
         }
 
-        // 合併列印選取邏輯
         function printMergedReceipt() {
             const checkedBoxes = Array.from(document.querySelectorAll('.merge-chk:checked'));
             const selectedSerials = checkedBoxes.map(cb => cb.value);
@@ -625,19 +613,53 @@
             document.getElementById('p-stu-info').innerText = `學生姓名: ${currentStudent}   學校/年級: ${schoolStr} / ${gradeStr}`;
             
             let html = '<tr><th>報名課程</th><th>收費明細</th><th>優惠原因/金額</th><th>修業期間</th></tr>';
-            let totalPayable = rawTotalPayable; // 使用全域預算結果
+            let totalPayable = rawTotalPayable; 
 
+            // 雙軌列印引擎
             currentEnrolled.forEach(en => {
                 const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0, discount_reason: '' };
                 const subTotal = en.fee + en.tb_fee + en.m_fee;
                 const finalFee = subTotal - b.discount_amount;
 
-                html += `<tr>
-                    <td class="p-bold" style="color: #1e3a8a;">${en.main_name}<br>(${en.sub_name})</td>
-                    <td style="text-align:left;">學費: ${en.fee}<br>雜費: ${en.m_fee}<br>教材費: ${en.tb_fee}<br>總價: ${subTotal}</td>
-                    <td>${b.discount_reason}<br>折 ${b.discount_amount} 元<br>折扣後金額:<br><span class="p-highlight">${finalFee}</span></td>
-                    <td>${en.start ? en.start.replace(/-/g,'/') : '未定'}<br>至<br>${en.end ? en.end.replace(/-/g,'/') : '未定'}</td>
-                </tr>`;
+                if (en.is_individual) {
+                    // 個指班專屬：橫跨滿版的精美排版
+                    const ic = en.ic_data;
+                    html += `
+                    <tr>
+                        <td colspan="4" style="text-align: left; padding: 12px; background-color: #f8fafc;">
+                            <div style="font-size: 16px; font-weight: 900; color: #047857; margin-bottom: 8px; border-bottom: 2px solid #047857; padding-bottom: 4px;">
+                                🎯 【個別指導班】 專屬繳費明細
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 13px; font-weight: normal;">
+                                <div><span style="color:#64748b;font-weight:bold;">班型 / 科目:</span> ${ic.class_type} / ${ic.subject}</div>
+                                <div><span style="color:#64748b;font-weight:bold;">適用年級:</span> ${ic.grade}</div>
+                                <div><span style="color:#64748b;font-weight:bold;">時數 / 堂數:</span> ${ic.sessions_per_week} (${ic.hours_per_session}H/堂)</div>
+                                <div><span style="color:#64748b;font-weight:bold;">總計規劃:</span> 共${ic.total_weeks}週 / ${ic.total_sessions}堂 / ${ic.total_hours}H</div>
+                                
+                                <div><span style="color:#64748b;font-weight:bold;">學費基底:</span> $${ic.tuition}</div>
+                                <div><span style="color:#64748b;font-weight:bold;">教材費:</span> $${ic.materials_fee}</div>
+                                <div><span style="color:#64748b;font-weight:bold;">雜費:</span> $${ic.misc_fee}</div>
+                                <div><span style="color:#64748b;font-weight:bold;">折扣設定:</span> 折 $${b.discount_amount} (${b.discount_reason || '無'})</div>
+                                
+                                <div style="grid-column: span 2;"><span style="color:#64748b;font-weight:bold;">修業期間:</span> ${ic.start_date.replace(/-/g,'/')} ~ ${ic.end_date.replace(/-/g,'/')}</div>
+                                <div><span style="color:#64748b;font-weight:bold;">開單日期:</span> ${ic.issue_date.replace(/-/g,'/')}</div>
+                                <div><span style="color:#64748b;font-weight:bold;">承辦人員:</span> ${ic.operator}</div>
+                            </div>
+                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+                                <div style="color: #be123c; font-weight: 900; font-size: 15px; padding: 4px 8px; border: 2px dashed #be123c; display: inline-block;">⚠️ 繳費期限: ${ic.due_date.replace(/-/g,'/')} 前</div>
+                                <div style="font-size: 16px; font-weight: 900; color: #0f172a;">此科應繳小計: <span style="color: #be123c; font-size: 18px;">$${finalFee}</span></div>
+                            </div>
+                        </td>
+                    </tr>`;
+                } else {
+                    // 團班：維持原有簡約排版
+                    html += `<tr>
+                        <td class="p-bold" style="color: #1e3a8a;">${en.main_name}<br>(${en.sub_name})</td>
+                        <td style="text-align:left;">學費: ${en.fee}<br>雜費: ${en.m_fee}<br>教材費: ${en.tb_fee}<br>總價: ${subTotal}</td>
+                        <td>${b.discount_reason}<br>折 ${b.discount_amount} 元<br>折扣後金額:<br><span class="p-highlight">${finalFee}</span></td>
+                        <td>${en.start ? en.start.replace(/-/g,'/') : '未定'}<br>至<br>${en.end ? en.end.replace(/-/g,'/') : '未定'}</td>
+                    </tr>`;
+                }
             });
 
             document.getElementById('p-table-title').innerText = "課程收費明細 ：";
@@ -651,14 +673,13 @@
                 html += `<tr>
                     <td colspan="2" class="p-bold">實收總金額<br>${numToChinese(totalPayable)}</td>
                     <td colspan="2" class="p-bold" style="font-size: 18px;"><span class="p-highlight">${totalPayable} 元</span><br>
-                        <div class="deadline-box">繳費期限: ${deadlineStr.replace(/-/g,'/')} 前</div>
+                        <div class="deadline-box">全單總繳費期限: ${deadlineStr.replace(/-/g,'/')} 前</div>
                     </td>
                 </tr>`;
                 
                 document.getElementById('p-footer-notice').style.display = 'block';
                 document.getElementById('p-footer-receipt').style.display = 'none';
             } else if (type === 'merged') {
-                // 合併列印模式
                 document.getElementById('p-title').innerText = "昊學文教   合併繳費收據";
                 document.getElementById('p-serial-info').innerText = `合併列印共 ${serialData.length} 筆`;
                 
@@ -667,7 +688,6 @@
                 const allHistoricalPaid = payments.reduce((sum, curr) => sum + curr.amount, 0);
                 const debt = totalPayable - allHistoricalPaid; 
 
-                // 找尋所有選取單中，最晚的下次繳費日期
                 const nextDates = selectedPayments.map(p => p.next_pay_date).filter(d => d);
                 nextDates.sort((a,b) => new Date(b) - new Date(a));
                 const latestNextDate = nextDates.length > 0 ? nextDates[0] : null;
@@ -692,7 +712,6 @@
                 document.getElementById('p-footer-notice').style.display = 'none';
                 document.getElementById('p-footer-receipt').style.display = 'block';
             } else {
-                // 單筆收據模式
                 document.getElementById('p-title').innerText = "昊學文教   課程收據";
                 const p = payments.find(x => x.serial_no === serialData);
                 if(!p) return alert("找不到收據紀錄");
@@ -701,10 +720,8 @@
                 const allHistoricalPaid = payments.reduce((sum, curr) => sum + curr.amount, 0);
                 const debt = totalPayable - allHistoricalPaid; 
 
-                // 處理匯款末五碼顯示
                 const bankStr = p.bank_last_5 ? `<br><span style="font-size:13px; color:#475569;">(匯款末五碼: ${p.bank_last_5})</span>` : '';
                 
-                // 處理子班別分配顯示
                 let allocStr = '';
                 if(p.allocation_details && p.allocation_details.length > 0) {
                     allocStr = `<div style="font-size:12px; font-weight:normal; margin-top:4px; color:#475569;">沖銷明細: ` + 

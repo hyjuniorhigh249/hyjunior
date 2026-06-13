@@ -26,8 +26,14 @@
     
     <div class="flex gap-6 flex-1 min-h-0">
         <div class="w-1/3 max-w-sm bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
-            <div class="p-4 border-b bg-slate-50 flex justify-between items-center shrink-0">
-                <h2 class="font-black text-slate-700">📂 班級列表</h2>
+            <div class="p-4 border-b bg-slate-50 flex justify-between items-center shrink-0 flex-wrap gap-2">
+                <div class="flex items-center gap-3">
+                    <h2 class="font-black text-slate-700">📂 班級列表</h2>
+                    <label class="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 cursor-pointer hover:text-slate-700 bg-white px-2 py-1 rounded shadow-sm border border-slate-200">
+                        <input type="checkbox" id="show-expired" class="w-3.5 h-3.5 rounded border-slate-300 cursor-pointer">
+                        顯示過期
+                    </label>
+                </div>
                 <button type="button" onclick="openClassModal()" class="text-xs bg-slate-800 text-white px-3 py-1.5 rounded-lg font-black shadow-sm hover:bg-slate-700 transition">＋ 主班級</button>
             </div>
             <div id="left-class-list" class="flex-1 overflow-y-auto scroll-area">
@@ -207,11 +213,10 @@
             stuMap = {};
             allStudents.forEach(s => { stuMap[s.id] = s.name; });
 
-            if (allClassData.length > 0 && !selectedClassId) {
-                selectedClassId = allClassData[0].id;
-            }
+            // 綁定顯示過期事件
+            document.getElementById('show-expired').addEventListener('change', renderClassList);
 
-            render();
+            renderClassList();
             renderTeacherOptions();
         }
 
@@ -221,9 +226,45 @@
             return m; 
         }
 
+        // 獨立出左側列表渲染邏輯，支援過濾
+        function renderClassList() {
+            const leftList = document.getElementById('left-class-list');
+            const showExpired = document.getElementById('show-expired').checked;
+            const today = new Date().toISOString().split('T')[0];
+            
+            const displayClasses = allClassData.filter(cls => {
+                if (showExpired) return true;
+                if (!cls.end_date) return true; // 未設定結束日視為永遠有效
+                return cls.end_date >= today;
+            });
+
+            if (displayClasses.length > 0 && !selectedClassId) {
+                selectedClassId = displayClasses[0].id;
+            } else if (displayClasses.length > 0 && !displayClasses.find(c => c.id === selectedClassId)) {
+                selectedClassId = displayClasses[0].id;
+            } else if (displayClasses.length === 0) {
+                selectedClassId = null;
+            }
+
+            if (displayClasses.length === 0) {
+                leftList.innerHTML = '<p class="text-center py-10 text-slate-400 font-bold">目前無班級資料</p>';
+            } else {
+                leftList.innerHTML = displayClasses.map(cls => `
+                    <div onclick="selectClass('${cls.id}')" class="p-4 border-b cursor-pointer transition-colors ${cls.id === selectedClassId ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'bg-white hover:bg-slate-50 border-l-4 border-l-transparent'}">
+                        <h4 class="font-black text-slate-800 ${cls.id === selectedClassId ? 'text-blue-800' : ''}">${cls.name}</h4>
+                        <p class="text-[10px] text-slate-500 font-bold mt-1">
+                            ${cls.start_date ? cls.start_date.replace(/-/g, '/') : '未定'} ~ ${cls.end_date ? cls.end_date.replace(/-/g, '/') : '未定'}
+                        </p>
+                    </div>
+                `).join('');
+            }
+            
+            renderRightPanel();
+        }
+
         function selectClass(id) {
             selectedClassId = id;
-            render();
+            renderClassList();
         }
 
         function renderTeacherOptions() {
@@ -235,21 +276,8 @@
                 }).join('');
         }
 
-        function render() {
-            const leftList = document.getElementById('left-class-list');
-            if (allClassData.length === 0) {
-                leftList.innerHTML = '<p class="text-center py-10 text-slate-400 font-bold">目前無班級資料</p>';
-            } else {
-                leftList.innerHTML = allClassData.map(cls => `
-                    <div onclick="selectClass('${cls.id}')" class="p-4 border-b cursor-pointer transition-colors ${cls.id === selectedClassId ? 'bg-blue-50 border-l-4 border-l-blue-600' : 'bg-white hover:bg-slate-50 border-l-4 border-l-transparent'}">
-                        <h4 class="font-black text-slate-800 ${cls.id === selectedClassId ? 'text-blue-800' : ''}">${cls.name}</h4>
-                        <p class="text-[10px] text-slate-500 font-bold mt-1">
-                            ${cls.start_date ? cls.start_date.replace(/-/g, '/') : '未定'} ~ ${cls.end_date ? cls.end_date.replace(/-/g, '/') : '未定'}
-                        </p>
-                    </div>
-                `).join('');
-            }
-
+        // 渲染右側詳細畫面
+        function renderRightPanel() {
             const rightPane = document.getElementById('right-class-detail');
             const cls = allClassData.find(c => c.id === selectedClassId);
             
@@ -508,9 +536,6 @@
             } 
         }
 
-        // ==========================================
-        // 全域鐘點設定操作 (智慧切割天花板升級版)
-        // ==========================================
         function openRateModal() {
             document.getElementById('rate-modal').classList.add('active');
             switchRateTab('國中小');
@@ -526,9 +551,7 @@
         }
 
         function renderRateUI() {
-            // 每次渲染前，強力確保陣列按人數起點排序，畫面保證不出錯
             draftRates.sort((a, b) => a.min_students - b.min_students);
-
             const container = document.getElementById('rate-container');
             const levels = [...new Set(draftRates.map(r => r.rate_level))];
             
@@ -573,44 +596,26 @@
             renderRateUI();
         }
 
-        // 🧠 智慧切割邏輯：解決「新增」時把天花板擠掉的問題
         function addRuleDraft(rateLvl) {
-            // 先抓出屬於這個級別的所有規則，並確保已經排序好
             const currentRules = draftRates.filter(r => r.rate_level === rateLvl).sort((a, b) => a.min_students - b.min_students);
             
             if (currentRules.length === 0) {
                 draftRates.push({ course_level: currentRateTab, rate_level: rateLvl, min_students: 1, max_students: 999, amount: 0 });
             } else {
-                // 找出該級別目前的「最後一個區間（通常是天花板）」
                 let lastRule = currentRules[currentRules.length - 1];
-                
-                // 判斷：如果這個最後的區間是無限大 (>= 100 就當作是天花板)
                 if (lastRule.max_students >= 100) {
                     const oldMin = lastRule.min_students;
-                    // 1. 把舊的無限大天花板「封頂」(縮小為 5 人間距)
                     lastRule.max_students = oldMin + 5;
-                    
-                    // 2. 自動在後面生出一個「全新的天花板」頂上去
                     draftRates.push({ 
-                        course_level: currentRateTab, 
-                        rate_level: rateLvl, 
-                        min_students: oldMin + 6, 
-                        max_students: 999, 
-                        amount: lastRule.amount + 100 
+                        course_level: currentRateTab, rate_level: rateLvl, min_students: oldMin + 6, max_students: 999, amount: lastRule.amount + 100 
                     });
                 } else {
-                    // 如果最後一個本來就不是無限大，正常在後面加上去
                     const nextMin = lastRule.max_students + 1;
                     draftRates.push({ 
-                        course_level: currentRateTab, 
-                        rate_level: rateLvl, 
-                        min_students: nextMin, 
-                        max_students: 999, // 預設新產生的永遠當天花板防呆
-                        amount: lastRule.amount + 100 
+                        course_level: currentRateTab, rate_level: rateLvl, min_students: nextMin, max_students: 999, amount: lastRule.amount + 100 
                     });
                 }
             }
-            // 重新渲染畫面時，會根據剛剛修改與 push 的陣列重新排序顯示
             renderRateUI();
         }
 
@@ -655,10 +660,6 @@
             init(); 
         }
 
-        // ==========================================
-        // 學生名單操作
-        // ==========================================
-        function getAcademicYear() { const d = new Date(); return (d.getMonth() + 1) >= 7 ? d.getFullYear() : d.getFullYear() - 1; }
         function calculateDisplayGrade(baseYear) { if (!baseYear) return null; const grade = getAcademicYear() - baseYear + 1; return grade > 12 ? 13 : grade; }
         
         function openStudentModal(clsId, idx) { 
@@ -697,7 +698,7 @@
             await sb.from('classes').update({ sub_classes: subs }).eq('id', targetClassId); 
             cls.sub_classes = subs; 
             filterStudents(); 
-            render(); 
+            renderClassList(); 
         }
 
         async function removeStudent(clsId, idx, memberValue) { 

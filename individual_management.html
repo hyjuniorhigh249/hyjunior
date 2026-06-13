@@ -304,19 +304,87 @@
 
         let allStudents = [];
         let classDataCache = []; 
+        let employeesData = [];
+        let classPayments = {};
+        let classSchedules = {};
+        let currentScheduleClass = null;
 
         async function init() {
+            injectScheduleModal(); // 動態植入排課面板，確保HTML零更動防呆
             setupDates();
+            await fetchEmployees();
             await fetchStudents();
             await fetchIndividualClasses();
             bindCalculationEvents();
             bindModalCalculationEvents(); 
             setupSubjectHandler();
             
-            // 綁定顯示過期事件
             document.getElementById('show-expired').addEventListener('change', renderIndividualClassesTable);
         }
         window.onload = init;
+
+        // 動態植入排課專用大型面板
+        function injectScheduleModal() {
+            const modalHTML = `
+            <div id="schedule-modal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 items-center justify-center p-4 backdrop-blur-sm transition-all">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden border border-slate-200">
+                    <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
+                        <h2 class="text-xl font-black tracking-wider flex items-center gap-2">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            個指專屬排課系統
+                        </h2>
+                        <button onclick="closeScheduleModal()" class="text-white hover:text-red-200 transition font-bold text-2xl">&times;</button>
+                    </div>
+                    <div class="p-4 bg-slate-50 border-b border-slate-200 grid grid-cols-5 gap-4 text-sm shadow-inner">
+                        <div><span class="text-slate-400 font-bold block mb-1">班型 / 年級</span><strong id="sm-type-grade" class="text-blue-800 text-base"></strong></div>
+                        <div><span class="text-slate-400 font-bold block mb-1">科目 / 學生</span><strong id="sm-subject-student" class="text-blue-800 text-base"></strong></div>
+                        <div><span class="text-slate-400 font-bold block mb-1">總堂數 / 總週數</span><strong id="sm-sessions-weeks" class="text-slate-700 text-base"></strong></div>
+                        <div><span class="text-slate-400 font-bold block mb-1">應排總時數</span><strong id="sm-target-hours" class="text-purple-700 text-lg font-black bg-purple-100 px-2 py-0.5 rounded"></strong></div>
+                        <div><span class="text-slate-400 font-bold block mb-1">目前已排時數</span><strong id="sm-current-hours" class="text-rose-600 text-lg font-black bg-rose-100 px-2 py-0.5 rounded">0 H</strong></div>
+                    </div>
+                    <div class="p-3 bg-white flex space-x-3 border-b border-slate-200">
+                        <button onclick="addScheduleRow()" class="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-bold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1">
+                            <span class="text-lg">+</span> 單堂新增
+                        </button>
+                        <button onclick="batchGenerateSchedules()" class="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 font-bold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            依目前排課批次延伸 (共N週)
+                        </button>
+                        <span class="text-xs text-slate-400 mt-2 ml-2">※ 批次功能會直接複製目前列表上的星期與時間，自動加7天直到補滿總週數。</span>
+                    </div>
+                    <div class="flex-1 overflow-auto bg-slate-50 p-4">
+                        <table class="w-full text-sm text-left bg-white shadow-sm rounded-lg overflow-hidden border border-slate-200">
+                            <thead class="bg-slate-100 text-slate-600">
+                                <tr>
+                                    <th class="p-3 font-bold">日期</th>
+                                    <th class="p-3 font-bold w-16">星期</th>
+                                    <th class="p-3 font-bold">起迄時間</th>
+                                    <th class="p-3 font-bold">科目</th>
+                                    <th class="p-3 font-bold">授課老師</th>
+                                    <th class="p-3 font-bold w-24">鐘點級別</th>
+                                    <th class="p-3 font-bold">考試時間</th>
+                                    <th class="p-3 font-bold w-16">時數</th>
+                                    <th class="p-3 font-bold text-center w-16">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sm-rows-container"></tbody>
+                        </table>
+                    </div>
+                    <div class="p-4 bg-white border-t border-slate-200 flex justify-end items-center gap-4">
+                        <button onclick="closeScheduleModal()" class="px-6 py-2.5 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition">取消</button>
+                        <button onclick="saveSchedules()" class="px-8 py-2.5 font-black text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg rounded-lg transition text-lg">💾 儲存並檢核時數</button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        async function fetchEmployees() {
+            try {
+                const { data } = await sb.from('employees').select('id, name, role');
+                employeesData = data || [];
+            } catch (err) { console.error("員工資料載入失敗", err); }
+        }
 
         function setupDates() {
             const today = new Date();
@@ -565,14 +633,41 @@
 
         async function fetchIndividualClasses() {
             try {
-                const { data, error } = await sb.from('individual_classes').select('*').order('created_at', { ascending: false });
+                // 1. 抓取主班級資料
+                const { data: classes, error } = await sb.from('individual_classes').select('*').order('created_at', { ascending: false });
                 if (error) throw error;
-                classDataCache = data || [];
+                classDataCache = classes || [];
+
+                // 2. 抓取繳費狀態 (查 payment_logs 若有對應班級的入帳即鎖定)
+                classPayments = {};
+                try {
+                    const { data: payments } = await sb.from('payment_logs').select('individual_class_id, amount');
+                    if (payments) {
+                        payments.forEach(p => {
+                            if(p.individual_class_id) {
+                                classPayments[p.individual_class_id] = (classPayments[p.individual_class_id] || 0) + p.amount;
+                            }
+                        });
+                    }
+                } catch(e) {} // 避免未建表報錯
+
+                // 3. 抓取排課狀態
+                classSchedules = {};
+                try {
+                    const { data: schedules } = await sb.from('individual_schedules').select('individual_class_id, duration_hours');
+                    if (schedules) {
+                        schedules.forEach(s => {
+                            if (!classSchedules[s.individual_class_id]) classSchedules[s.individual_class_id] = { count: 0, hours: 0 };
+                            classSchedules[s.individual_class_id].count += 1;
+                            classSchedules[s.individual_class_id].hours += parseFloat(s.duration_hours);
+                        });
+                    }
+                } catch(e) {}
+
                 renderIndividualClassesTable();
             } catch (err) { console.error(err); }
         }
 
-        // 獨立出渲染邏輯，支援過濾顯示
         function renderIndividualClassesTable() {
             const showExpired = document.getElementById('show-expired').checked;
             const today = new Date().toISOString().split('T')[0];
@@ -581,6 +676,20 @@
                 if (showExpired) return true;
                 if (!item.end_date) return true;
                 return item.end_date >= today;
+            });
+
+            // 智慧排序：已繳清但未排課 > 開單日期
+            displayData.sort((a, b) => {
+                const aPaid = (classPayments[a.id] || 0) >= a.total_tuition;
+                const bPaid = (classPayments[b.id] || 0) >= b.total_tuition;
+                const aNoSched = !(classSchedules[a.id] && classSchedules[a.id].count > 0);
+                const bNoSched = !(classSchedules[b.id] && classSchedules[b.id].count > 0);
+
+                const aPriority = (aPaid && aNoSched) ? 1 : 0;
+                const bPriority = (bPaid && bNoSched) ? 1 : 0;
+
+                if (aPriority !== bPriority) return bPriority - aPriority; 
+                return new Date(b.created_at) - new Date(a.created_at); 
             });
 
             const tbody = document.getElementById('classes-list-table-body');
@@ -594,6 +703,30 @@
 
             displayData.forEach(item => {
                 const studentNames = item.student_ids ? item.student_ids.map(s => s.student_name).join(', ') : '未命名';
+                
+                // === 繳費與按鈕防呆邏輯 ===
+                const paidAmt = classPayments[item.id] || 0;
+                const hasPayment = paidAmt > 0;
+                const isPaidClear = hasPayment && (item.total_tuition - paidAmt <= 0);
+                const schedInfo = classSchedules[item.id] || { count: 0, hours: 0 };
+                const hasSchedules = schedInfo.count > 0;
+
+                let actionHtml = '';
+                if (!hasPayment) {
+                    actionHtml = `
+                        <button onclick="openFullEditModal('${item.id}')" class="text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1.5 rounded hover:bg-amber-200 transition">全域編輯</button>
+                        <button onclick="deleteClass('${item.id}')" class="text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1.5 rounded hover:bg-rose-200 transition">刪除</button>
+                    `;
+                } else if (!isPaidClear) {
+                    actionHtml = `<span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1.5 border border-slate-200 rounded">已有繳費紀錄</span>`;
+                } else {
+                    if (hasSchedules) {
+                        actionHtml = `<button onclick="openScheduleModal('${item.id}')" class="text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 px-4 py-1.5 rounded hover:bg-emerald-200 transition shadow-sm">已排課</button>`;
+                    } else {
+                        actionHtml = `<button onclick="openScheduleModal('${item.id}')" class="text-xs font-black bg-orange-500 text-white border border-orange-600 px-4 py-1.5 rounded hover:bg-orange-600 transition shadow-sm animate-pulse">排課</button>`;
+                    }
+                }
+
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
                 tr.innerHTML = `
@@ -604,15 +737,305 @@
                     <td class="p-3 text-xs font-mono font-bold text-slate-500">${item.start_date} ~ <br>${item.end_date}</td>
                     <td class="p-3 text-right font-mono font-black text-rose-600 text-base">$${item.total_tuition}</td>
                     <td class="p-3 font-bold text-slate-500">${item.operator}</td>
-                    <td class="p-3 text-center space-x-1 whitespace-nowrap">
-                        <button onclick="openFullEditModal('${item.id}')" class="text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1.5 rounded hover:bg-amber-200 transition">全域編輯</button>
-                        <button onclick="deleteClass('${item.id}')" class="text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1.5 rounded hover:bg-rose-200 transition">刪除</button>
-                    </td>
+                    <td class="p-3 text-center space-x-1 whitespace-nowrap">${actionHtml}</td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
+        // ==========================================
+        // 排課引擎核心邏輯
+        // ==========================================
+        async function openScheduleModal(id) {
+            currentScheduleClass = classDataCache.find(c => c.id === id);
+            if (!currentScheduleClass) return;
+
+            const studentNames = currentScheduleClass.student_ids.map(s => s.student_name).join(', ');
+            document.getElementById('sm-type-grade').innerText = `${currentScheduleClass.class_type} / ${currentScheduleClass.grade}`;
+            document.getElementById('sm-subject-student').innerText = `${currentScheduleClass.subject} / ${studentNames}`;
+            document.getElementById('sm-sessions-weeks').innerText = `${currentScheduleClass.total_sessions}堂 / 共${currentScheduleClass.total_weeks}週`;
+            document.getElementById('sm-target-hours').innerText = `${currentScheduleClass.total_hours} H`;
+            
+            document.getElementById('sm-rows-container').innerHTML = '';
+            
+            // 載入既有排課資料
+            try {
+                const { data } = await sb.from('individual_schedules').select('*').eq('individual_class_id', id).order('class_date');
+                if (data && data.length > 0) {
+                    data.forEach(sched => {
+                        addScheduleRow({
+                            date: sched.class_date,
+                            startTime: sched.start_time.substring(0,5),
+                            endTime: sched.end_time.substring(0,5),
+                            subject: sched.subject,
+                            teacherId: sched.teacher_id,
+                            rateLevel: sched.rate_level,
+                            examType: sched.exam_type,
+                            examMins: sched.exam_minutes
+                        });
+                    });
+                } else {
+                    // 若無資料，帶入第一堂預設值
+                    addScheduleRow({
+                        date: currentScheduleClass.start_date,
+                        subject: currentScheduleClass.subject
+                    });
+                }
+            } catch (err) { console.error("讀取排課失敗", err); }
+
+            updateScheduleTotalHours();
+            const modal = document.getElementById('schedule-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeScheduleModal() {
+            document.getElementById('schedule-modal').classList.add('hidden');
+            document.getElementById('schedule-modal').classList.remove('flex');
+            currentScheduleClass = null;
+        }
+
+        function getDayOfWeekStr(dateStr) {
+            if (!dateStr) return '';
+            const days = ['日','一','二','三','四','五','六'];
+            return `週${days[new Date(dateStr).getDay()]}`;
+        }
+
+        function handleTeacherChange(selectElem) {
+            const tr = selectElem.closest('tr');
+            const role = selectElem.options[selectElem.selectedIndex]?.getAttribute('data-role') || '';
+            const rateSelect = tr.querySelector('.rate-level-select');
+            
+            if (role.includes('行政')) {
+                rateSelect.innerHTML = `<option value="0">行政 (0元)</option>`;
+                rateSelect.disabled = true;
+            } else {
+                rateSelect.innerHTML = `
+                    <option value="A">A 級別</option>
+                    <option value="AA">AA 級別</option>
+                    <option value="AAA">AAA 級別</option>
+                `;
+                rateSelect.disabled = false;
+            }
+        }
+
+        function calculateRowDuration(tr) {
+            const start = tr.querySelector('.time-start').value;
+            const end = tr.querySelector('.time-end').value;
+            const durationDisplay = tr.querySelector('.row-duration');
+            
+            if (start && end) {
+                let startDt = new Date(`1970-01-01T${start}`);
+                let endDt = new Date(`1970-01-01T${end}`);
+                let diff = (endDt - startDt) / (1000 * 60 * 60);
+                if (diff < 0) diff += 24;
+                durationDisplay.innerText = diff.toFixed(2);
+                durationDisplay.setAttribute('data-val', diff.toFixed(2));
+            } else {
+                durationDisplay.innerText = "0.00";
+                durationDisplay.setAttribute('data-val', "0");
+            }
+            updateScheduleTotalHours();
+        }
+
+        function updateScheduleTotalHours() {
+            const rows = document.querySelectorAll('.row-duration');
+            let total = 0;
+            rows.forEach(r => total += parseFloat(r.getAttribute('data-val') || 0));
+            const display = document.getElementById('sm-current-hours');
+            display.innerText = `${total.toFixed(2)} H`;
+            
+            const target = parseFloat(currentScheduleClass.total_hours);
+            if (Math.abs(total - target) > 0.01) {
+                display.className = "text-rose-600 text-lg font-black bg-rose-100 px-2 py-0.5 rounded";
+            } else {
+                display.className = "text-emerald-700 text-lg font-black bg-emerald-100 px-2 py-0.5 rounded";
+            }
+        }
+
+        function addScheduleRow(data = {}) {
+            const tbody = document.getElementById('sm-rows-container');
+            const tr = document.createElement('tr');
+            tr.className = "sched-row hover:bg-slate-50 border-b border-slate-100";
+            
+            let teacherOptions = `<option value="">請選擇老師...</option>`;
+            employeesData.forEach(emp => {
+                let selected = data.teacherId === emp.id ? 'selected' : '';
+                teacherOptions += `<option value="${emp.id}" data-role="${emp.role}" ${selected}>${emp.name} (${emp.role})</option>`;
+            });
+
+            tr.innerHTML = `
+                <td class="p-2"><input type="date" value="${data.date || ''}" class="w-full border-slate-200 rounded-lg text-sm input-date" onchange="this.parentElement.nextElementSibling.innerText=getDayOfWeekStr(this.value)"></td>
+                <td class="p-2 text-slate-500 font-bold text-center">${getDayOfWeekStr(data.date)}</td>
+                <td class="p-2 flex items-center space-x-1">
+                    <input type="time" value="${data.startTime || ''}" class="time-start w-full border-slate-200 rounded-lg text-sm" onchange="calculateRowDuration(this.closest('tr'))">
+                    <span class="text-slate-400">-</span>
+                    <input type="time" value="${data.endTime || ''}" class="time-end w-full border-slate-200 rounded-lg text-sm" onchange="calculateRowDuration(this.closest('tr'))">
+                </td>
+                <td class="p-2"><input type="text" value="${data.subject || currentScheduleClass.subject}" class="input-subject w-full border-slate-200 rounded-lg text-sm"></td>
+                <td class="p-2">
+                    <select class="input-teacher w-full border-slate-200 rounded-lg text-sm" onchange="handleTeacherChange(this)">
+                        ${teacherOptions}
+                    </select>
+                </td>
+                <td class="p-2">
+                    <select class="rate-level-select w-full border-slate-200 rounded-lg text-sm">
+                        <option value="A">A 級別</option><option value="AA">AA 級別</option><option value="AAA">AAA 級別</option>
+                    </select>
+                </td>
+                <td class="p-2 flex space-x-1">
+                    <select class="input-exam-type border-slate-200 rounded-lg text-sm w-20">
+                        <option value="none" ${data.examType==='none'?'selected':''}>不考試</option>
+                        <option value="pre" ${data.examType==='pre'?'selected':''}>課前考</option>
+                        <option value="post" ${data.examType==='post'?'selected':''}>課後考</option>
+                    </select>
+                    <input type="number" placeholder="分" value="${data.examMins || ''}" class="input-exam-mins w-16 border-slate-200 rounded-lg text-sm">
+                </td>
+                <td class="p-2 font-black text-center text-blue-700 row-duration" data-val="0">0.00</td>
+                <td class="p-2 text-center">
+                    <button onclick="this.closest('tr').remove(); updateScheduleTotalHours();" class="text-rose-500 hover:text-rose-700 font-bold text-lg">&times;</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+            
+            // 觸發一次老師與時數計算
+            const teacherSelect = tr.querySelector('.input-teacher');
+            if(teacherSelect.value) handleTeacherChange(teacherSelect);
+            
+            // 回填保存的 level
+            if(data.rateLevel && data.rateLevel !== '0') {
+                tr.querySelector('.rate-level-select').value = data.rateLevel;
+            }
+            calculateRowDuration(tr);
+        }
+
+        function batchGenerateSchedules() {
+            const rows = document.querySelectorAll('.sched-row');
+            if (rows.length === 0) return alert("⚠️ 請至少先新增一筆課程作為批次產生的範本！");
+            
+            const templates = Array.from(rows).map(tr => ({
+                date: tr.querySelector('.input-date').value,
+                startTime: tr.querySelector('.time-start').value,
+                endTime: tr.querySelector('.time-end').value,
+                subject: tr.querySelector('.input-subject').value,
+                teacherId: tr.querySelector('.input-teacher').value,
+                rateLevel: tr.querySelector('.rate-level-select').disabled ? '0' : tr.querySelector('.rate-level-select').value,
+                examType: tr.querySelector('.input-exam-type').value,
+                examMins: tr.querySelector('.input-exam-mins').value
+            }));
+
+            const totalWeeks = currentScheduleClass.total_weeks;
+            for (let w = 1; w < totalWeeks; w++) {
+                templates.forEach(t => {
+                    if (!t.date) return;
+                    let nextDate = new Date(t.date);
+                    nextDate.setDate(nextDate.getDate() + (w * 7));
+                    addScheduleRow({
+                        ...t,
+                        date: nextDate.toISOString().split('T')[0]
+                    });
+                });
+            }
+            updateScheduleTotalHours();
+        }
+
+        async function saveSchedules() {
+            const rows = document.querySelectorAll('.sched-row');
+            let totalHrs = 0;
+            let insertPayload = [];
+            
+            for (let i = 0; i < rows.length; i++) {
+                const tr = rows[i];
+                const date = tr.querySelector('.input-date').value;
+                const startTime = tr.querySelector('.time-start').value;
+                const endTime = tr.querySelector('.time-end').value;
+                const teacherId = tr.querySelector('.input-teacher').value;
+                const duration = parseFloat(tr.querySelector('.row-duration').getAttribute('data-val'));
+                
+                if (!date || !startTime || !endTime || !teacherId) {
+                    return alert(`第 ${i+1} 列資料未填寫完整（日期、時間、老師皆必填）！`);
+                }
+                totalHrs += duration;
+
+                const rowData = {
+                    individual_class_id: currentScheduleClass.id,
+                    student_id: currentScheduleClass.student_ids[0].student_id, // 若為1對多需額外處理展開，為防呆先依首位綁定
+                    class_date: date,
+                    day_of_week: new Date(date).getDay(),
+                    start_time: startTime,
+                    end_time: endTime,
+                    duration_hours: duration,
+                    subject: tr.querySelector('.input-subject').value,
+                    teacher_id: teacherId,
+                    rate_level: tr.querySelector('.rate-level-select').disabled ? null : tr.querySelector('.rate-level-select').value,
+                    exam_type: tr.querySelector('.input-exam-type').value,
+                    exam_minutes: parseInt(tr.querySelector('.input-exam-mins').value) || 0
+                };
+                insertPayload.push(rowData);
+            }
+
+            // 1. 總時數精準阻擋防呆
+            if (Math.abs(totalHrs - currentScheduleClass.total_hours) > 0.01) {
+                return alert(`⚠️ 總時數不符！\n此班別開單時設定為：${currentScheduleClass.total_hours} 小時\n您目前排出的總時數為：${totalHrs} 小時\n請修正後再送出。`);
+            }
+
+            // 2. 師生時間衝突偵測 (撈出資料庫中現有的所有個指排課)
+            try {
+                const { data: dbSchedules } = await sb.from('individual_schedules').select('individual_class_id, student_id, teacher_id, class_date, start_time, end_time');
+                
+                for (let newRow of insertPayload) {
+                    let newStartDt = new Date(`${newRow.class_date}T${newRow.start_time}`);
+                    let newEndDt = new Date(`${newRow.class_date}T${newRow.end_time}`);
+
+                    for (let exist of dbSchedules || []) {
+                        // 略過同一張單本身的舊紀錄 (因為我們即將覆蓋)
+                        if (exist.individual_class_id === currentScheduleClass.id) continue;
+
+                        let existStartDt = new Date(`${exist.class_date}T${exist.start_time}`);
+                        let existEndDt = new Date(`${exist.class_date}T${exist.end_time}`);
+
+                        // 判斷重疊: 條件為 (新起點 < 舊終點) 且 (新終點 > 舊起點)
+                        if (newStartDt < existEndDt && newEndDt > existStartDt) {
+                            // 檢查學生是否同一個
+                            const isSameStudent = currentScheduleClass.student_ids.some(s => s.student_id === exist.student_id);
+                            if (isSameStudent) {
+                                return alert(`⛔ 學生課程時間衝突！\n\n日期：${newRow.class_date}\n時間：${newRow.start_time} ~ ${newRow.end_time}\n此學生在該時段已有其他排課！`);
+                            }
+                            // 檢查老師是否同一個
+                            if (newRow.teacher_id === exist.teacher_id) {
+                                const teacherName = employeesData.find(e => e.id === newRow.teacher_id)?.name || '該老師';
+                                return alert(`⛔ 老師課程時間衝突！\n\n日期：${newRow.class_date}\n時間：${newRow.start_time} ~ ${newRow.end_time}\n【${teacherName}】在該時段已被排課！`);
+                            }
+                        }
+                    }
+                }
+
+                // 3. 驗證通過，寫入資料庫 (先刪除舊排課，再插入新排課)
+                await sb.from('individual_schedules').delete().eq('individual_class_id', currentScheduleClass.id);
+                
+                // 若1對多，需為每位學生複製一筆排課紀錄以確保考勤獨立
+                let finalPayload = [];
+                currentScheduleClass.student_ids.forEach(student => {
+                    insertPayload.forEach(row => {
+                        finalPayload.push({ ...row, student_id: student.student_id });
+                    });
+                });
+
+                const { error } = await sb.from('individual_schedules').insert(finalPayload);
+                if (error) throw error;
+                
+                alert("✅ 排課成功！時數相符且無衝突，資料已寫入！");
+                closeScheduleModal();
+                await fetchIndividualClasses();
+
+            } catch (err) {
+                alert("排課存檔失敗：" + err.message);
+            }
+        }
+
+        // ==========================================
+        // 原有全域編輯與刪除邏輯保留
+        // ==========================================
         async function deleteClass(id) {
             if (!confirm("⚠️ 確定要刪除此個指班別嗎？刪除後若需退費需於會計系統另外沖銷。")) return;
             try {

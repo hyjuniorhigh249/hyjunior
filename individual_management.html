@@ -290,7 +290,6 @@
         }
         window.onload = init;
 
-        // 🔥 優化 3：本地時區安全日期推算引擎 (杜絕 UTC 換日誤差變成週日的問題)
         function addWeeksToDateStr(dateStr, weeksToAdd) {
             if (!dateStr) return '';
             let d = new Date(dateStr);
@@ -301,7 +300,6 @@
             return `${yy}-${mm}-${dd}`;
         }
 
-        // 🔥 優化 1：面板展開與收摺邏輯
         function toggleFormPanel() {
             const content = document.getElementById('form-panel-content');
             const icon = document.getElementById('form-panel-icon');
@@ -507,7 +505,6 @@
             document.getElementById('total-tuition').value = Math.round(totalTuition);
         }
 
-        // 🔥 使用安全的日期推算引擎
         function updateEndDatePreview() {
             const startDateVal = document.getElementById('start-date').value;
             const totalWeeks = parseInt(document.getElementById('total-weeks').value) || 0;
@@ -641,7 +638,7 @@
         });
 
         // ==========================================
-        // 🔥 終極精準查帳與【學生收摺引擎】
+        // 🔥 絕對嚴格查帳演算法
         // ==========================================
         async function fetchIndividualClasses() {
             try {
@@ -649,14 +646,18 @@
                 if (error) throw error;
                 classDataCache = classes || [];
 
-                const { data: payments } = await sb.from('payment_logs').select('*');
+                const [ { data: payments }, { data: bills } ] = await Promise.all([
+                    sb.from('payment_logs').select('*'),
+                    sb.from('student_bills').select('*')
+                ]);
+                
                 classPayments = {};
 
                 classDataCache.forEach(ic => {
                     let totalPaidForThisClass = 0;
                     const classSearchKey = `個指班-${ic.subject} (${ic.class_type})`; 
 
-                    // 🔥 優化 4、5、6：繳費狀態絕對依賴資料庫最新總價，杜絕誤判
+                    // 確保使用當下真實儲存的總金額
                     ic.actual_total_tuition = Number(ic.total_tuition) || 0;
 
                     if (payments) {
@@ -666,16 +667,13 @@
                                 isOwner = ic.student_ids.some(s => s.student_id === p.student_id);
                             }
                             
-                            if (isOwner) {
-                                if (Array.isArray(p.allocation_details)) {
-                                    p.allocation_details.forEach(alloc => {
-                                        if (alloc.class_name === classSearchKey || alloc.class_name.includes(ic.subject)) {
-                                            totalPaidForThisClass += (Number(alloc.amount) || 0);
-                                        }
-                                    });
-                                } else {
-                                    totalPaidForThisClass += (Number(p.amount) || 0);
-                                }
+                            // 🔥 嚴格把關：只有明確指名是付給這個科目的錢，才算數
+                            if (isOwner && Array.isArray(p.allocation_details)) {
+                                p.allocation_details.forEach(alloc => {
+                                    if (alloc.class_name && (alloc.class_name === classSearchKey || (alloc.class_name.includes('個指') && alloc.class_name.includes(ic.subject)))) {
+                                        totalPaidForThisClass += (Number(alloc.amount) || 0);
+                                    }
+                                });
                             }
                         });
                     }
@@ -708,7 +706,6 @@
                 return item.end_date >= today;
             });
 
-            // 🎯 核心改寫：依照學生分群 (Group by Student)
             let studentsMap = {};
 
             displayData.forEach(cls => {
@@ -717,24 +714,23 @@
                 const tuition = cls.actual_total_tuition;
                 const paidAmt = classPayments[cls.id] || 0;
                 
-                // 狀態精準判定
                 const hasPayment = paidAmt > 0;
                 const isPaidClear = tuition <= 0 ? true : (hasPayment && (tuition - paidAmt) <= 0.1);
                 
                 const schedInfo = classSchedules[cls.id] || { count: 0, hours: 0 };
                 const hasSchedules = schedInfo.count > 0;
 
-                // 寫入旗標
                 cls._paidAmt = paidAmt;
                 cls._isPaidClear = isPaidClear;
                 cls._hasSchedules = hasSchedules;
                 cls._hasPayment = hasPayment;
 
-                let statusLevel = 0; // 0: 正常, 1: 欠費, 2: 待排課
-                if (isPaidClear && !hasSchedules) statusLevel = 2; // 最急迫
-                else if (!isPaidClear && hasPayment) statusLevel = 1; // 需補繳
-                else if (!hasPayment) statusLevel = 0; // 全新單，視為正常待處理
-                else statusLevel = 0; // 已繳清且已排課
+                // 🔥 修正狀態邏輯 (3最高優先級，0最低優先級)
+                let statusLevel = 0; 
+                if (isPaidClear && !hasSchedules) statusLevel = 3;      // 最急迫：錢收了但沒排課
+                else if (!isPaidClear && hasPayment) statusLevel = 2;   // 次急迫：有繳部分但欠費
+                else if (!hasPayment) statusLevel = 1;                  // 待處理：剛開單還沒繳費
+                else statusLevel = 0;                                   // 正常：已繳清且已排課
                 
                 cls.student_ids.forEach(stu => {
                     if (!studentsMap[stu.student_id]) {
@@ -769,11 +765,16 @@
             }
 
             groupedStudents.forEach(stu => {
-                let statusBadge = `<span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[11px] font-bold border border-slate-200 shadow-sm">尚未繳費</span>`;
-                if (stu.priority === 2) {
+                // 🔥 修正總狀態標籤徽章對應
+                let statusBadge = '';
+                if (stu.priority === 3) {
                     statusBadge = `<span class="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[11px] font-black border border-orange-300 shadow-sm animate-pulse">❗ 待排課</span>`;
-                } else if (stu.priority === 1) {
+                } else if (stu.priority === 2) {
                     statusBadge = `<span class="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[11px] font-bold border border-rose-200 shadow-sm">💰 欠款未清</span>`;
+                } else if (stu.priority === 1) {
+                    statusBadge = `<span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[11px] font-bold border border-slate-200 shadow-sm">📝 尚未繳費</span>`;
+                } else {
+                    statusBadge = `<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[11px] font-bold border border-emerald-200 shadow-sm">✅ 狀態正常</span>`;
                 }
 
                 const parentTr = document.createElement('tr');
@@ -851,9 +852,6 @@
             });
         }
 
-        // ==========================================
-        // 排課引擎核心邏輯
-        // ==========================================
         async function openScheduleModal(id) {
             currentScheduleClass = classDataCache.find(c => c.id === id);
             if (!currentScheduleClass) return;
@@ -1034,7 +1032,7 @@
                     if (!t.date) return;
                     addScheduleRow({
                         ...t,
-                        date: addWeeksToDateStr(t.date, w) // 使用本地日期推算引擎
+                        date: addWeeksToDateStr(t.date, w)
                     });
                 });
             }

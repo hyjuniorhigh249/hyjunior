@@ -305,8 +305,8 @@
         let allStudents = [];
         let classDataCache = []; 
         let employeesData = [];
-        let classPayments = {}; // 存放該個指班「已繳金額」
-        let classSchedules = {}; // 存放排課狀態
+        let classPayments = {}; 
+        let classSchedules = {}; 
         let currentScheduleClass = null;
 
         async function init() {
@@ -378,11 +378,23 @@
             document.body.insertAdjacentHTML('beforeend', modalHTML);
         }
 
+        // 🔥 智慧欄位適配版 fetchEmployees
         async function fetchEmployees() {
             try {
-                const { data } = await sb.from('employees').select('id, name, role');
-                employeesData = data || [];
-            } catch (err) { console.error("員工資料載入失敗", err); }
+                // 直接撈取全部欄位，避免因為指定錯誤欄位而失敗
+                const { data, error } = await sb.from('employees').select('*');
+                if (error) throw error;
+                
+                employeesData = (data || []).map(emp => {
+                    // 自動判斷可能的欄位名稱
+                    let empName = emp.name || emp.employee_name || emp.emp_name || '未命名老師';
+                    let empRole = emp.role || emp.identity || emp.position || emp.type || '';
+                    return { id: emp.id, name: empName, role: empRole };
+                });
+            } catch (err) { 
+                console.error("員工資料載入失敗", err);
+                alert("載入老師清單失敗，請確認欄位權限：" + err.message);
+            }
         }
 
         function setupDates() {
@@ -631,17 +643,14 @@
         });
 
         // ==========================================
-        // 🔥 終極精準查帳引擎 (移植自 billing.html 核心演算法)
+        // 🔥 終極精準查帳引擎
         // ==========================================
         async function fetchIndividualClasses() {
             try {
-                // 1. 載入所有個指班資料
                 const { data: classes, error } = await sb.from('individual_classes').select('*').order('created_at', { ascending: false });
                 if (error) throw error;
                 classDataCache = classes || [];
 
-                // 2. 載入所有繳費紀錄 (不依賴 class_id，改從 allocation_details 解析或全域統計)
-                // 以及載入帳單折扣資料
                 const [ { data: payments }, { data: bills } ] = await Promise.all([
                     sb.from('payment_logs').select('*'),
                     sb.from('student_bills').select('*')
@@ -649,30 +658,22 @@
                 
                 classPayments = {};
 
-                // 核心演算法：由於 billing.html 在結帳時，是針對「某學生」的「全域欠款」進行總沖銷
-                // 或使用 allocation_details。為了最精準，我們從 payment_logs 找尋關聯
                 classDataCache.forEach(ic => {
                     let totalPaidForThisClass = 0;
-                    const classSearchKey = `個指班-${ic.subject} (${ic.class_type})`; // billing.html 產生的名稱
+                    const classSearchKey = `個指班-${ic.subject} (${ic.class_type})`; 
 
-                    // 尋找這個個指班專屬的折扣單 (確保應繳金額一致)
                     const b = (bills || []).find(x => x.class_id === ic.id && x.sub_idx === 0) || { discount_amount: Number(ic.discount) || 0 };
                     const actualPayable = (Number(ic.tuition)||0) + (Number(ic.materials_fee)||0) + (Number(ic.misc_fee)||0) - b.discount_amount;
-                    
-                    // 覆寫回物件中，作為精準判斷基準
                     ic.actual_total_tuition = actualPayable;
 
-                    // 解析每筆繳費紀錄中的沖銷明細 (allocation_details)
                     if (payments) {
                         payments.forEach(p => {
-                            // 檢查這個學生是不是這張單的主人
                             let isOwner = false;
                             if (Array.isArray(ic.student_ids)) {
                                 isOwner = ic.student_ids.some(s => s.student_id === p.student_id);
                             }
                             
                             if (isOwner) {
-                                // 如果有手動分配明細，精準查找
                                 if (Array.isArray(p.allocation_details)) {
                                     p.allocation_details.forEach(alloc => {
                                         if (alloc.class_name === classSearchKey || alloc.class_name.includes(ic.subject)) {
@@ -680,11 +681,6 @@
                                         }
                                     });
                                 } else {
-                                    // 早期如果沒有 allocation_details 或者是全額繳清
-                                    // 為了防呆，我們只要確認該學生在 payment_logs 裡的「總繳費」足以覆蓋這張單，就當作繳清
-                                    // (這裡使用簡化邏輯：若單純入帳，將金額計入)
-                                    // 因為 billing 系統是以總額控制，這裡若無明細，則視為全部入帳至此單
-                                    // (若有舊資料會比較寬鬆，但有 allocation 的新資料會絕對精準)
                                     totalPaidForThisClass += (Number(p.amount) || 0);
                                 }
                             }
@@ -693,7 +689,6 @@
                     classPayments[ic.id] = totalPaidForThisClass;
                 });
 
-                // 3. 抓取排課狀態
                 classSchedules = {};
                 try {
                     const { data: schedules } = await sb.from('individual_schedules').select('individual_class_id, duration_hours');
@@ -720,7 +715,6 @@
                 return item.end_date >= today;
             });
 
-            // 🎯 排序邏輯：已繳清且未排課的學生最優先 (置頂)
             displayData.sort((a, b) => {
                 const aPaidAmt = classPayments[a.id] || 0;
                 const bPaidAmt = classPayments[b.id] || 0;
@@ -749,10 +743,8 @@
             displayData.forEach(item => {
                 const studentNames = item.student_ids ? item.student_ids.map(s => s.student_name).join(', ') : '未命名';
                 
-                // === 精準繳費與按鈕防呆邏輯 ===
                 const paidAmt = classPayments[item.id] || 0;
                 const hasPayment = paidAmt > 0;
-                // 扣掉已繳金額小於等於 0.1 就算繳清
                 const isPaidClear = (hasPayment && (item.actual_total_tuition - paidAmt) <= 0.1) || (item.actual_total_tuition <= 0);
                 
                 const schedInfo = classSchedules[item.id] || { count: 0, hours: 0 };
@@ -792,9 +784,6 @@
             });
         }
 
-        // ==========================================
-        // 排課引擎核心邏輯
-        // ==========================================
         async function openScheduleModal(id) {
             currentScheduleClass = classDataCache.find(c => c.id === id);
             if (!currentScheduleClass) return;

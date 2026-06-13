@@ -310,7 +310,7 @@
         let currentScheduleClass = null;
 
         async function init() {
-            injectScheduleModal(); // 動態植入排課面板，確保HTML零更動防呆
+            injectScheduleModal(); 
             setupDates();
             await fetchEmployees();
             await fetchStudents();
@@ -631,6 +631,9 @@
             }
         });
 
+        // ==========================================
+        // 🔥 智慧全網域查帳引擎 (更新版)
+        // ==========================================
         async function fetchIndividualClasses() {
             try {
                 // 1. 抓取主班級資料
@@ -638,18 +641,37 @@
                 if (error) throw error;
                 classDataCache = classes || [];
 
-                // 2. 抓取繳費狀態 (查 payment_logs 若有對應班級的入帳即鎖定)
+                // 2. 多管齊下抓取繳費狀態 (容錯設計，防止因為單一欄位不對而抓不到)
                 classPayments = {};
                 try {
-                    const { data: payments } = await sb.from('payment_logs').select('individual_class_id, amount');
-                    if (payments) {
-                        payments.forEach(p => {
-                            if(p.individual_class_id) {
-                                classPayments[p.individual_class_id] = (classPayments[p.individual_class_id] || 0) + p.amount;
+                    // A. 先查 student_bills (帳單系統可能將個指紀錄於此)
+                    const { data: bills } = await sb.from('student_bills').select('*');
+                    let billToClassMap = {};
+                    if (bills) {
+                        bills.forEach(b => {
+                            const cid = b.individual_class_id || b.class_id || b.related_id;
+                            if (cid) {
+                                billToClassMap[b.id] = cid;
+                                classPayments[cid] = (classPayments[cid] || 0) + (parseFloat(b.paid_amount) || 0);
                             }
                         });
                     }
-                } catch(e) {} // 避免未建表報錯
+
+                    // B. 再查 payment_logs (實際繳費流水帳)
+                    const { data: payments } = await sb.from('payment_logs').select('*');
+                    if (payments) {
+                        payments.forEach(p => {
+                            let cid = p.individual_class_id || p.class_id || p.related_id;
+                            // 如果 payment_logs 只記錄了 bill_id，我們反查出 class_id
+                            if (!cid && p.student_bill_id) cid = billToClassMap[p.student_bill_id];
+                            if (!cid && p.bill_id) cid = billToClassMap[p.bill_id];
+                            
+                            if (cid) {
+                                classPayments[cid] = (classPayments[cid] || 0) + (parseFloat(p.amount) || parseFloat(p.paid_amount) || 0);
+                            }
+                        });
+                    }
+                } catch(e) { console.warn("查帳引擎略過部分錯誤:", e); }
 
                 // 3. 抓取排課狀態
                 classSchedules = {};
@@ -678,15 +700,20 @@
                 return item.end_date >= today;
             });
 
-            // 智慧排序：已繳清但未排課 > 開單日期
+            // 🎯 排序邏輯：已繳清且未排課的學生最優先 (置頂)
             displayData.sort((a, b) => {
-                const aPaid = (classPayments[a.id] || 0) >= a.total_tuition;
-                const bPaid = (classPayments[b.id] || 0) >= b.total_tuition;
+                const aPaidAmt = classPayments[a.id] || 0;
+                const bPaidAmt = classPayments[b.id] || 0;
+                
+                // 容許 0.1 元的浮點數誤差，判定是否繳清
+                const aIsPaidClear = (aPaidAmt > 0 && (a.total_tuition - aPaidAmt) <= 0.1) || (a.total_tuition === 0);
+                const bIsPaidClear = (bPaidAmt > 0 && (b.total_tuition - bPaidAmt) <= 0.1) || (b.total_tuition === 0);
+                
                 const aNoSched = !(classSchedules[a.id] && classSchedules[a.id].count > 0);
                 const bNoSched = !(classSchedules[b.id] && classSchedules[b.id].count > 0);
 
-                const aPriority = (aPaid && aNoSched) ? 1 : 0;
-                const bPriority = (bPaid && bNoSched) ? 1 : 0;
+                const aPriority = (aIsPaidClear && aNoSched) ? 1 : 0;
+                const bPriority = (bIsPaidClear && bNoSched) ? 1 : 0;
 
                 if (aPriority !== bPriority) return bPriority - aPriority; 
                 return new Date(b.created_at) - new Date(a.created_at); 
@@ -707,24 +734,31 @@
                 // === 繳費與按鈕防呆邏輯 ===
                 const paidAmt = classPayments[item.id] || 0;
                 const hasPayment = paidAmt > 0;
-                const isPaidClear = hasPayment && (item.total_tuition - paidAmt <= 0);
+                // 扣掉已繳金額小於等於 0.1 就算繳清 (防浮點數誤差)
+                const isPaidClear = (hasPayment && (item.total_tuition - paidAmt) <= 0.1) || (item.total_tuition === 0);
+                
                 const schedInfo = classSchedules[item.id] || { count: 0, hours: 0 };
                 const hasSchedules = schedInfo.count > 0;
 
                 let actionHtml = '';
-                if (!hasPayment) {
-                    actionHtml = `
-                        <button onclick="openFullEditModal('${item.id}')" class="text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1.5 rounded hover:bg-amber-200 transition">全域編輯</button>
-                        <button onclick="deleteClass('${item.id}')" class="text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1.5 rounded hover:bg-rose-200 transition">刪除</button>
-                    `;
-                } else if (!isPaidClear) {
-                    actionHtml = `<span class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1.5 border border-slate-200 rounded">已有繳費紀錄</span>`;
-                } else {
+                
+                if (isPaidClear) {
+                    // 狀況 1：已繳清 (尚欠 0) -> 開放排課！
                     if (hasSchedules) {
                         actionHtml = `<button onclick="openScheduleModal('${item.id}')" class="text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 px-4 py-1.5 rounded hover:bg-emerald-200 transition shadow-sm">已排課</button>`;
                     } else {
                         actionHtml = `<button onclick="openScheduleModal('${item.id}')" class="text-xs font-black bg-orange-500 text-white border border-orange-600 px-4 py-1.5 rounded hover:bg-orange-600 transition shadow-sm animate-pulse">排課</button>`;
                     }
+                } else if (hasPayment) {
+                    // 狀況 2：有繳費紀錄，但尚未繳清 -> 鎖定修改，顯示「已有繳費紀錄 (未繳清)」
+                    actionHtml = `<span class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1.5 border border-slate-200 rounded">已有繳費紀錄<br><span class="text-[10px] text-rose-500">(尚未繳清)</span></span>`;
+                } else {
+                    // 狀況 3：完全未繳費 -> 顯示全域編輯與刪除
+                    actionHtml = `
+                        <button onclick="openFullEditModal('${item.id}')" class="text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1.5 rounded hover:bg-amber-200 transition mb-1">全域編輯</button>
+                        <br>
+                        <button onclick="deleteClass('${item.id}')" class="text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1.5 rounded hover:bg-rose-200 transition mt-1">刪除</button>
+                    `;
                 }
 
                 const tr = document.createElement('tr');
@@ -737,7 +771,7 @@
                     <td class="p-3 text-xs font-mono font-bold text-slate-500">${item.start_date} ~ <br>${item.end_date}</td>
                     <td class="p-3 text-right font-mono font-black text-rose-600 text-base">$${item.total_tuition}</td>
                     <td class="p-3 font-bold text-slate-500">${item.operator}</td>
-                    <td class="p-3 text-center space-x-1 whitespace-nowrap">${actionHtml}</td>
+                    <td class="p-3 text-center whitespace-nowrap align-middle leading-tight">${actionHtml}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -775,7 +809,6 @@
                         });
                     });
                 } else {
-                    // 若無資料，帶入第一堂預設值
                     addScheduleRow({
                         date: currentScheduleClass.start_date,
                         subject: currentScheduleClass.subject
@@ -898,11 +931,9 @@
             `;
             tbody.appendChild(tr);
             
-            // 觸發一次老師與時數計算
             const teacherSelect = tr.querySelector('.input-teacher');
             if(teacherSelect.value) handleTeacherChange(teacherSelect);
             
-            // 回填保存的 level
             if(data.rateLevel && data.rateLevel !== '0') {
                 tr.querySelector('.rate-level-select').value = data.rateLevel;
             }
@@ -959,7 +990,7 @@
 
                 const rowData = {
                     individual_class_id: currentScheduleClass.id,
-                    student_id: currentScheduleClass.student_ids[0].student_id, // 若為1對多需額外處理展開，為防呆先依首位綁定
+                    student_id: currentScheduleClass.student_ids[0].student_id, 
                     class_date: date,
                     day_of_week: new Date(date).getDay(),
                     start_time: startTime,
@@ -974,12 +1005,10 @@
                 insertPayload.push(rowData);
             }
 
-            // 1. 總時數精準阻擋防呆
             if (Math.abs(totalHrs - currentScheduleClass.total_hours) > 0.01) {
                 return alert(`⚠️ 總時數不符！\n此班別開單時設定為：${currentScheduleClass.total_hours} 小時\n您目前排出的總時數為：${totalHrs} 小時\n請修正後再送出。`);
             }
 
-            // 2. 師生時間衝突偵測 (撈出資料庫中現有的所有個指排課)
             try {
                 const { data: dbSchedules } = await sb.from('individual_schedules').select('individual_class_id, student_id, teacher_id, class_date, start_time, end_time');
                 
@@ -988,20 +1017,16 @@
                     let newEndDt = new Date(`${newRow.class_date}T${newRow.end_time}`);
 
                     for (let exist of dbSchedules || []) {
-                        // 略過同一張單本身的舊紀錄 (因為我們即將覆蓋)
                         if (exist.individual_class_id === currentScheduleClass.id) continue;
 
                         let existStartDt = new Date(`${exist.class_date}T${exist.start_time}`);
                         let existEndDt = new Date(`${exist.class_date}T${exist.end_time}`);
 
-                        // 判斷重疊: 條件為 (新起點 < 舊終點) 且 (新終點 > 舊起點)
                         if (newStartDt < existEndDt && newEndDt > existStartDt) {
-                            // 檢查學生是否同一個
                             const isSameStudent = currentScheduleClass.student_ids.some(s => s.student_id === exist.student_id);
                             if (isSameStudent) {
                                 return alert(`⛔ 學生課程時間衝突！\n\n日期：${newRow.class_date}\n時間：${newRow.start_time} ~ ${newRow.end_time}\n此學生在該時段已有其他排課！`);
                             }
-                            // 檢查老師是否同一個
                             if (newRow.teacher_id === exist.teacher_id) {
                                 const teacherName = employeesData.find(e => e.id === newRow.teacher_id)?.name || '該老師';
                                 return alert(`⛔ 老師課程時間衝突！\n\n日期：${newRow.class_date}\n時間：${newRow.start_time} ~ ${newRow.end_time}\n【${teacherName}】在該時段已被排課！`);
@@ -1010,10 +1035,8 @@
                     }
                 }
 
-                // 3. 驗證通過，寫入資料庫 (先刪除舊排課，再插入新排課)
                 await sb.from('individual_schedules').delete().eq('individual_class_id', currentScheduleClass.id);
                 
-                // 若1對多，需為每位學生複製一筆排課紀錄以確保考勤獨立
                 let finalPayload = [];
                 currentScheduleClass.student_ids.forEach(student => {
                     insertPayload.forEach(row => {

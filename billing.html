@@ -74,8 +74,14 @@
 
     <div class="max-w-[1500px] mx-auto w-full no-print flex gap-5 h-full">
         
-        <div class="w-72 shrink-0 bg-white p-5 rounded-2xl shadow-sm border h-[calc(100vh-4rem)] flex flex-col">
-            <h2 class="font-black text-xl mb-4 text-slate-800 border-b border-slate-200 pb-3">📁 班別進階篩選</h2>
+        <div class="w-80 shrink-0 bg-white p-5 rounded-2xl shadow-sm border h-[calc(100vh-4rem)] flex flex-col">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-200 pb-3">
+                <h2 class="font-black text-xl text-slate-800">📁 班別進階篩選</h2>
+                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-500 cursor-pointer hover:text-slate-700 bg-slate-100 px-2 py-1 rounded">
+                    <input type="checkbox" id="show-expired" class="w-3.5 h-3.5 rounded border-slate-300 cursor-pointer">
+                    顯示過期班級
+                </label>
+            </div>
             
             <div class="flex-1 overflow-y-auto space-y-5 pr-2 sidebar-scroll">
                 
@@ -230,51 +236,9 @@
         </div>
     </div>
 
-    <div id="print-area" class="hidden print-only print-wrapper">
-        <div class="p-title-container">
-            <img src="昊學_工作區域 1.png" alt="昊學Logo" class="p-logo" onerror="this.style.display='none'">
-            <div class="p-title" id="p-title">昊學文教   繳費通知單</div>
-        </div>
-        <div class="p-header">
-            <span>班址:竹北市十興路一段373號</span>
-            <span>電話:(03)6670820</span>
-        </div>
-        <div class="p-info">
-            <span id="p-stu-info">學生姓名:XXX   學校/年級: XX國小/X年級</span>
-            <span id="p-serial-info">流水編號: NO.XXXXXXXXX</span>
-        </div>
-        
-        <div class="p-bold mb-2" style="color: #0f172a;" id="p-table-title">課程收費明細 ：</div>
-        <table class="p-table" id="p-table"></table>
-
-        <div id="p-footer-notice" class="p-footer-note mt-6">
-            <div class="p-section-title">【匯款資訊】</div>
-            <div>戶名：昊學文教股份有限公司，台北富邦（012）一竹北分行</div>
-            <div>帳號：<span class="p-highlight">8212-0000-174151</span> ‧匯款後請您協助回傳以下資訊：1、學生姓名 2、帳號末5碼</div>
-            
-            <div class="p-section-title mt-4">【請假需知】</div>
-            <div>(一) 無故請勿請假，事/病假需家長證明，不接受國中小學生自行請假，每月請假乙次為限。</div>
-            <div>(二) 事請請於三天前(寒暑假出國或返鄉長假請於半個月前)，病假請於1小時前；個別指導學生病假請於2小時前，若授課老師已在路上，仍需計該堂費用。</div>
-            
-            <div class="p-section-title mt-4">【補課需知】</div>
-            <div>(一) 2人以上班級，請假需補課看影片，且需在下次上課前完成。</div>
-            <div>(二) 1對1請假，以提前補實體課或往後補實體課為主，特殊情況才可順延，以防教學進度延誤。</div>
-        </div>
-
-        <div id="p-footer-receipt" class="p-footer-note mt-6 hidden">
-            <div class="p-section-title">【退費規定說明】</div>
-            <div>補習班學生繳納費用後離班者,補習班應依下列規定辦理退費 ：</div>
-            <div>一、 學生於實際開課日前提出退費申請者,應退還當期開班約定繳納費用總額百分之九十,但所收取之百分之十部分逾新臺幣一千元部分,仍應退還 。</div>
-            <div>二、 學生於實際開課日起一週內提出退費申請者,應退還當期開班約定繳納費用總額百分之七十 。</div>
-            <div>三、 學生於實際開課日起算逾一週且未達全期或總課程時數之三分之一期間內提出退費申請者,應退還當期開班約定繳納費用總額之二分之一。</div>
-            <div>四、 學生於達全期或總課程時數之三分之一以上期間提出退費申請者,所收取之當期開班約定繳納費用得全數不予退還 。</div>
-        </div>
-    </div>
-
     <script>
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
         
-        // 全域變數存放區
         let students = [], allStudentsData = [], classes = [], individualClassesGlobal = [];
         let globalAllBills = [], globalAllPayments = [];
         let studentDebts = {}, classUnpaidStatus = {};
@@ -296,6 +260,19 @@
             return res.replace(/零$/, '') + '元整';
         }
 
+        // 開合團班子選單的觸發功能
+        function toggleGroup(id) {
+            const childContainer = document.getElementById(`children-group-${id}`);
+            const icon = document.getElementById(`icon-group-${id}`);
+            if(childContainer.classList.contains('hidden')) {
+                childContainer.classList.remove('hidden');
+                icon.innerText = '▲';
+            } else {
+                childContainer.classList.add('hidden');
+                icon.innerText = '▼';
+            }
+        }
+
         async function init() {
             try {
                 const deadlineDate = new Date();
@@ -314,8 +291,22 @@
                 classes = cls || [];
                 individualClassesGlobal = ind || [];
 
-                await refreshGlobalData();
+                // 綁定全選按鈕與顯示過期選項
+                document.getElementById('show-expired').addEventListener('change', () => {
+                    renderSidebarTree();
+                });
 
+                document.getElementById('chk-group').addEventListener('change', function() {
+                    document.querySelectorAll('.chk-group-parent, .chk-group-child').forEach(cb => cb.checked = this.checked);
+                    filterStudents();
+                });
+                
+                document.getElementById('chk-indiv').addEventListener('change', function() {
+                    document.querySelectorAll('.chk-indiv-item').forEach(cb => cb.checked = this.checked);
+                    filterStudents();
+                });
+
+                await refreshGlobalData();
                 document.getElementById('stu-search').addEventListener('input', filterStudents);
                 setupAmountListener();
             } catch (error) {
@@ -332,13 +323,7 @@
             globalAllPayments = pays || [];
             
             calculateGlobalDebts();
-            
-            if(document.getElementById('tree-group').innerHTML.trim() === "") {
-                renderSidebarTree(); 
-            } else {
-                updateTreeDots(); 
-            }
-            filterStudents(); 
+            renderSidebarTree(); // 改為每次都重繪以應對篩選條件
         }
 
         function calculateGlobalDebts() {
@@ -375,7 +360,6 @@
 
                 let totalPaid = 0;
                 globalAllPayments.filter(p => p.student_id === stuId).forEach(p => { totalPaid += p.amount; });
-
                 studentDebts[stuName] = totalPayable - totalPaid;
             });
             
@@ -408,16 +392,26 @@
             });
         }
 
+        // 智慧渲染側邊欄過濾樹
         function renderSidebarTree() {
+            const showExpired = document.getElementById('show-expired').checked;
+            const today = new Date().toISOString().split('T')[0];
+
+            // 團班過濾 (依據 end_date)
+            const displayClasses = classes.filter(c => showExpired || (!c.end_date) || (c.end_date >= today));
+
             const treeGroup = document.getElementById('tree-group');
-            treeGroup.innerHTML = classes.map(c => `
+            treeGroup.innerHTML = displayClasses.map(c => `
                 <div class="mb-2">
                     <div class="flex items-center gap-2 mb-1">
                         <input type="checkbox" class="chk-group-parent w-3.5 h-3.5 rounded cursor-pointer border-slate-300" value="${c.id}" id="pg-${c.id}"> 
-                        <label for="pg-${c.id}" class="text-xs font-bold text-slate-700 cursor-pointer flex-1 truncate" title="${c.name}">${c.name}</label>
+                        <div onclick="toggleGroup('${c.id}')" class="text-xs font-bold text-slate-700 cursor-pointer flex-1 truncate select-none flex justify-between items-center pr-1 hover:text-blue-600 transition" title="${c.name}">
+                            <span>${c.name}</span>
+                            <span id="icon-group-${c.id}" class="text-[10px] text-slate-400">▼</span>
+                        </div>
                         <span id="dot-group-${c.id}" class="flex items-center justify-center w-3 h-3"></span>
                     </div>
-                    <div class="pl-4 space-y-2 mt-1 border-l-2 border-slate-200 ml-1.5 py-1">
+                    <div id="children-group-${c.id}" class="pl-4 space-y-2 mt-1 border-l-2 border-slate-200 ml-1.5 py-1 hidden">
                         ${(c.sub_classes || []).map((sub, idx) => `
                             <div class="flex items-center gap-2">
                                 <input type="checkbox" class="chk-group-child w-3 h-3 rounded cursor-pointer border-slate-300" data-parent="${c.id}" value="${idx}" id="cg-${c.id}-${idx}"> 
@@ -429,35 +423,34 @@
                 </div>
             `).join('');
 
+            // 個指過濾與排序 (依據開單日期)
+            let displayIndiv = individualClassesGlobal.filter(ic => showExpired || (!ic.end_date) || (ic.end_date >= today));
+            displayIndiv.sort((a, b) => new Date(b.issue_date) - new Date(a.issue_date));
+
             const treeIndiv = document.getElementById('tree-indiv');
-            treeIndiv.innerHTML = individualClassesGlobal.map(ic => `
+            treeIndiv.innerHTML = displayIndiv.map(ic => {
+                const stuNames = Array.isArray(ic.student_ids) ? ic.student_ids.map(s => s.student_name).join(', ') : '未命名';
+                // 格式： 2026/06/13 英文(一對一) - 王小明
+                const displayTitle = `${ic.issue_date.replace(/-/g,'/')} ${ic.subject}(${ic.class_type}) - ${stuNames}`;
+                return `
                 <div class="flex items-center gap-2 mb-2">
                     <input type="checkbox" class="chk-indiv-item w-3.5 h-3.5 rounded cursor-pointer border-slate-300" value="${ic.id}" id="ci-${ic.id}"> 
-                    <label for="ci-${ic.id}" class="text-[11px] font-bold text-slate-600 cursor-pointer flex-1 truncate" title="${ic.subject}(${ic.class_type})">${ic.subject}(${ic.class_type})</label>
+                    <label for="ci-${ic.id}" class="text-[11px] font-bold text-slate-600 cursor-pointer flex-1 truncate hover:text-emerald-600 transition" title="${displayTitle}">${displayTitle}</label>
                     <span id="dot-indiv-${ic.id}" class="flex items-center justify-center w-3 h-3"></span>
                 </div>
-            `).join('');
+            `}).join('');
 
-            // 【升級邏輯】：全選按鈕純粹作為快速打勾使用，不會再隱藏樹狀圖
-            document.getElementById('chk-group').addEventListener('change', function() {
-                document.querySelectorAll('.chk-group-parent, .chk-group-child').forEach(cb => cb.checked = this.checked);
-                filterStudents();
-            });
-            document.getElementById('chk-indiv').addEventListener('change', function() {
-                document.querySelectorAll('.chk-indiv-item').forEach(cb => cb.checked = this.checked);
-                filterStudents();
-            });
-
+            // 重新綁定勾選動態事件
             document.querySelectorAll('.chk-group-parent').forEach(cb => {
                 cb.addEventListener('change', function() {
                     document.querySelectorAll(`.chk-group-child[data-parent="${this.value}"]`).forEach(child => child.checked = this.checked);
                     filterStudents();
                 });
             });
-
             document.querySelectorAll('.chk-group-child, .chk-indiv-item').forEach(cb => cb.addEventListener('change', filterStudents));
             
             updateTreeDots();
+            filterStudents();
         }
 
         function updateTreeDots() {
@@ -856,7 +849,6 @@
 
                 if (en.is_individual) {
                     const ic = en.ic_data;
-                    // 精準最末堂同步計算
                     let endDateStr = ic.end_date;
                     if(ic.start_date && ic.total_weeks) {
                         let sd = new Date(ic.start_date);

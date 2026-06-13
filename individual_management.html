@@ -130,7 +130,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-emerald-600 mb-1">13. 優惠折抵金額</label>
-                            <input type="number" id="discount" min="0" value="0" class="w-full border border-emerald-300 rounded px-3 py-2 focus:outline-none focus:border-emerald-500 bg-emerald-50 font-bold text-emerald-700">
+                            <input type="number" id="discount" min="0" value="0" class="w-full border border-emerald-300 rounded px-3 py-2 bg-emerald-50 font-bold text-emerald-700">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-sm font-medium text-gray-600 mb-1">14. 優惠原因說明</label>
@@ -173,7 +173,13 @@
 
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-bold text-slate-800">已設立個指班別列表</h2>
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-lg font-bold text-slate-800">已設立個指班別列表</h2>
+                        <label class="flex items-center gap-1.5 text-xs font-bold text-slate-500 cursor-pointer hover:text-slate-700 bg-slate-100 px-2 py-1 rounded">
+                            <input type="checkbox" id="show-expired" class="w-3.5 h-3.5 rounded border-slate-300 cursor-pointer">
+                            顯示過期班別
+                        </label>
+                    </div>
                     <span class="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full border border-slate-200" id="total-records-count">共 0 筆資料</span>
                 </div>
                 <div class="overflow-x-auto">
@@ -292,25 +298,26 @@
     </div>
 
     <script>
-        // 核心設定
         const SUPABASE_URL = 'https://hlelxeiwamvrntsxnram.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let allStudents = [];
-        let classDataCache = []; // 快取資料表供編輯使用
+        let classDataCache = []; 
 
         async function init() {
             setupDates();
             await fetchStudents();
             await fetchIndividualClasses();
             bindCalculationEvents();
-            bindModalCalculationEvents(); // 綁定編輯視窗的即時計算
+            bindModalCalculationEvents(); 
             setupSubjectHandler();
+            
+            // 綁定顯示過期事件
+            document.getElementById('show-expired').addEventListener('change', renderIndividualClassesTable);
         }
         window.onload = init;
 
-        // 1. 日期初始化處理
         function setupDates() {
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
@@ -321,11 +328,9 @@
             const dueDate = new Date();
             dueDate.setDate(today.getDate() + 3);
             document.getElementById('due-date').value = dueDate.toISOString().split('T')[0];
-            
             updateEndDatePreview();
         }
 
-        // 精準年級換算
         function calculateGradeByBaseYear(gradeBaseYear) {
             if (!gradeBaseYear) return "未設定";
             const today = new Date();
@@ -333,31 +338,20 @@
             const academicYear = currentMonth >= 7 ? today.getFullYear() : today.getFullYear() - 1;
             const gradeNum = academicYear - parseInt(gradeBaseYear) + 1;
             
-            if (gradeNum === 1) return "小一";
-            if (gradeNum === 2) return "小二";
-            if (gradeNum === 3) return "小三";
-            if (gradeNum === 4) return "小四";
-            if (gradeNum === 5) return "小五";
-            if (gradeNum === 6) return "小六";
-            if (gradeNum === 7) return "國一";
-            if (gradeNum === 8) return "國二";
-            if (gradeNum === 9) return "國三";
-            if (gradeNum === 10) return "高一";
-            if (gradeNum === 11) return "高二";
-            if (gradeNum === 12) return "高三";
+            if (gradeNum === 1) return "小一"; if (gradeNum === 2) return "小二"; if (gradeNum === 3) return "小三";
+            if (gradeNum === 4) return "小四"; if (gradeNum === 5) return "小五"; if (gradeNum === 6) return "小六";
+            if (gradeNum === 7) return "國一"; if (gradeNum === 8) return "國二"; if (gradeNum === 9) return "國三";
+            if (gradeNum === 10) return "高一"; if (gradeNum === 11) return "高二"; if (gradeNum === 12) return "高三";
             return "已畢業";
         }
 
-        // 2. 學生名單讀取與渲染
         async function fetchStudents() {
             try {
                 const { data, error } = await sb.from('students').select('id, name, grade_base_year').order('name');
                 if (error) throw error;
                 allStudents = data || [];
                 renderStudentList();
-            } catch (err) {
-                console.error(err);
-            }
+            } catch (err) { console.error(err); }
         }
 
         function renderStudentList() {
@@ -391,17 +385,13 @@
         }
         document.getElementById('filter-grade').addEventListener('change', renderStudentList);
 
-        // 3. 【主表單】智慧計費與修業期限推算
         function performCalculations() {
             const hoursPerSession = parseFloat(document.getElementById('hours-per-session').value) || 0;
             const sessionsPerWeekStr = document.getElementById('sessions-per-week').value;
             let weekSessionsNum = 1;
-            if (sessionsPerWeekStr === "週二堂") weekSessionsNum = 2;
-            else if (sessionsPerWeekStr === "週三堂") weekSessionsNum = 3;
-            else if (sessionsPerWeekStr === "週四堂") weekSessionsNum = 4;
-            else if (sessionsPerWeekStr === "週五堂") weekSessionsNum = 5;
-            else if (sessionsPerWeekStr === "週六堂") weekSessionsNum = 6;
-            else if (sessionsPerWeekStr === "週七堂") weekSessionsNum = 7;
+            if (sessionsPerWeekStr === "週二堂") weekSessionsNum = 2; else if (sessionsPerWeekStr === "週三堂") weekSessionsNum = 3;
+            else if (sessionsPerWeekStr === "週四堂") weekSessionsNum = 4; else if (sessionsPerWeekStr === "週五堂") weekSessionsNum = 5;
+            else if (sessionsPerWeekStr === "週六堂") weekSessionsNum = 6; else if (sessionsPerWeekStr === "週七堂") weekSessionsNum = 7;
 
             const totalWeeks = parseInt(document.getElementById('total-weeks').value) || 0;
             const totalSessions = weekSessionsNum * totalWeeks;
@@ -415,13 +405,9 @@
             let hourlyRate = 0;
 
             if (courseLevel === "國中小") {
-                if (classType === "一對一") hourlyRate = 1200;
-                else if (classType === "一對二") hourlyRate = 800;
-                else if (classType === "一對四") hourlyRate = 600;
+                if (classType === "一對一") hourlyRate = 1200; else if (classType === "一對二") hourlyRate = 800; else hourlyRate = 600;
             } else { 
-                if (classType === "一對一") hourlyRate = 1450;
-                else if (classType === "一對二") hourlyRate = 1000;
-                else if (classType === "一對四") hourlyRate = 800;
+                if (classType === "一對一") hourlyRate = 1450; else if (classType === "一對二") hourlyRate = 1000; else hourlyRate = 800;
             }
 
             if (sessionsPerWeekStr === "週二堂") {
@@ -440,14 +426,12 @@
             document.getElementById('total-tuition').value = Math.round(totalTuition);
         }
 
-        // 【精準修改】：排課最末堂 = 起始日 + (總週數 - 1) 週
         function updateEndDatePreview() {
             const startDateVal = document.getElementById('start-date').value;
             const totalWeeks = parseInt(document.getElementById('total-weeks').value) || 0;
             if (!startDateVal || totalWeeks <= 0) return;
 
             let startDate = new Date(startDateVal);
-            // 修正為 (totalWeeks - 1) * 7 天
             let targetDate = new Date(startDate.getTime() + ((totalWeeks - 1) * 7 * 24 * 60 * 60 * 1000));
             const endStr = targetDate.toISOString().split('T')[0];
             
@@ -477,22 +461,17 @@
             });
         }
 
-        // 4. 【編輯視窗】全方位智慧計費與連動引擎
         function performModalCalculations() {
             const hoursPerSession = parseFloat(document.getElementById('edit-hours-per-session').value) || 0;
             const sessionsPerWeekStr = document.getElementById('edit-sessions-per-week').value;
             let weekSessionsNum = 1;
-            if (sessionsPerWeekStr === "週二堂") weekSessionsNum = 2;
-            else if (sessionsPerWeekStr === "週三堂") weekSessionsNum = 3;
-            else if (sessionsPerWeekStr === "週四堂") weekSessionsNum = 4;
-            else if (sessionsPerWeekStr === "週五堂") weekSessionsNum = 5;
-            else if (sessionsPerWeekStr === "週六堂") weekSessionsNum = 6;
-            else if (sessionsPerWeekStr === "週七堂") weekSessionsNum = 7;
+            if (sessionsPerWeekStr === "週二堂") weekSessionsNum = 2; else if (sessionsPerWeekStr === "週三堂") weekSessionsNum = 3;
+            else if (sessionsPerWeekStr === "週四堂") weekSessionsNum = 4; else if (sessionsPerWeekStr === "週五堂") weekSessionsNum = 5;
+            else if (sessionsPerWeekStr === "週六堂") weekSessionsNum = 6; else if (sessionsPerWeekStr === "週七堂") weekSessionsNum = 7;
 
             const totalWeeks = parseInt(document.getElementById('edit-total-weeks').value) || 0;
             const totalSessions = weekSessionsNum * totalWeeks;
             document.getElementById('edit-total-sessions').value = totalSessions;
-
             const totalHours = hoursPerSession * totalSessions;
             document.getElementById('edit-total-hours').value = totalHours.toFixed(1);
 
@@ -521,7 +500,6 @@
             const totalTuition = tuitionBase + materialsFee + miscFee - discount;
             document.getElementById('edit-total-tuition').value = Math.round(totalTuition);
 
-            // 編輯視窗的排課最末堂計算
             const startDateVal = document.getElementById('edit-start-date').value;
             if (startDateVal && totalWeeks > 0) {
                 let startDate = new Date(startDateVal);
@@ -538,7 +516,6 @@
             });
         }
 
-        // 5. 確立開單提交寫入
         document.getElementById('individual-class-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const checkedBoxes = document.querySelectorAll('.student-checkbox:checked');
@@ -586,41 +563,54 @@
             }
         });
 
-        // 6. 讀取並渲染班別列表
         async function fetchIndividualClasses() {
             try {
                 const { data, error } = await sb.from('individual_classes').select('*').order('created_at', { ascending: false });
                 if (error) throw error;
                 classDataCache = data || [];
-                const tbody = document.getElementById('classes-list-table-body');
-                document.getElementById('total-records-count').innerText = `共 ${classDataCache.length} 筆資料`;
-                tbody.innerHTML = "";
-
-                if (classDataCache.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400 font-bold">目前尚無已創立的紀錄</td></tr>`;
-                    return;
-                }
-
-                classDataCache.forEach(item => {
-                    const studentNames = item.student_ids ? item.student_ids.map(s => s.student_name).join(', ') : '未命名';
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
-                    tr.innerHTML = `
-                        <td class="p-3 font-mono text-slate-500">${item.issue_date}</td>
-                        <td class="p-3"><span class="font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-lg">${studentNames}</span></td>
-                        <td class="p-3 font-bold text-slate-700">${item.class_type} / <span class="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">${item.course_level}</span></td>
-                        <td class="p-3 font-bold text-slate-600">${item.subject} <span class="text-xs text-slate-400 font-normal">(${item.hours_per_session}H * ${item.total_sessions})</span></td>
-                        <td class="p-3 text-xs font-mono font-bold text-slate-500">${item.start_date} ~ <br>${item.end_date}</td>
-                        <td class="p-3 text-right font-mono font-black text-rose-600 text-base">$${item.total_tuition}</td>
-                        <td class="p-3 font-bold text-slate-500">${item.operator}</td>
-                        <td class="p-3 text-center space-x-1 whitespace-nowrap">
-                            <button onclick="openFullEditModal('${item.id}')" class="text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1.5 rounded hover:bg-amber-200 transition">全域編輯</button>
-                            <button onclick="deleteClass('${item.id}')" class="text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1.5 rounded hover:bg-rose-200 transition">刪除</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+                renderIndividualClassesTable();
             } catch (err) { console.error(err); }
+        }
+
+        // 獨立出渲染邏輯，支援過濾顯示
+        function renderIndividualClassesTable() {
+            const showExpired = document.getElementById('show-expired').checked;
+            const today = new Date().toISOString().split('T')[0];
+            
+            let displayData = classDataCache.filter(item => {
+                if (showExpired) return true;
+                if (!item.end_date) return true;
+                return item.end_date >= today;
+            });
+
+            const tbody = document.getElementById('classes-list-table-body');
+            document.getElementById('total-records-count').innerText = `共 ${displayData.length} 筆資料`;
+            tbody.innerHTML = "";
+
+            if (displayData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400 font-bold">目前尚無符合的紀錄</td></tr>`;
+                return;
+            }
+
+            displayData.forEach(item => {
+                const studentNames = item.student_ids ? item.student_ids.map(s => s.student_name).join(', ') : '未命名';
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="p-3 font-mono text-slate-500">${item.issue_date}</td>
+                    <td class="p-3"><span class="font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-lg">${studentNames}</span></td>
+                    <td class="p-3 font-bold text-slate-700">${item.class_type} / <span class="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">${item.course_level}</span></td>
+                    <td class="p-3 font-bold text-slate-600">${item.subject} <span class="text-xs text-slate-400 font-normal">(${item.hours_per_session}H * ${item.total_sessions})</span></td>
+                    <td class="p-3 text-xs font-mono font-bold text-slate-500">${item.start_date} ~ <br>${item.end_date}</td>
+                    <td class="p-3 text-right font-mono font-black text-rose-600 text-base">$${item.total_tuition}</td>
+                    <td class="p-3 font-bold text-slate-500">${item.operator}</td>
+                    <td class="p-3 text-center space-x-1 whitespace-nowrap">
+                        <button onclick="openFullEditModal('${item.id}')" class="text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1.5 rounded hover:bg-amber-200 transition">全域編輯</button>
+                        <button onclick="deleteClass('${item.id}')" class="text-xs font-bold bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1.5 rounded hover:bg-rose-200 transition">刪除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
         async function deleteClass(id) {
@@ -633,7 +623,6 @@
             } catch (err) { alert("刪除失敗。"); }
         }
 
-        // 7. 【強大升級】：開啟全域編輯視窗
         function openFullEditModal(id) {
             const item = classDataCache.find(c => c.id === id);
             if (!item) return;
@@ -643,7 +632,6 @@
             document.getElementById('edit-class-grade').value = item.grade;
             document.getElementById('edit-course-level').value = item.course_level;
             
-            // 處理科目下拉選單動態新增防呆
             const subjSelect = document.getElementById('edit-subject');
             if (!Array.from(subjSelect.options).some(opt => opt.value === item.subject)) {
                 subjSelect.add(new Option(item.subject, item.subject));
@@ -660,7 +648,6 @@
             document.getElementById('edit-operator').value = item.operator;
             document.getElementById('edit-due-date').value = item.due_date;
 
-            // 啟動一次即時計算來填充唯讀欄位
             performModalCalculations();
 
             const modal = document.getElementById('edit-modal');
@@ -673,10 +660,8 @@
             document.getElementById('edit-modal').classList.remove('flex');
         });
 
-        // 儲存全域修改
         document.getElementById('btn-save-modal').addEventListener('click', async () => {
             const id = document.getElementById('edit-id').value;
-            
             const updateData = {
                 class_type: document.getElementById('edit-class-type').value,
                 grade: document.getElementById('edit-class-grade').value,

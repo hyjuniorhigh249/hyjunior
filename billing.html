@@ -10,11 +10,15 @@
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
         
+        /* 專屬左側選單捲動條美化 */
         .sidebar-scroll::-webkit-scrollbar { width: 6px; }
         .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
         .sidebar-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+        /* ========================================================= */
+        /* 專屬彩色專業列印排版 (支援 Logo、多色系與自動縮放 1 頁)        */
+        /* ========================================================= */
         @media print {
             @page { margin: 8mm; size: A4 portrait; }
             body { background: white !important; padding: 0 !important; height: 100vh !important; max-height: 100vh !important; overflow: hidden !important; display: block !important; }
@@ -80,13 +84,15 @@
             </div>
             
             <div class="flex-1 overflow-y-auto space-y-5 pr-2 sidebar-scroll">
+                
                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-inner">
                     <div class="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
                         <input type="checkbox" id="chk-group" class="w-4 h-4 rounded text-blue-600 cursor-pointer"> 
                         <label for="chk-group" class="font-black text-sm text-blue-800 cursor-pointer flex-1">團體班級 (全選)</label>
                         <span id="dot-group"></span>
                     </div>
-                    <div id="tree-group" class="pl-1 space-y-1.5 mt-2"></div>
+                    <div id="tree-group" class="pl-1 space-y-1.5 mt-2">
+                        </div>
                 </div>
 
                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-inner">
@@ -95,7 +101,8 @@
                         <label for="chk-indiv" class="font-black text-sm text-emerald-800 cursor-pointer flex-1">個別指導 (全選)</label>
                         <span id="dot-indiv"></span>
                     </div>
-                    <div id="tree-indiv" class="pl-1 space-y-1.5 mt-2"></div>
+                    <div id="tree-indiv" class="pl-1 space-y-1.5 mt-2">
+                        </div>
                 </div>
             </div>
         </div>
@@ -880,8 +887,8 @@
                 if (involvedClassNames.size > 0) {
                     classesToPrint = currentEnrolled.filter(en => involvedClassNames.has(`${en.main_name}-${en.sub_name}`));
                 } else {
-                    const checkedClassIndexes = Array.from(document.querySelectorAll('.class-print-chk:checked')).map(cb => parseInt(cb.value));
-                    classesToPrint = currentEnrolled.filter((_, idx) => checkedClassIndexes.includes(idx));
+                    // 為了避免早期歷史資料印出「所有」有打勾的班級導致錯覺，這裡改成直接不顯示班級細項
+                    classesToPrint = [];
                 }
             }
 
@@ -902,56 +909,61 @@
             let html = '<tr><th>報名課程</th><th>收費明細</th><th>優惠原因/金額</th><th>修業期間</th></tr>';
             let printTotalPayable = 0; 
 
-            classesToPrint.forEach(en => {
-                const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0, discount_reason: '' };
-                const subTotal = en.fee + en.tb_fee + en.m_fee;
-                const finalFee = subTotal - b.discount_amount;
-                printTotalPayable += finalFee;
+            if (classesToPrint.length === 0 && (type === 'receipt' || type === 'merged')) {
+                // 若沒有對應到的課程細項，印出一行防呆文字，避免表格空洞
+                html += `<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b; font-weight: bold; background-color: #f8fafc;">📝 此為早期歷史繳費紀錄，系統當時尚未綁定專屬科目明細</td></tr>`;
+            } else {
+                classesToPrint.forEach(en => {
+                    const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0, discount_reason: '' };
+                    const subTotal = en.fee + en.tb_fee + en.m_fee;
+                    const finalFee = subTotal - b.discount_amount;
+                    printTotalPayable += finalFee;
 
-                if (en.is_individual) {
-                    const ic = en.ic_data;
-                    let endDateStr = ic.end_date;
-                    if(ic.start_date && ic.total_weeks) {
-                        let sd = new Date(ic.start_date);
-                        let ed = new Date(sd.getTime() + ((ic.total_weeks - 1) * 7 * 24 * 60 * 60 * 1000));
-                        endDateStr = ed.toISOString().split('T')[0];
+                    if (en.is_individual) {
+                        const ic = en.ic_data;
+                        let endDateStr = ic.end_date;
+                        if(ic.start_date && ic.total_weeks) {
+                            let sd = new Date(ic.start_date);
+                            let ed = new Date(sd.getTime() + ((ic.total_weeks - 1) * 7 * 24 * 60 * 60 * 1000));
+                            endDateStr = ed.toISOString().split('T')[0];
+                        }
+
+                        html += `
+                        <tr>
+                            <td colspan="4" style="text-align: left; padding: 12px; background-color: #f8fafc;">
+                                <div style="font-size: 16px; font-weight: 900; color: #047857; margin-bottom: 8px; border-bottom: 2px solid #047857; padding-bottom: 4px;">
+                                    🎯 【個別指導班】 專屬繳費明細
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 13px; font-weight: normal;">
+                                    <div><span style="color:#64748b;font-weight:bold;">班型 / 科目:</span> ${ic.class_type} / ${ic.subject}</div>
+                                    <div><span style="color:#64748b;font-weight:bold;">適用年級:</span> ${ic.grade}</div>
+                                    <div><span style="color:#64748b;font-weight:bold;">時數 / 堂數:</span> ${ic.sessions_per_week} (${ic.hours_per_session}H/堂)</div>
+                                    <div><span style="color:#64748b;font-weight:bold;">總計規劃:</span> 共${ic.total_weeks}週 / ${ic.total_sessions}堂 / ${ic.total_hours}H</div>
+                                    
+                                    <div><span style="color:#64748b;font-weight:bold;">學費:</span> $${ic.tuition}</div>
+                                    <div><span style="color:#64748b;font-weight:bold;">教材費:</span> $${ic.materials_fee}</div>
+                                    <div><span style="color:#64748b;font-weight:bold;">雜費:</span> $${ic.misc_fee}</div>
+                                    <div><span style="color:#64748b;font-weight:bold;">折扣設定:</span> 折 $${b.discount_amount} (${b.discount_reason || '無'})</div>
+                                    
+                                    <div style="grid-column: span 2;"><span style="color:#64748b;font-weight:bold;">修業期間:</span> ${ic.start_date.replace(/-/g,'/')} ~ ${endDateStr.replace(/-/g,'/')}</div>
+                                    <div><span style="color:#64748b;font-weight:bold;">開單日期:</span> ${ic.issue_date.replace(/-/g,'/')}</div>
+                                    <div><span style="color:#64748b;font-weight:bold;">承辦人員:</span> ${ic.operator}</div>
+                                </div>
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: flex-end; align-items: center;">
+                                    <div style="font-size: 16px; font-weight: 900; color: #0f172a;">此科應繳小計: <span style="color: #be123c; font-size: 18px;">$${finalFee}</span></div>
+                                </div>
+                            </td>
+                        </tr>`;
+                    } else {
+                        html += `<tr>
+                            <td class="p-bold" style="color: #1e3a8a;">${en.main_name}<br>(${en.sub_name})</td>
+                            <td style="text-align:left;">學費: ${en.fee}<br>雜費: ${en.m_fee}<br>教材費: ${en.tb_fee}<br>總價: ${subTotal}</td>
+                            <td>${b.discount_reason}<br>折 ${b.discount_amount} 元<br>折扣後金額:<br><span class="p-highlight">${finalFee}</span></td>
+                            <td>${en.start ? en.start.replace(/-/g,'/') : '未定'}<br>至<br>${en.end ? en.end.replace(/-/g,'/') : '未定'}</td>
+                        </tr>`;
                     }
-
-                    html += `
-                    <tr>
-                        <td colspan="4" style="text-align: left; padding: 12px; background-color: #f8fafc;">
-                            <div style="font-size: 16px; font-weight: 900; color: #047857; margin-bottom: 8px; border-bottom: 2px solid #047857; padding-bottom: 4px;">
-                                🎯 【個別指導班】 專屬繳費明細
-                            </div>
-                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 13px; font-weight: normal;">
-                                <div><span style="color:#64748b;font-weight:bold;">班型 / 科目:</span> ${ic.class_type} / ${ic.subject}</div>
-                                <div><span style="color:#64748b;font-weight:bold;">適用年級:</span> ${ic.grade}</div>
-                                <div><span style="color:#64748b;font-weight:bold;">時數 / 堂數:</span> ${ic.sessions_per_week} (${ic.hours_per_session}H/堂)</div>
-                                <div><span style="color:#64748b;font-weight:bold;">總計規劃:</span> 共${ic.total_weeks}週 / ${ic.total_sessions}堂 / ${ic.total_hours}H</div>
-                                
-                                <div><span style="color:#64748b;font-weight:bold;">學費:</span> $${ic.tuition}</div>
-                                <div><span style="color:#64748b;font-weight:bold;">教材費:</span> $${ic.materials_fee}</div>
-                                <div><span style="color:#64748b;font-weight:bold;">雜費:</span> $${ic.misc_fee}</div>
-                                <div><span style="color:#64748b;font-weight:bold;">折扣設定:</span> 折 $${b.discount_amount} (${b.discount_reason || '無'})</div>
-                                
-                                <div style="grid-column: span 2;"><span style="color:#64748b;font-weight:bold;">修業期間:</span> ${ic.start_date.replace(/-/g,'/')} ~ ${endDateStr.replace(/-/g,'/')}</div>
-                                <div><span style="color:#64748b;font-weight:bold;">開單日期:</span> ${ic.issue_date.replace(/-/g,'/')}</div>
-                                <div><span style="color:#64748b;font-weight:bold;">承辦人員:</span> ${ic.operator}</div>
-                            </div>
-                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: flex-end; align-items: center;">
-                                <div style="font-size: 16px; font-weight: 900; color: #0f172a;">此科應繳小計: <span style="color: #be123c; font-size: 18px;">$${finalFee}</span></div>
-                            </div>
-                        </td>
-                    </tr>`;
-                } else {
-                    html += `<tr>
-                        <td class="p-bold" style="color: #1e3a8a;">${en.main_name}<br>(${en.sub_name})</td>
-                        <td style="text-align:left;">學費: ${en.fee}<br>雜費: ${en.m_fee}<br>教材費: ${en.tb_fee}<br>總價: ${subTotal}</td>
-                        <td>${b.discount_reason}<br>折 ${b.discount_amount} 元<br>折扣後金額:<br><span class="p-highlight">${finalFee}</span></td>
-                        <td>${en.start ? en.start.replace(/-/g,'/') : '未定'}<br>至<br>${en.end ? en.end.replace(/-/g,'/') : '未定'}</td>
-                    </tr>`;
-                }
-            });
+                });
+            }
 
             document.getElementById('p-table-title').innerText = "課程收費明細 ：";
 

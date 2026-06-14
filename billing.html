@@ -91,8 +91,7 @@
                         <label for="chk-group" class="font-black text-sm text-blue-800 cursor-pointer flex-1">團體班級 (全選)</label>
                         <span id="dot-group"></span>
                     </div>
-                    <div id="tree-group" class="pl-1 space-y-1.5 mt-2">
-                        </div>
+                    <div id="tree-group" class="pl-1 space-y-1.5 mt-2"></div>
                 </div>
 
                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-inner">
@@ -101,8 +100,7 @@
                         <label for="chk-indiv" class="font-black text-sm text-emerald-800 cursor-pointer flex-1">個別指導 (全選)</label>
                         <span id="dot-indiv"></span>
                     </div>
-                    <div id="tree-indiv" class="pl-1 space-y-1.5 mt-2">
-                        </div>
+                    <div id="tree-indiv" class="pl-1 space-y-1.5 mt-2"></div>
                 </div>
             </div>
         </div>
@@ -144,10 +142,11 @@
                             </th>
                             <th class="p-3 border-b border-slate-200">班別名稱</th>
                             <th class="p-3 border-b border-slate-200 text-right">各項費用</th>
-                            <th class="p-3 border-b border-slate-200 text-right">原價總計</th>
                             <th class="p-3 border-b border-slate-200 w-48">折扣設定 (原因/金額)</th>
-                            <th class="p-3 border-b border-slate-200 text-right text-rose-600">應繳小計</th>
-                            <th class="p-3 border-b border-slate-200 text-center">儲存優惠</th>
+                            <th class="p-3 border-b border-slate-200 text-right text-slate-800">應繳總價</th>
+                            <th class="p-3 border-b border-slate-200 text-right text-emerald-600">已沖銷</th>
+                            <th class="p-3 border-b border-slate-200 text-right text-rose-600">本科尚欠</th>
+                            <th class="p-3 border-b border-slate-200 text-center">操作</th>
                         </tr>
                     </thead>
                     <tbody id="bill-items" class="divide-y divide-slate-100"></tbody>
@@ -185,7 +184,6 @@
         </div>
     </div>
 
-    <!-- 繳費 Modal -->
     <div id="pay-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4 no-print overflow-y-auto">
         <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border my-auto max-h-[90vh] flex flex-col">
             <h3 class="text-xl font-black mb-4 text-slate-800 shrink-0 border-b pb-3">💰 入帳 / 沖銷作業</h3>
@@ -213,7 +211,7 @@
                     <label class="block text-xs font-bold text-slate-500 mb-1">本次繳費總金額 (元)</label>
                     <div class="flex gap-2">
                         <input type="number" id="pay-amount" class="w-full p-2.5 border-2 border-emerald-300 rounded-lg font-black text-2xl text-emerald-700 bg-emerald-50 outline-none focus:ring-emerald-500 shadow-inner" placeholder="0">
-                        <button type="button" onclick="autoDistribute()" class="bg-slate-700 text-white px-4 rounded-lg text-sm font-bold whitespace-nowrap hover:bg-slate-800 transition shadow-md">一鍵平均分配</button>
+                        <button type="button" onclick="autoDistribute()" class="bg-slate-700 text-white px-4 rounded-lg text-sm font-bold whitespace-nowrap hover:bg-slate-800 transition shadow-md">智慧填滿分配</button>
                     </div>
                 </div>
 
@@ -223,7 +221,7 @@
                 </div>
 
                 <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <label class="block text-xs font-bold text-slate-500 mb-3 border-b border-slate-300 pb-1">勾選欲沖銷班別並分配金額</label>
+                    <label class="block text-xs font-bold text-slate-500 mb-3 border-b border-slate-300 pb-1">勾選欲沖銷班別並分配金額 (已為您鎖定繳清班別)</label>
                     <div id="allocation-list" class="space-y-2"></div>
                 </div>
 
@@ -240,7 +238,6 @@
         </div>
     </div>
 
-    <!-- 列印專屬隱藏區塊 -->
     <div id="print-area" class="hidden print:block print-wrapper">
         <div class="p-title-container">
             <div id="p-title" class="p-title">昊學文教   繳費通知單</div>
@@ -366,7 +363,6 @@
                 
                 classes.forEach(c => {
                     (c.sub_classes || []).forEach((sub, idx) => {
-                        // ✅ UUID 雙向兼容：檢查是否有該名學生姓名，或是有該學生的 UUID
                         if (sub.members && (sub.members.includes(stuName) || sub.members.includes(stuId))) {
                             let fee = (sub.fee||0) + (sub.textbook_fee||0) + (sub.misc_fee||0);
                             let b = globalAllBills.find(x => x.class_id === c.id && x.sub_idx === idx && x.student_id === stuId);
@@ -398,7 +394,6 @@
                     let hasUnpaidChild = false;
                     if (sub.members) {
                         sub.members.forEach(memberValue => {
-                            // ✅ 雙向翻譯查找
                             let stuObj = allStudentsData.find(s => s.id === memberValue || s.name === memberValue);
                             let mappedName = stuObj ? stuObj.name : memberValue;
                             if (studentDebts[mappedName] > 0) {
@@ -511,7 +506,6 @@
 
             if (hasFilters) {
                 filtered = filtered.filter(stuName => {
-                    // ✅ UUID 雙向兼容處理
                     let stuId = allStudentsData.find(s => s.name === stuName)?.id;
 
                     let inGroup = selectedGroupChildren.some(sc => {
@@ -565,7 +559,6 @@
                 currentEnrolled = [];
                 
                 classes.forEach(c => (c.sub_classes || []).forEach((sub, idx) => {
-                    // ✅ UUID 雙向兼容處理
                     if(sub.members && (sub.members.includes(name) || sub.members.includes(currentStudentId))) {
                         currentEnrolled.push({
                             class_id: c.id, sub_idx: idx, main_name: c.name, sub_name: sub.name,
@@ -630,14 +623,25 @@
             }
         }
 
+        // ✅ 全新智能科目餘額結算引擎
         function renderBillingTable() {
             rawTotalPayable = 0; 
             const tbody = document.getElementById('bill-items'); 
             tbody.innerHTML = '';
             document.getElementById('chk-all-classes').checked = true;
+
+            // 1. 預先計算該學生在所有科目的「已入帳」金額總和
+            let classPaidMap = {};
+            payments.forEach(p => {
+                if(p.allocation_details) {
+                    p.allocation_details.forEach(a => {
+                        classPaidMap[a.class_name] = (classPaidMap[a.class_name] || 0) + a.amount;
+                    });
+                }
+            });
             
             if (currentEnrolled.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400 font-bold border border-dashed rounded-xl">該名學生目前尚未報名任何班別</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-400 font-bold border border-dashed rounded-xl">該名學生目前尚未報名任何班別</td></tr>';
             } else {
                 currentEnrolled.forEach((en, index) => {
                     const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0, discount_reason: '' };
@@ -645,14 +649,21 @@
                     const finalFee = subTotal - b.discount_amount;
                     rawTotalPayable += finalFee;
 
+                    // 2. 獲取單一科目的餘額狀態
+                    const classNameForLog = `${en.main_name}-${en.sub_name}`;
+                    const paidForThisClass = classPaidMap[classNameForLog] || 0;
+                    const remainingDebt = finalFee - paidForThisClass;
+
                     let tagHtml = en.is_individual ? '<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 rounded ml-1 font-bold">個指</span>' : '';
+                    let debtHtml = remainingDebt <= 0 
+                        ? `<span class="text-slate-300">✅ 已繳清</span>` 
+                        : `$${remainingDebt}`;
 
                     tbody.innerHTML += `
                         <tr class="border-b hover:bg-slate-50 transition">
                             <td class="p-3 text-center"><input type="checkbox" class="class-print-chk w-4 h-4 text-blue-600 cursor-pointer" value="${index}" checked title="勾選以包含在繳費單中"></td>
                             <td class="p-3 font-black text-slate-700">${en.main_name} - ${en.sub_name} ${tagHtml}</td>
                             <td class="p-3 text-right text-xs text-slate-500 font-bold leading-relaxed">學: $${en.fee}<br>雜: $${en.m_fee}<br>教: $${en.tb_fee}</td>
-                            <td class="p-3 text-right font-black text-slate-800">$${subTotal}</td>
                             <td class="p-3">
                                 <div class="flex gap-1 flex-col">
                                     <input type="text" value="${b.discount_reason}" id="rsn-${en.class_id}-${en.sub_idx}" class="w-full p-2 border border-slate-200 rounded text-xs bg-slate-50 outline-none focus:ring-1 ring-blue-400" placeholder="填寫原因(例:舊生)">
@@ -662,7 +673,9 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="p-3 text-right font-black text-rose-600 text-lg">$${finalFee}</td>
+                            <td class="p-3 text-right font-black text-slate-800">$${finalFee}</td>
+                            <td class="p-3 text-right font-black text-emerald-600">$${paidForThisClass}</td>
+                            <td class="p-3 text-right font-black text-rose-600 text-lg">${debtHtml}</td>
                             <td class="p-3 text-center">
                                 <button onclick="saveDiscount('${en.class_id}', ${en.sub_idx})" class="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-blue-200 shadow-sm transition">💾 儲存</button>
                             </td>
@@ -691,7 +704,7 @@
                         </tr>`;
                 }).join('');
             }
-            currentTotalDebt = rawTotalPayable - totalPaid;
+            currentTotalDebt = Math.max(0, rawTotalPayable - totalPaid);
             document.getElementById('b-total-debt').innerText = `$${currentTotalDebt}`;
         }
 
@@ -699,7 +712,6 @@
             if(!confirm(`⚠️ 警告：確定要「反沖 (作廢)」流水號 ${serialNo} 的繳費紀錄嗎？\n\n執行反沖後：\n1. 該筆金額將重新變回「欠款」狀態\n2. 相關會計帳與收據將同步失效\n\n(此動作無法復原，請確認是否執行)`)) return;
             
             try {
-                // 從資料庫中實體刪除該筆付款紀錄，實現所有總計金額的瞬間還原
                 const { error } = await sb.from('payment_logs').delete().eq('serial_no', serialNo);
                 if (error) throw error;
                 
@@ -775,17 +787,39 @@
             document.getElementById('pay-handler').value = '';
             document.getElementById('pay-method').value = '現金';
             toggleBankInput();
+
+            // 預先計算各班別已繳金額
+            let classPaidMap = {};
+            payments.forEach(p => {
+                if(p.allocation_details) {
+                    p.allocation_details.forEach(a => {
+                        classPaidMap[a.class_name] = (classPaidMap[a.class_name] || 0) + a.amount;
+                    });
+                }
+            });
             
             const allocList = document.getElementById('allocation-list');
             allocList.innerHTML = currentEnrolled.map((en, index) => {
                 const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0 };
                 const subTotal = en.fee + en.tb_fee + en.m_fee - b.discount_amount;
+                const classNameForLog = `${en.main_name}-${en.sub_name}`;
+                
+                // ✅ 關鍵：計算單一科目尚欠金額
+                const paid = classPaidMap[classNameForLog] || 0;
+                const remaining = subTotal - paid;
+                const isPaidOff = remaining <= 0;
+
                 return `
-                <div class="flex items-center gap-2 bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm">
-                    <input type="checkbox" class="alloc-chk w-4 h-4 cursor-pointer" value="${index}" checked>
-                    <div class="flex-1 text-sm font-bold text-slate-700 truncate" title="${en.main_name}-${en.sub_name}">${en.main_name} - ${en.sub_name} <span class="text-xs text-rose-500">(應收$${subTotal})</span></div>
+                <div class="flex items-center gap-2 bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm ${isPaidOff ? 'opacity-60 bg-slate-50' : ''}">
+                    <input type="checkbox" class="alloc-chk w-4 h-4 cursor-pointer" value="${index}" data-debt="${Math.max(0, remaining)}" ${isPaidOff ? 'disabled' : 'checked'}>
+                    <div class="flex-1 text-sm font-bold text-slate-700 truncate" title="${classNameForLog}">${classNameForLog} 
+                        ${isPaidOff 
+                            ? `<span class="text-xs text-emerald-500 font-black ml-1">(✅已繳清)</span>` 
+                            : `<span class="text-xs text-rose-500 ml-1">(尚欠$${remaining})</span>`
+                        }
+                    </div>
                     <span class="text-xs font-black text-slate-400">入帳$</span>
-                    <input type="number" class="alloc-amt w-20 p-1.5 border border-slate-300 rounded text-right font-bold outline-none focus:ring-1 ring-emerald-400" placeholder="0">
+                    <input type="number" class="alloc-amt w-20 p-1.5 border border-slate-300 rounded text-right font-bold outline-none focus:ring-1 ring-emerald-400" placeholder="0" ${isPaidOff ? 'disabled' : ''}>
                 </div>`;
             }).join('');
 
@@ -793,22 +827,36 @@
             document.getElementById('pay-modal').classList.add('active'); 
         }
 
+        // ✅ 進階：智慧貪婪填滿分配 (不超過本科尚欠為原則)
         function autoDistribute() {
             const totalAmount = parseInt(document.getElementById('pay-amount').value) || 0;
             if(totalAmount <= 0) return alert("請先輸入本次繳費總金額！");
 
-            const checkedBoxes = Array.from(document.querySelectorAll('.alloc-chk:checked'));
-            if(checkedBoxes.length === 0) return alert("請至少勾選一個要分配入帳的班別！");
-
-            const baseAmount = Math.floor(totalAmount / checkedBoxes.length);
-            let remainder = totalAmount % checkedBoxes.length;
+            const checkedBoxes = Array.from(document.querySelectorAll('.alloc-chk:checked:not(:disabled)'));
+            if(checkedBoxes.length === 0) return alert("請至少勾選一個要分配入帳的尚欠班別！");
 
             document.querySelectorAll('.alloc-amt').forEach(input => input.value = '');
-            checkedBoxes.forEach((chk, idx) => {
-                const container = chk.closest('.flex');
-                const amtInput = container.querySelector('.alloc-amt');
-                amtInput.value = baseAmount + (idx === 0 ? remainder : 0);
-            });
+
+            let remainingAmountToDistribute = totalAmount;
+            
+            for (let chk of checkedBoxes) {
+                if (remainingAmountToDistribute <= 0) break;
+                let container = chk.closest('.flex');
+                let classDebt = parseInt(chk.dataset.debt) || 0;
+                
+                // 最多只給該科目的欠款金額，除非是最後一個且還有剩
+                let allocateAmount = Math.min(classDebt, remainingAmountToDistribute);
+                container.querySelector('.alloc-amt').value = allocateAmount;
+                remainingAmountToDistribute -= allocateAmount;
+            }
+
+            // 如果全部科目都填滿了，錢還沒分配完 (代表家長溢繳)
+            if (remainingAmountToDistribute > 0) {
+                alert(`⚠️ 提示：您輸入的總金額 ($${totalAmount}) 大於勾選班別的尚欠總和！\n系統已為您將剩餘的 $${remainingAmountToDistribute} 分配至最後一個勾選的班級，請手動確認或調整是否溢繳。`);
+                let lastContainer = checkedBoxes[checkedBoxes.length - 1].closest('.flex');
+                let lastInput = lastContainer.querySelector('.alloc-amt');
+                lastInput.value = parseInt(lastInput.value) + remainingAmountToDistribute;
+            }
         }
 
         async function executePayment() {
@@ -821,10 +869,10 @@
             
             if(!amt || !handler) return alert("請確認「金額」及「經手人」皆已填寫！");
             if(method === '匯款' && !bankLast5) return alert("請輸入匯款帳號末 5 碼！");
-            if(amt < currentTotalDebt && !nextPayDate) return alert("繳費後尚有欠款，請設定「下次繳費日期」！");
+            if(amt < currentTotalDebt && !nextPayDate) return alert("繳費後整體尚有欠款，請設定「下次繳費日期」！");
 
             let allocationDetails = [];
-            const allocContainers = document.querySelectorAll('.alloc-chk:checked');
+            const allocContainers = document.querySelectorAll('.alloc-chk:checked:not(:disabled)');
             allocContainers.forEach(chk => {
                 const container = chk.closest('.flex');
                 const idx = parseInt(chk.value);
@@ -878,6 +926,7 @@
             
             let classesToPrint = [];
             
+            // ✅ 精準重構列印資料抓取
             if (type === 'notice') {
                 const checkedClassIndexes = Array.from(document.querySelectorAll('.class-print-chk:checked')).map(cb => parseInt(cb.value));
                 if (checkedClassIndexes.length === 0) return alert("請至少勾選一個要列印的班別！");
@@ -917,6 +966,18 @@
             
             let html = '<tr><th>報名課程</th><th>收費明細</th><th>優惠原因/金額</th><th>修業期間</th></tr>';
             let printTotalPayable = 0; 
+            let printTotalPaid = 0;
+            let printTotalRemaining = 0;
+
+            // 預先準備單科學費結算器 (印單用)
+            let classPaidMapForPrint = {};
+            payments.forEach(p => {
+                if(p.allocation_details) {
+                    p.allocation_details.forEach(a => {
+                        classPaidMapForPrint[a.class_name] = (classPaidMapForPrint[a.class_name] || 0) + a.amount;
+                    });
+                }
+            });
 
             if (classesToPrint.length === 0 && (type === 'receipt' || type === 'merged')) {
                 html += `<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b; font-weight: bold; background-color: #f8fafc;">📝 此為早期歷史繳費紀錄，系統當時尚未綁定專屬科目明細</td></tr>`;
@@ -925,7 +986,14 @@
                     const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0, discount_reason: '' };
                     const subTotal = en.fee + en.tb_fee + en.m_fee;
                     const finalFee = subTotal - b.discount_amount;
+                    
+                    const classNameForLog = `${en.main_name}-${en.sub_name}`;
+                    const paid = classPaidMapForPrint[classNameForLog] || 0;
+                    const remaining = Math.max(0, finalFee - paid);
+                    
                     printTotalPayable += finalFee;
+                    printTotalPaid += paid;
+                    printTotalRemaining += remaining;
 
                     if (en.is_individual) {
                         const ic = en.ic_data;
@@ -981,35 +1049,14 @@
                 const noticeSerial = `NO.${new Date().toISOString().split('T')[0].replace(/-/g,'')}${Math.floor(1000+Math.random()*9000)}`;
                 document.getElementById('p-serial-info').innerText = `流水編號: ${noticeSerial}`;
                 
-                let noticeDebt = 0;
-                let deductedAmount = 0;
-                const allHistoricalPaid = payments.reduce((sum, curr) => sum + curr.amount, 0);
-
-                if (classesToPrint.length === currentEnrolled.length) {
-                    noticeDebt = Math.max(0, printTotalPayable - allHistoricalPaid);
-                    deductedAmount = Math.min(printTotalPayable, allHistoricalPaid);
-                } else {
-                    let allocatedPaid = 0;
-                    payments.forEach(p => {
-                        if(p.allocation_details) {
-                            p.allocation_details.forEach(a => {
-                                if(classesToPrint.some(en => `${en.main_name}-${en.sub_name}` === a.class_name)) {
-                                    allocatedPaid += a.amount;
-                                }
-                            })
-                        }
-                    });
-                    noticeDebt = Math.max(0, printTotalPayable - allocatedPaid);
-                    deductedAmount = allocatedPaid;
-                }
-                
+                // ✅ 精準反映尚欠餘額於通知單
                 html += `<tr>
                     <td colspan="2" class="p-bold text-left" style="font-size:14px; line-height:1.6;">
                         本單勾選總額: ${numToChinese(printTotalPayable)} (${printTotalPayable} 元)<br>
-                        扣除已繳(沖銷): ${deductedAmount} 元
+                        此單扣除已繳: ${printTotalPaid} 元
                     </td>
                     <td colspan="2" class="p-bold" style="font-size: 18px; text-align:right;">
-                        本次應繳(尚欠): <span class="p-highlight">${noticeDebt} 元</span><br>
+                        本次應繳(尚欠): <span class="p-highlight">${printTotalRemaining} 元</span><br>
                         <div class="deadline-box">繳費期限: ${deadlineStr.replace(/-/g,'/')} 前</div>
                     </td>
                 </tr>`;
@@ -1023,7 +1070,7 @@
                 const selectedPayments = payments.filter(p => serialData.includes(p.serial_no));
                 const totalMergedPaid = selectedPayments.reduce((sum, curr) => sum + curr.amount, 0);
                 const allHistoricalPaid = payments.reduce((sum, curr) => sum + curr.amount, 0);
-                const debt = rawTotalPayable - allHistoricalPaid; 
+                const debt = Math.max(0, rawTotalPayable - allHistoricalPaid); 
 
                 const nextDates = selectedPayments.map(p => p.next_pay_date).filter(d => d);
                 nextDates.sort((a,b) => new Date(b) - new Date(a));
@@ -1055,7 +1102,7 @@
                 document.getElementById('p-serial-info').innerText = `流水編號: ${p.serial_no}`;
                 
                 const allHistoricalPaid = payments.reduce((sum, curr) => sum + curr.amount, 0);
-                const debt = rawTotalPayable - allHistoricalPaid; 
+                const debt = Math.max(0, rawTotalPayable - allHistoricalPaid); 
 
                 const bankStr = p.bank_last_5 ? `<br><span style="font-size:13px; color:#475569;">(匯款末五碼: ${p.bank_last_5})</span>` : '';
                 

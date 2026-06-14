@@ -25,9 +25,9 @@
             </div>
 
             <div id="creation-section" class="hidden mb-6 shrink-0 transition-all duration-300">
-                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-[500px]">
                     
-                    <div class="flex flex-col border-r xl:border-gray-200 xl:pr-6">
+                    <div class="flex flex-col border-r xl:border-gray-200 xl:pr-6 h-full min-h-0">
                         <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center shrink-0">
                             <span class="w-6 h-6 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center mr-2">1</span>
                             選擇學生名單
@@ -44,7 +44,7 @@
                             </select>
                         </div>
 
-                        <div class="flex-1 border border-gray-200 rounded-lg p-3 overflow-y-auto space-y-2 bg-slate-50 min-h-[250px] max-h-[350px]" id="student-list-container">
+                        <div class="flex-1 border border-gray-200 rounded-lg p-3 overflow-y-auto space-y-2 bg-slate-50 min-h-0" id="student-list-container">
                             <p class="text-sm text-gray-400 text-center py-6 font-bold">正在從資料庫載入名單...</p>
                         </div>
                         
@@ -53,129 +53,131 @@
                         </div>
                     </div>
 
-                    <div class="xl:col-span-2 flex flex-col xl:pl-2">
-                        <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                    <div class="xl:col-span-2 flex flex-col xl:pl-2 h-full min-h-0 relative">
+                        <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center shrink-0">
                             <span class="w-6 h-6 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center mr-2">2</span>
                             設定班型與學費細項
                         </h2>
                         
-                        <form id="individual-class-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-600 mb-1">1. 班型</label>
-                                <select id="class-type" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
-                                    <option value="一對一">一對一</option><option value="一對二">一對二</option><option value="一對四">一對四</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-600 mb-1">2. 適用年級</label>
-                                <select id="class-grade" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
-                                    <option value="小一">小一</option><option value="小二">小二</option><option value="小三">小三</option>
-                                    <option value="小四">小四</option><option value="小五">小五</option><option value="小六">小六</option>
-                                    <option value="國一">國一</option><option value="國二">國二</option><option value="國三">國三</option>
-                                    <option value="高一">高一</option><option value="高二">高二</option><option value="高三">高三</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-600 mb-1">3. 課程級別</label>
-                                <select id="course-level" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
-                                    <option value="國中小">國中小</option><option value="高中">高中</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-600 mb-1">4. 科目</label>
-                                <div class="flex space-x-1">
-                                    <select id="subject" class="flex-1 border border-gray-300 rounded px-2 py-2 text-sm focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
-                                        <option value="國文">國文</option><option value="英文">英文</option><option value="數學">數學</option>
-                                        <option value="自然">自然</option><option value="社會">社會</option><option value="物理">物理</option>
-                                        <option value="化學">化學</option><option value="生物">生物</option><option value="地科">地科</option>
-                                        <option value="理化">理化</option><option value="地理">地理</option><option value="歷史">歷史</option>
-                                        <option value="公民">公民</option><option value="多益">多益</option><option value="英檢">英檢</option>
-                                        <option value="程式">程式</option><option value="日文">日文</option>
+                        <div class="flex-1 overflow-y-auto pr-2 min-h-0">
+                            <form id="individual-class-form" class="grid grid-cols-1 md:grid-cols-3 gap-4 relative">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">1. 班型</label>
+                                    <select id="class-type" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
+                                        <option value="一對一">一對一</option><option value="一對二">一對二</option><option value="一對四">一對四</option>
                                     </select>
-                                    <button type="button" id="btn-add-subject" class="bg-gray-200 text-gray-700 px-2 rounded hover:bg-gray-300 text-xs font-bold transition">+ 新增</button>
                                 </div>
-                            </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">2. 適用年級</label>
+                                    <select id="class-grade" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
+                                        <option value="小一">小一</option><option value="小二">小二</option><option value="小三">小三</option>
+                                        <option value="小四">小四</option><option value="小五">小五</option><option value="小六">小六</option>
+                                        <option value="國一">國一</option><option value="國二">國二</option><option value="國三">國三</option>
+                                        <option value="高一">高一</option><option value="高二">高二</option><option value="高三">高三</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">3. 課程級別</label>
+                                    <select id="course-level" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
+                                        <option value="國中小">國中小</option><option value="高中">高中</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">4. 科目</label>
+                                    <div class="flex space-x-1">
+                                        <select id="subject" class="flex-1 border border-gray-300 rounded px-2 py-2 text-sm focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
+                                            <option value="國文">國文</option><option value="英文">英文</option><option value="數學">數學</option>
+                                            <option value="自然">自然</option><option value="社會">社會</option><option value="物理">物理</option>
+                                            <option value="化學">化學</option><option value="生物">生物</option><option value="地科">地科</option>
+                                            <option value="理化">理化</option><option value="地理">地理</option><option value="歷史">歷史</option>
+                                            <option value="公民">公民</option><option value="多益">多益</option><option value="英檢">英檢</option>
+                                            <option value="程式">程式</option><option value="日文">日文</option>
+                                        </select>
+                                        <button type="button" id="btn-add-subject" class="bg-gray-200 text-gray-700 px-2 rounded hover:bg-gray-300 text-xs font-bold transition">+ 新增</button>
+                                    </div>
+                                </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-600 mb-1">5. 每堂時數 (小時)</label>
-                                <select id="hours-per-session" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
-                                    <option value="0.5">0.5</option><option value="1" selected>1</option><option value="1.5">1.5</option>
-                                    <option value="2">2</option><option value="2.5">2.5</option><option value="3">3</option>
-                                    <option value="3.5">3.5</option><option value="4">4</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-600 mb-1">6. 每週堂數</label>
-                                <select id="sessions-per-week" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
-                                    <option value="週一堂">週一堂</option><option value="週二堂">週二堂</option><option value="週三堂">週三堂</option>
-                                    <option value="週四堂">週四堂</option><option value="週五堂">週五堂</option><option value="週六堂">週六堂</option><option value="週七堂">週七堂</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-600 mb-1">7. 總週數 (1~48)</label>
-                                <input type="number" id="total-weeks" min="1" max="48" value="12" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold text-blue-700">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-400 mb-1">8. 總堂數 (自動)</label>
-                                <input type="text" id="total-sessions" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 font-mono font-bold text-gray-500 cursor-not-allowed">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-400 mb-1">9. 總時數 (自動)</label>
-                                <input type="text" id="total-hours" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 font-mono font-bold text-gray-500 cursor-not-allowed">
-                            </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">5. 每堂時數 (小時)</label>
+                                    <select id="hours-per-session" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
+                                        <option value="0.5">0.5</option><option value="1" selected>1</option><option value="1.5">1.5</option>
+                                        <option value="2">2</option><option value="2.5">2.5</option><option value="3">3</option>
+                                        <option value="3.5">3.5</option><option value="4">4</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">6. 每週堂數</label>
+                                    <select id="sessions-per-week" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
+                                        <option value="週一堂">週一堂</option><option value="週二堂">週二堂</option><option value="週三堂">週三堂</option>
+                                        <option value="週四堂">週四堂</option><option value="週五堂">週五堂</option><option value="週六堂">週六堂</option><option value="週七堂">週七堂</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">7. 總週數 (1~48)</label>
+                                    <input type="number" id="total-weeks" min="1" max="48" value="12" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold text-blue-700">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-400 mb-1">8. 總堂數 (自動)</label>
+                                    <input type="text" id="total-sessions" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 font-mono font-bold text-gray-500 cursor-not-allowed">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-400 mb-1">9. 總時數 (自動)</label>
+                                    <input type="text" id="total-hours" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 font-mono font-bold text-gray-500 cursor-not-allowed">
+                                </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-orange-600 mb-1">10. 學費基底 (自動)</label>
-                                <input type="text" id="tuition-base" readonly class="w-full bg-orange-50 border border-orange-200 rounded px-3 py-2 font-mono font-black text-orange-700 cursor-not-allowed">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-400 mb-1">11. 教材費 (自動每堂$50)</label>
-                                <input type="text" id="materials-fee" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 font-mono font-bold text-gray-500 cursor-not-allowed">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-600 mb-1">12. 雜費</label>
-                                <input type="number" id="misc-fee" min="0" value="0" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 font-bold">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-emerald-600 mb-1">13. 優惠折抵金額</label>
-                                <input type="number" id="discount" min="0" value="0" class="w-full border border-emerald-300 rounded px-3 py-2 bg-emerald-50 font-bold text-emerald-700">
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-600 mb-1">14. 優惠原因說明</label>
-                                <input type="text" id="discount-reason" placeholder="如：無折扣免填 / 兄弟姊妹合報九折" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
-                            </div>
-
-                            <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 items-center my-1 shadow-sm">
+                                <div>
+                                    <label class="block text-sm font-medium text-orange-600 mb-1">10. 學費基底 (自動)</label>
+                                    <input type="text" id="tuition-base" readonly class="w-full bg-orange-50 border border-orange-200 rounded px-3 py-2 font-mono font-black text-orange-700 cursor-not-allowed">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-400 mb-1">11. 教材費 (自動每堂$50)</label>
+                                    <input type="text" id="materials-fee" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 font-mono font-bold text-gray-500 cursor-not-allowed">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">12. 雜費</label>
+                                    <input type="number" id="misc-fee" min="0" value="0" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 font-bold">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-emerald-600 mb-1">13. 優惠折抵金額</label>
+                                    <input type="number" id="discount" min="0" value="0" class="w-full border border-emerald-300 rounded px-3 py-2 bg-emerald-50 font-bold text-emerald-700">
+                                </div>
                                 <div class="md:col-span-2">
-                                    <span class="text-base font-black text-blue-800 block">15. 應繳總學費金額：</span>
-                                    <span class="text-xs font-bold text-blue-600 mt-1">(公式：學費 + 教材費 + 雜費 - 優惠)</span>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">14. 優惠原因說明</label>
+                                    <input type="text" id="discount-reason" placeholder="如：無折扣免填 / 兄弟姊妹合報九折" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
                                 </div>
-                                <input type="text" id="total-tuition" readonly class="w-full bg-white border-2 border-blue-400 rounded-lg px-4 py-2 text-2xl font-mono font-black text-blue-700 text-right shadow-inner">
-                            </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-600 mb-1">16. 排課起始日</label>
-                                <input type="date" id="start-date" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
-                                <span class="text-[11px] font-black text-slate-400 block mt-1" id="end-date-preview">預計最末堂：--</span>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-600 mb-1">17. 經手承辦人</label>
-                                <input type="text" id="operator" value="系統管理員" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-400 mb-1">18. 開單日期 (今日)</label>
-                                <input type="date" id="issue-date" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 text-gray-500 font-bold cursor-not-allowed">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-rose-600 mb-1">19. 繳費期限 (預設3日後)</label>
-                                <input type="date" id="due-date" class="w-full border border-rose-300 rounded px-3 py-2 focus:outline-none focus:border-rose-500 bg-rose-50 font-bold text-rose-700">
-                            </div>
+                                <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 items-center my-1 shadow-sm">
+                                    <div class="md:col-span-2">
+                                        <span class="text-base font-black text-blue-800 block">15. 應繳總學費金額：</span>
+                                        <span class="text-xs font-bold text-blue-600 mt-1">(公式：學費 + 教材費 + 雜費 - 優惠)</span>
+                                    </div>
+                                    <input type="text" id="total-tuition" readonly class="w-full bg-white border-2 border-blue-400 rounded-lg px-4 py-2 text-2xl font-mono font-black text-blue-700 text-right shadow-inner">
+                                </div>
 
-                            <div class="md:col-span-2 flex items-end justify-end space-x-3 pt-4">
-                                <button type="button" id="btn-reset" class="px-5 py-2.5 border border-slate-300 text-slate-600 font-bold rounded-lg hover:bg-slate-100 transition shadow-sm">清空重填</button>
-                                <button type="submit" class="flex-1 md:flex-none px-8 py-2.5 bg-blue-600 text-white font-black rounded-lg hover:bg-blue-700 shadow-md transition transform hover:-translate-y-0.5">🚀 確立個指班別開單</button>
-                            </div>
-                        </form>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">16. 排課起始日</label>
+                                    <input type="date" id="start-date" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
+                                    <span class="text-[11px] font-black text-slate-400 block mt-1" id="end-date-preview">預計最末堂：--</span>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-600 mb-1">17. 經手承辦人</label>
+                                    <input type="text" id="operator" value="系統管理員" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-400 mb-1">18. 開單日期 (今日)</label>
+                                    <input type="date" id="issue-date" readonly class="w-full bg-slate-100 border border-gray-200 rounded px-3 py-2 text-gray-500 font-bold cursor-not-allowed">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-rose-600 mb-1">19. 繳費期限 (預設3日後)</label>
+                                    <input type="date" id="due-date" class="w-full border border-rose-300 rounded px-3 py-2 focus:outline-none focus:border-rose-500 bg-rose-50 font-bold text-rose-700">
+                                </div>
+
+                                <div class="md:col-span-3 flex items-center justify-end space-x-3 pt-4 pb-2 sticky bottom-0 bg-white border-t border-slate-100 z-10 mt-2">
+                                    <button type="button" id="btn-reset" class="px-5 py-2.5 border border-slate-300 text-slate-600 font-bold rounded-lg hover:bg-slate-100 transition shadow-sm">清空重填</button>
+                                    <button type="submit" class="px-8 py-2.5 bg-blue-600 text-white font-black rounded-lg hover:bg-blue-700 shadow-md transition transform hover:-translate-y-0.5">🚀 確立個指班別開單</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -296,7 +298,6 @@
         }
         window.onload = init;
 
-        // 🔥 新增：整體控制面板展開/收合
         function toggleCreationSection() {
             const section = document.getElementById('creation-section');
             const btn = document.getElementById('btn-toggle-creation');
@@ -641,7 +642,6 @@
                 renderStudentList();
                 await fetchIndividualClasses();
                 
-                // 開單成功後，自動幫行政人員收起大面板
                 if (!document.getElementById('creation-section').classList.contains('hidden')) {
                     toggleCreationSection();
                 }
@@ -670,7 +670,6 @@
                     let totalPaidForThisClass = 0;
                     const classSearchKey = `個指班-${ic.subject} (${ic.class_type})`; 
 
-                    // 確保使用當下真實儲存的總金額
                     ic.actual_total_tuition = Number(ic.total_tuition) || 0;
 
                     if (payments) {
@@ -680,7 +679,6 @@
                                 isOwner = ic.student_ids.some(s => s.student_id === p.student_id);
                             }
                             
-                            // 🔥 嚴格把關：只有明確指名是付給這個科目的錢，才算數
                             if (isOwner && Array.isArray(p.allocation_details)) {
                                 p.allocation_details.forEach(alloc => {
                                     if (alloc.class_name && (alloc.class_name === classSearchKey || (alloc.class_name.includes('個指') && alloc.class_name.includes(ic.subject)))) {
@@ -738,12 +736,11 @@
                 cls._hasSchedules = hasSchedules;
                 cls._hasPayment = hasPayment;
 
-                // 🔥 修正狀態邏輯 (3最高優先級，0最低優先級)
                 let statusLevel = 0; 
-                if (isPaidClear && !hasSchedules) statusLevel = 3;      // 最急迫：錢收了但沒排課
-                else if (!isPaidClear && hasPayment) statusLevel = 2;   // 次急迫：有繳部分但欠費
-                else if (!hasPayment) statusLevel = 1;                  // 待處理：剛開單還沒繳費
-                else statusLevel = 0;                                   // 正常：已繳清且已排課
+                if (isPaidClear && !hasSchedules) statusLevel = 3;      
+                else if (!isPaidClear && hasPayment) statusLevel = 2;   
+                else if (!hasPayment) statusLevel = 1;                  
+                else statusLevel = 0;                                   
                 
                 cls.student_ids.forEach(stu => {
                     if (!studentsMap[stu.student_id]) {
@@ -778,7 +775,6 @@
             }
 
             groupedStudents.forEach(stu => {
-                // 🔥 修正總狀態標籤徽章對應
                 let statusBadge = '';
                 if (stu.priority === 3) {
                     statusBadge = `<span class="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[11px] font-black border border-orange-300 shadow-sm animate-pulse">❗ 待排課</span>`;

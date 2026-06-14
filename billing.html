@@ -91,8 +91,7 @@
                         <label for="chk-group" class="font-black text-sm text-blue-800 cursor-pointer flex-1">團體班級 (全選)</label>
                         <span id="dot-group"></span>
                     </div>
-                    <div id="tree-group" class="pl-1 space-y-1.5 mt-2">
-                        </div>
+                    <div id="tree-group" class="pl-1 space-y-1.5 mt-2"></div>
                 </div>
 
                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-inner">
@@ -101,8 +100,7 @@
                         <label for="chk-indiv" class="font-black text-sm text-emerald-800 cursor-pointer flex-1">個別指導 (全選)</label>
                         <span id="dot-indiv"></span>
                     </div>
-                    <div id="tree-indiv" class="pl-1 space-y-1.5 mt-2">
-                        </div>
+                    <div id="tree-indiv" class="pl-1 space-y-1.5 mt-2"></div>
                 </div>
             </div>
         </div>
@@ -186,6 +184,7 @@
         </div>
     </div>
 
+    <!-- 繳費 Modal -->
     <div id="pay-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4 no-print overflow-y-auto">
         <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border my-auto max-h-[90vh] flex flex-col">
             <h3 class="text-xl font-black mb-4 text-slate-800 shrink-0 border-b pb-3">💰 入帳 / 沖銷作業</h3>
@@ -240,6 +239,7 @@
         </div>
     </div>
 
+    <!-- 列印專屬隱藏區塊 -->
     <div id="print-area" class="hidden print:block print-wrapper">
         <div class="p-title-container">
             <div id="p-title" class="p-title">昊學文教   繳費通知單</div>
@@ -291,6 +291,20 @@
                 else if(res[res.length-1] !== '零' && u !== 0) res += '零';
             }
             return res.replace(/零$/, '') + '元整';
+        }
+
+        // ✅ 強悍的安全 JSON 解析器
+        function safeParseJSON(val) {
+            if (!val) return [];
+            if (typeof val === 'string') {
+                try { 
+                    const parsed = JSON.parse(val); 
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch(e) { 
+                    return []; 
+                }
+            }
+            return Array.isArray(val) ? val : [];
         }
 
         function toggleGroup(id) {
@@ -625,14 +639,6 @@
             }
         }
 
-        // 解析資料庫傳來的可能是字串的 JSON (防呆)
-        function safeParseJSON(val) {
-            if (typeof val === 'string') {
-                try { return JSON.parse(val); } catch(e) { return []; }
-            }
-            return Array.isArray(val) ? val : [];
-        }
-
         function renderBillingTable() {
             rawTotalPayable = 0; 
             const tbody = document.getElementById('bill-items'); 
@@ -898,25 +904,25 @@
                     serial_no: serial, student_id: currentStudentId, amount: amt, 
                     pay_method: method, pay_date: date, handler: handler,
                     bank_last_5: method === '匯款' ? bankLast5 : null,
-                    allocation_details: allocationDetails.length > 0 ? allocationDetails : null,
+                    allocation_details: allocationDetails.length > 0 ? JSON.stringify(allocationDetails) : null,
                     next_pay_date: (amt < currentTotalDebt) ? nextPayDate : null
                 };
 
-                // ✅ 關鍵修復：使用 select() 強迫 Supabase 吐回寫入的資料，避免列印時抓不到
+                // ✅ 強制資料庫立刻返回最新完整紀錄 (包含最新 allocation_details 陣列/字串)
                 const { data, error } = await sb.from('payment_logs').insert([payload]).select();
                 if (error) throw error;
                 
                 closeModal('pay-modal'); 
-                await refreshGlobalData(); 
-                await loadStudentData(currentStudent); 
                 
-                // 防呆：如果剛剛載入的資料庫還沒這筆資料 (Time Lag)，我們手動把它塞進去！
+                // 強迫系統將剛存入的最新紀錄直接塞入記憶體，無視任何讀取秒差
                 if (data && data.length > 0) {
                     if (!payments.some(p => p.serial_no === serial)) {
                         payments.unshift(data[0]);
-                        renderBillingTable(); // 重新整理畫面
                     }
                 }
+                
+                await refreshGlobalData(); 
+                await loadStudentData(currentStudent); 
                 
                 if(confirm("✅ 繳費入帳成功！\n\n請問是否要立即為家長列印收據？")) {
                     printDoc('receipt', serial);
@@ -1062,13 +1068,35 @@
                 const noticeSerial = `NO.${new Date().toISOString().split('T')[0].replace(/-/g,'')}${Math.floor(1000+Math.random()*9000)}`;
                 document.getElementById('p-serial-info').innerText = `流水編號: ${noticeSerial}`;
                 
+                let noticeDebt = 0;
+                let deductedAmount = 0;
+                
+                // ✅ 繳費單精準扣款引擎 (包含無明細舊帳扣抵)
+                let allocatedPaid = 0;
+                let legacyPaid = 0;
+                payments.forEach(p => {
+                    const details = safeParseJSON(p.allocation_details);
+                    if(details.length > 0) {
+                        details.forEach(a => {
+                            if(classesToPrint.some(en => `${en.main_name}-${en.sub_name}` === a.class_name)) {
+                                allocatedPaid += a.amount;
+                            }
+                        })
+                    } else {
+                        legacyPaid += p.amount; // 無明細的歷史舊帳，通通拿來全域扣抵
+                    }
+                });
+                
+                deductedAmount = allocatedPaid + legacyPaid;
+                noticeDebt = Math.max(0, printTotalPayable - deductedAmount);
+                
                 html += `<tr>
                     <td colspan="2" class="p-bold text-left" style="font-size:14px; line-height:1.6;">
                         本單勾選總額: ${numToChinese(printTotalPayable)} (${printTotalPayable} 元)<br>
-                        此單扣除已繳: ${printTotalPaid} 元
+                        此單扣除已繳 (含歷史沖銷): ${deductedAmount} 元
                     </td>
                     <td colspan="2" class="p-bold" style="font-size: 18px; text-align:right;">
-                        本次應繳(尚欠): <span class="p-highlight">${printTotalRemaining} 元</span><br>
+                        本次應繳(尚欠): <span class="p-highlight">${noticeDebt} 元</span><br>
                         <div class="deadline-box">繳費期限: ${deadlineStr.replace(/-/g,'/')} 前</div>
                     </td>
                 </tr>`;

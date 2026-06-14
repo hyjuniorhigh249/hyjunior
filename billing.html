@@ -91,7 +91,8 @@
                         <label for="chk-group" class="font-black text-sm text-blue-800 cursor-pointer flex-1">團體班級 (全選)</label>
                         <span id="dot-group"></span>
                     </div>
-                    <div id="tree-group" class="pl-1 space-y-1.5 mt-2"></div>
+                    <div id="tree-group" class="pl-1 space-y-1.5 mt-2">
+                        </div>
                 </div>
 
                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-inner">
@@ -100,7 +101,8 @@
                         <label for="chk-indiv" class="font-black text-sm text-emerald-800 cursor-pointer flex-1">個別指導 (全選)</label>
                         <span id="dot-indiv"></span>
                     </div>
-                    <div id="tree-indiv" class="pl-1 space-y-1.5 mt-2"></div>
+                    <div id="tree-indiv" class="pl-1 space-y-1.5 mt-2">
+                        </div>
                 </div>
             </div>
         </div>
@@ -623,18 +625,25 @@
             }
         }
 
-        // ✅ 全新智能科目餘額結算引擎
+        // 解析資料庫傳來的可能是字串的 JSON (防呆)
+        function safeParseJSON(val) {
+            if (typeof val === 'string') {
+                try { return JSON.parse(val); } catch(e) { return []; }
+            }
+            return Array.isArray(val) ? val : [];
+        }
+
         function renderBillingTable() {
             rawTotalPayable = 0; 
             const tbody = document.getElementById('bill-items'); 
             tbody.innerHTML = '';
             document.getElementById('chk-all-classes').checked = true;
 
-            // 1. 預先計算該學生在所有科目的「已入帳」金額總和
             let classPaidMap = {};
             payments.forEach(p => {
                 if(p.allocation_details) {
-                    p.allocation_details.forEach(a => {
+                    const details = safeParseJSON(p.allocation_details);
+                    details.forEach(a => {
                         classPaidMap[a.class_name] = (classPaidMap[a.class_name] || 0) + a.amount;
                     });
                 }
@@ -649,7 +658,6 @@
                     const finalFee = subTotal - b.discount_amount;
                     rawTotalPayable += finalFee;
 
-                    // 2. 獲取單一科目的餘額狀態
                     const classNameForLog = `${en.main_name}-${en.sub_name}`;
                     const paidForThisClass = classPaidMap[classNameForLog] || 0;
                     const remainingDebt = finalFee - paidForThisClass;
@@ -788,11 +796,11 @@
             document.getElementById('pay-method').value = '現金';
             toggleBankInput();
 
-            // 預先計算各班別已繳金額
             let classPaidMap = {};
             payments.forEach(p => {
                 if(p.allocation_details) {
-                    p.allocation_details.forEach(a => {
+                    const details = safeParseJSON(p.allocation_details);
+                    details.forEach(a => {
                         classPaidMap[a.class_name] = (classPaidMap[a.class_name] || 0) + a.amount;
                     });
                 }
@@ -804,7 +812,6 @@
                 const subTotal = en.fee + en.tb_fee + en.m_fee - b.discount_amount;
                 const classNameForLog = `${en.main_name}-${en.sub_name}`;
                 
-                // ✅ 關鍵：計算單一科目尚欠金額
                 const paid = classPaidMap[classNameForLog] || 0;
                 const remaining = subTotal - paid;
                 const isPaidOff = remaining <= 0;
@@ -827,7 +834,6 @@
             document.getElementById('pay-modal').classList.add('active'); 
         }
 
-        // ✅ 進階：智慧貪婪填滿分配 (不超過本科尚欠為原則)
         function autoDistribute() {
             const totalAmount = parseInt(document.getElementById('pay-amount').value) || 0;
             if(totalAmount <= 0) return alert("請先輸入本次繳費總金額！");
@@ -844,13 +850,11 @@
                 let container = chk.closest('.flex');
                 let classDebt = parseInt(chk.dataset.debt) || 0;
                 
-                // 最多只給該科目的欠款金額，除非是最後一個且還有剩
                 let allocateAmount = Math.min(classDebt, remainingAmountToDistribute);
                 container.querySelector('.alloc-amt').value = allocateAmount;
                 remainingAmountToDistribute -= allocateAmount;
             }
 
-            // 如果全部科目都填滿了，錢還沒分配完 (代表家長溢繳)
             if (remainingAmountToDistribute > 0) {
                 alert(`⚠️ 提示：您輸入的總金額 ($${totalAmount}) 大於勾選班別的尚欠總和！\n系統已為您將剩餘的 $${remainingAmountToDistribute} 分配至最後一個勾選的班級，請手動確認或調整是否溢繳。`);
                 let lastContainer = checkedBoxes[checkedBoxes.length - 1].closest('.flex');
@@ -898,12 +902,21 @@
                     next_pay_date: (amt < currentTotalDebt) ? nextPayDate : null
                 };
 
-                const { error } = await sb.from('payment_logs').insert([payload]);
+                // ✅ 關鍵修復：使用 select() 強迫 Supabase 吐回寫入的資料，避免列印時抓不到
+                const { data, error } = await sb.from('payment_logs').insert([payload]).select();
                 if (error) throw error;
                 
                 closeModal('pay-modal'); 
                 await refreshGlobalData(); 
                 await loadStudentData(currentStudent); 
+                
+                // 防呆：如果剛剛載入的資料庫還沒這筆資料 (Time Lag)，我們手動把它塞進去！
+                if (data && data.length > 0) {
+                    if (!payments.some(p => p.serial_no === serial)) {
+                        payments.unshift(data[0]);
+                        renderBillingTable(); // 重新整理畫面
+                    }
+                }
                 
                 if(confirm("✅ 繳費入帳成功！\n\n請問是否要立即為家長列印收據？")) {
                     printDoc('receipt', serial);
@@ -926,7 +939,6 @@
             
             let classesToPrint = [];
             
-            // ✅ 精準重構列印資料抓取
             if (type === 'notice') {
                 const checkedClassIndexes = Array.from(document.querySelectorAll('.class-print-chk:checked')).map(cb => parseInt(cb.value));
                 if (checkedClassIndexes.length === 0) return alert("請至少勾選一個要列印的班別！");
@@ -939,7 +951,8 @@
                 let involvedClassNames = new Set();
                 targetPayments.forEach(p => {
                     if (p && p.allocation_details) {
-                        p.allocation_details.forEach(a => involvedClassNames.add(a.class_name));
+                        const details = safeParseJSON(p.allocation_details);
+                        details.forEach(a => involvedClassNames.add(a.class_name));
                     }
                 });
 
@@ -969,11 +982,11 @@
             let printTotalPaid = 0;
             let printTotalRemaining = 0;
 
-            // 預先準備單科學費結算器 (印單用)
             let classPaidMapForPrint = {};
             payments.forEach(p => {
                 if(p.allocation_details) {
-                    p.allocation_details.forEach(a => {
+                    const details = safeParseJSON(p.allocation_details);
+                    details.forEach(a => {
                         classPaidMapForPrint[a.class_name] = (classPaidMapForPrint[a.class_name] || 0) + a.amount;
                     });
                 }
@@ -1049,7 +1062,6 @@
                 const noticeSerial = `NO.${new Date().toISOString().split('T')[0].replace(/-/g,'')}${Math.floor(1000+Math.random()*9000)}`;
                 document.getElementById('p-serial-info').innerText = `流水編號: ${noticeSerial}`;
                 
-                // ✅ 精準反映尚欠餘額於通知單
                 html += `<tr>
                     <td colspan="2" class="p-bold text-left" style="font-size:14px; line-height:1.6;">
                         本單勾選總額: ${numToChinese(printTotalPayable)} (${printTotalPayable} 元)<br>
@@ -1108,8 +1120,9 @@
                 
                 let allocStr = '';
                 if(p.allocation_details && p.allocation_details.length > 0) {
+                    const details = safeParseJSON(p.allocation_details);
                     allocStr = `<div style="font-size:12px; font-weight:normal; margin-top:4px; color:#475569;">沖銷明細: ` + 
-                               p.allocation_details.map(a => `${a.class_name}($${a.amount})`).join(', ') + `</div>`;
+                               details.map(a => `${a.class_name}($${a.amount})`).join(', ') + `</div>`;
                 }
                 
                 html += `<tr>

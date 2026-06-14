@@ -236,6 +236,36 @@
         </div>
     </div>
 
+    <div id="print-area" class="hidden print:block print-wrapper">
+        <div class="p-title-container">
+            <div id="p-title" class="p-title">昊學文教   繳費通知單</div>
+        </div>
+        
+        <div class="p-header">
+            <div id="p-stu-info">學生姓名: ---  學校/年級: ---</div>
+            <div id="p-serial-info">流水編號: ---</div>
+        </div>
+        
+        <div id="p-table-title" class="p-section-title">課程收費明細 ：</div>
+        
+        <table id="p-table" class="p-table">
+            </table>
+        
+        <div id="p-footer-notice" class="p-footer-note" style="display:none;">
+            <span class="p-bold text-rose-700">【繳費注意事項】</span><br>
+            1. 為保障您的上課權益，請於期限內完成繳費作業。<br>
+            2. 若採匯款方式，請於匯款後主動告知行政人員匯款帳號末 5 碼，以便核銷入帳。<br>
+            3. 若對帳單明細有任何疑問，請於繳費前與行政人員聯繫確認。
+        </div>
+        
+        <div id="p-footer-receipt" class="p-footer-note" style="display:none;">
+            <span class="p-bold text-emerald-700">【收據保存與退費須知】</span><br>
+            1. 本收據為重要繳費與上課憑證，請妥善保管，遺失恕不補發。<br>
+            2. 辦理退費須憑本正本收據，並依據當地教育局/補習班退費管理相關規定辦理。<br>
+            3. 感謝您的配合與支持，祝您學習愉快。
+        </div>
+    </div>
+
     <script>
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
         

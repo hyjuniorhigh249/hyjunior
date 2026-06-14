@@ -18,33 +18,53 @@
             <div class="flex gap-4 items-end mb-6">
                 <div><label class="block text-xs font-bold text-slate-400 mb-1">起始日期</label><input type="date" id="date-start" class="p-2 border rounded-lg font-bold"></div>
                 <div><label class="block text-xs font-bold text-slate-400 mb-1">結束日期</label><input type="date" id="date-end" class="p-2 border rounded-lg font-bold"></div>
-                <button onclick="queryIncome()" class="bg-slate-800 text-white px-6 py-2 rounded-lg font-black hover:bg-slate-700">查詢收入</button>
+                <button onclick="queryIncome()" class="bg-slate-800 text-white px-6 py-2 rounded-lg font-black hover:bg-slate-700 shadow-sm transition">查詢收入</button>
             </div>
             
-            <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 inline-block mb-4">
+            <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 inline-block mb-4 shadow-sm">
                 <span class="font-bold text-emerald-800">區間總實收：</span><span id="total-income" class="font-black text-3xl text-emerald-600">$0</span>
             </div>
 
-            <table class="w-full text-left border-collapse text-sm">
-                <thead><tr class="bg-slate-100"><th class="p-2 border-b">日期</th><th class="p-2 border-b">流水號</th><th class="p-2 border-b">學生</th><th class="p-2 border-b">方式</th><th class="p-2 border-b">經手人</th><th class="p-2 border-b text-right">實收金額</th></tr></thead>
-                <tbody id="income-list"></tbody>
-            </table>
+            <div class="overflow-x-auto border rounded-xl">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-slate-100">
+                            <th class="p-3 border-b text-slate-600">日期</th>
+                            <th class="p-3 border-b text-slate-600">流水號</th>
+                            <th class="p-3 border-b text-slate-600">學生</th>
+                            <th class="p-3 border-b text-slate-600">方式</th>
+                            <th class="p-3 border-b text-slate-600">經手人</th>
+                            <th class="p-3 border-b text-slate-600 text-right">實收金額</th>
+                            <th class="p-3 border-b text-slate-600 text-center w-28">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="income-list" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
         </div>
 
         <div class="bg-white p-6 rounded-2xl shadow-sm border">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="font-black text-xl text-rose-700">⚠️ 學生尚欠金額總表</h2>
-                <button onclick="exportDebtExcel()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-black flex items-center gap-2 hover:bg-emerald-700">📥 匯出 Excel</button>
+                <button onclick="exportDebtExcel()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg font-black flex items-center gap-2 hover:bg-emerald-700 shadow-sm transition">📥 匯出 Excel</button>
             </div>
             
-            <div class="bg-rose-50 p-4 rounded-xl border border-rose-100 inline-block mb-4">
+            <div class="bg-rose-50 p-4 rounded-xl border border-rose-100 inline-block mb-4 shadow-sm">
                 <span class="font-bold text-rose-800">全補習班總欠款：</span><span id="total-debt" class="font-black text-3xl text-rose-600">$0</span>
             </div>
 
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto border rounded-xl">
                 <table class="w-full text-left border-collapse text-sm">
-                    <thead><tr class="bg-slate-100"><th class="p-2 border-b w-24">學生姓名</th><th class="p-2 border-b">報名班別明細 (應繳費用)</th><th class="p-2 border-b w-32 text-right">應繳總計</th><th class="p-2 border-b w-32 text-right">已繳總額</th><th class="p-2 border-b w-32 text-right">尚欠金額</th></tr></thead>
-                    <tbody id="debt-list"></tbody>
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-600">
+                            <th class="p-3 border-b w-24">學生姓名</th>
+                            <th class="p-3 border-b">報名班別明細 (應繳費用)</th>
+                            <th class="p-3 border-b w-32 text-right">應繳總計</th>
+                            <th class="p-3 border-b w-32 text-right">已繳總額</th>
+                            <th class="p-3 border-b w-32 text-right">尚欠金額</th>
+                        </tr>
+                    </thead>
+                    <tbody id="debt-list" class="divide-y divide-slate-100"></tbody>
                 </table>
             </div>
         </div>
@@ -57,45 +77,68 @@
         async function init() {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('date-start').value = today; document.getElementById('date-end').value = today;
-            // 系統開啟時，先預設跑一次欠款計算
+            queryIncome();
             queryDebt();
         }
 
         async function queryIncome() {
             const start = document.getElementById('date-start').value, end = document.getElementById('date-end').value;
             
-            // ✅ 先把所有學生名冊抓下來，用作翻譯字典
             const { data: students } = await sb.from('students').select('id, name');
             const stuMap = {};
             (students || []).forEach(s => stuMap[s.id] = s.name);
 
-            // 抓取繳費紀錄
             const { data } = await sb.from('payment_logs').select('*').gte('pay_date', start).lte('pay_date', end).order('pay_date', { ascending: true });
             
             let total = 0; const tbody = document.getElementById('income-list');
             
             tbody.innerHTML = (data || []).map(p => { 
                 total += p.amount; 
-                // ✅ 將 student_id 翻譯為中文姓名
                 const studentName = stuMap[p.student_id] || '未知學生(或已刪除)';
-                return `<tr class="border-b hover:bg-slate-50"><td class="p-2">${p.pay_date}</td><td class="p-2 text-xs text-slate-400">${p.serial_no}</td><td class="p-2 font-bold">${studentName}</td><td class="p-2">${p.pay_method}</td><td class="p-2">${p.handler}</td><td class="p-2 text-right font-bold text-emerald-600">$${p.amount}</td></tr>`; 
+                return `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-3 font-bold">${p.pay_date}</td>
+                    <td class="p-3 text-xs text-slate-400 font-bold">${p.serial_no}</td>
+                    <td class="p-3 font-black text-slate-700">${studentName}</td>
+                    <td class="p-3 font-bold text-slate-600">${p.pay_method}</td>
+                    <td class="p-3 font-bold text-slate-600">${p.handler}</td>
+                    <td class="p-3 text-right font-black text-emerald-600">$${p.amount}</td>
+                    <td class="p-3 text-center">
+                        <button onclick="voidPayment('${p.serial_no}')" class="text-xs bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg shadow-sm hover:bg-rose-100 font-bold transition">作廢反沖</button>
+                    </td>
+                </tr>`; 
             }).join('');
             
-            if(!data || data.length === 0) tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400">無紀錄</td></tr>';
+            if(!data || data.length === 0) tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400 font-bold border-dashed border-2 m-2 rounded-xl">無紀錄</td></tr>';
             document.getElementById('total-income').innerText = `$${total}`;
         }
 
-        async function queryDebt() {
-            document.getElementById('debt-list').innerHTML = '<tr><td colspan="5" class="p-4 text-center">計算中...</td></tr>';
+        // ✅ 全新反沖作廢功能
+        async function voidPayment(serialNo) {
+            if(!confirm(`⚠️ 警告：確定要「反沖 (作廢)」流水號 ${serialNo} 的繳費紀錄嗎？\n\n執行反沖後：\n1. 該筆實收金額將被扣除\n2. 該學生的欠款總表將同步回溯增加\n3. 相關會計報表與收據將同步失效\n\n(此動作無法復原，請確認是否執行)`)) return;
             
-            // ✅ 這裡多抓了 id，因為後續對帳需要用 UUID
+            try {
+                // 從資料庫中實體刪除該筆付款紀錄
+                const { error } = await sb.from('payment_logs').delete().eq('serial_no', serialNo);
+                if (error) throw error;
+                
+                alert(`✅ 流水號 ${serialNo} 已成功反沖作廢！`);
+                // 瞬間重新整理兩大表格
+                queryIncome();
+                queryDebt();
+            } catch (err) {
+                alert("反沖作廢失敗：" + err.message);
+            }
+        }
+
+        async function queryDebt() {
+            document.getElementById('debt-list').innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400 font-bold">計算中...</td></tr>';
+            
             const { data: students } = await sb.from('students').select('id, name');
             const { data: classes } = await sb.from('classes').select('*');
             const { data: bills } = await sb.from('student_bills').select('*');
-            // ✅ 改撈 student_id 來做為加總依據
             const { data: payments } = await sb.from('payment_logs').select('student_id, amount');
 
-            // ✅ 將已繳金額以 student_id 為 Key 進行統整
             const paidMap = {};
             (payments || []).forEach(p => { 
                 if(p.student_id) {
@@ -108,9 +151,7 @@
             (students || []).forEach(stu => {
                 let sPayable = 0, classDetails = [];
                 (classes || []).forEach(c => (c.sub_classes || []).forEach((sub, idx) => {
-                    // 班級名單目前還是存名字，所以用 stu.name 判斷是否在班內
                     if(sub.members && sub.members.includes(stu.name)) {
-                        // ✅ 找帳單/折扣時，改用 student_id 精準對接
                         const b = bills.find(x => x.class_id === c.id && x.sub_idx === idx && x.student_id === stu.id);
                         const discount = b ? b.discount_amount : 0;
                         const finalFee = (sub.fee||0) + (sub.textbook_fee||0) + (sub.misc_fee||0) - discount;
@@ -119,19 +160,24 @@
                     }
                 }));
 
-                // ✅ 查詢該學生(UUID)歷史總繳費金額
                 const sPaid = paidMap[stu.id] || 0;
                 const sDebt = sPayable - sPaid;
                 
-                // 畫面上依然顯示 stu.name，讓閱讀起來很舒服
                 if (sDebt > 0) {
                     totalSysDebt += sDebt;
-                    debtRowsHtml += `<tr class="border-b hover:bg-rose-50"><td class="p-2 font-bold">${stu.name}</td><td class="p-2 text-xs text-slate-500">${classDetails.join('<br>')}</td><td class="p-2 text-right">$${sPayable}</td><td class="p-2 text-right text-emerald-600">$${sPaid}</td><td class="p-2 text-right font-black text-rose-600">$${sDebt}</td></tr>`;
+                    debtRowsHtml += `
+                    <tr class="hover:bg-rose-50 transition">
+                        <td class="p-3 font-black text-slate-700">${stu.name}</td>
+                        <td class="p-3 text-xs text-slate-500 font-bold leading-relaxed">${classDetails.join('<br>')}</td>
+                        <td class="p-3 text-right font-black text-slate-700">$${sPayable}</td>
+                        <td class="p-3 text-right font-black text-emerald-600">$${sPaid}</td>
+                        <td class="p-3 text-right font-black text-rose-600 text-lg">$${sDebt}</td>
+                    </tr>`;
                     debtDataExport.push({ "學生姓名": stu.name, "報名明細": classDetails.join(' , '), "應繳總計": sPayable, "已繳總額": sPaid, "尚欠金額": sDebt });
                 }
             });
 
-            if(debtRowsHtml === '') debtRowsHtml = '<tr><td colspan="5" class="p-4 text-center text-slate-400">目前無欠款</td></tr>';
+            if(debtRowsHtml === '') debtRowsHtml = '<tr><td colspan="5" class="p-6 text-center text-slate-400 font-bold border-dashed border-2 m-2 rounded-xl">目前全補習班無欠款，太棒了！</td></tr>';
             document.getElementById('debt-list').innerHTML = debtRowsHtml; 
             document.getElementById('total-debt').innerText = `$${totalSysDebt}`;
         }

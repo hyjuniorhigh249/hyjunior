@@ -10,15 +10,11 @@
         .modal { display: none; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
         .modal.active { display: flex; }
         
-        /* 專屬左側選單捲動條美化 */
         .sidebar-scroll::-webkit-scrollbar { width: 6px; }
         .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
         .sidebar-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* ========================================================= */
-        /* 專屬彩色專業列印排版 (支援 Logo、多色系與自動縮放 1 頁)        */
-        /* ========================================================= */
         @media print {
             @page { margin: 8mm; size: A4 portrait; }
             body { background: white !important; padding: 0 !important; height: 100vh !important; max-height: 100vh !important; overflow: hidden !important; display: block !important; }
@@ -84,15 +80,13 @@
             </div>
             
             <div class="flex-1 overflow-y-auto space-y-5 pr-2 sidebar-scroll">
-                
                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-inner">
                     <div class="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
                         <input type="checkbox" id="chk-group" class="w-4 h-4 rounded text-blue-600 cursor-pointer"> 
                         <label for="chk-group" class="font-black text-sm text-blue-800 cursor-pointer flex-1">團體班級 (全選)</label>
                         <span id="dot-group"></span>
                     </div>
-                    <div id="tree-group" class="pl-1 space-y-1.5 mt-2">
-                        </div>
+                    <div id="tree-group" class="pl-1 space-y-1.5 mt-2"></div>
                 </div>
 
                 <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 shadow-inner">
@@ -101,8 +95,7 @@
                         <label for="chk-indiv" class="font-black text-sm text-emerald-800 cursor-pointer flex-1">個別指導 (全選)</label>
                         <span id="dot-indiv"></span>
                     </div>
-                    <div id="tree-indiv" class="pl-1 space-y-1.5 mt-2">
-                        </div>
+                    <div id="tree-indiv" class="pl-1 space-y-1.5 mt-2"></div>
                 </div>
             </div>
         </div>
@@ -166,7 +159,7 @@
                         <th class="p-3 border-b border-emerald-100">流水號</th>
                         <th class="p-3 border-b border-emerald-100">方式</th>
                         <th class="p-3 border-b border-emerald-100 text-right">已繳金額</th>
-                        <th class="p-3 border-b border-emerald-100 text-center">單筆補印</th>
+                        <th class="p-3 border-b border-emerald-100 text-center">操作</th>
                     </tr></thead>
                     <tbody id="payment-logs" class="divide-y divide-emerald-50"></tbody>
                 </table>
@@ -251,8 +244,7 @@
         
         <div id="p-table-title" class="p-section-title">課程收費明細 ：</div>
         
-        <table id="p-table" class="p-table">
-            </table>
+        <table id="p-table" class="p-table"></table>
         
         <div id="p-footer-notice" class="p-footer-note" style="display:none;">
             <span class="p-bold text-rose-700">【繳費注意事項】</span><br>
@@ -675,14 +667,31 @@
                             <td class="p-3 text-xs text-slate-500 font-bold">${p.serial_no}</td>
                             <td class="p-3 font-bold text-slate-700">${p.pay_method} ${p.bank_last_5 ? `<span class="text-xs font-normal text-slate-400">(${p.bank_last_5})</span>` : ''}</td>
                             <td class="p-3 text-right font-black text-emerald-600">$${p.amount}</td>
-                            <td class="p-3 text-center">
+                            <td class="p-3 text-center flex justify-center gap-2">
                                 <button onclick="printDoc('receipt', '${p.serial_no}')" class="bg-white border border-slate-300 text-slate-600 px-3 py-1 rounded shadow-sm text-xs font-black hover:bg-slate-100 transition">列印收據</button>
+                                <button onclick="voidPayment('${p.serial_no}')" class="bg-rose-50 border border-rose-200 text-rose-600 px-3 py-1 rounded shadow-sm text-xs font-black hover:bg-rose-100 transition">作廢反沖</button>
                             </td>
                         </tr>`;
                 }).join('');
             }
             currentTotalDebt = rawTotalPayable - totalPaid;
             document.getElementById('b-total-debt').innerText = `$${currentTotalDebt}`;
+        }
+
+        async function voidPayment(serialNo) {
+            if(!confirm(`⚠️ 警告：確定要「反沖 (作廢)」流水號 ${serialNo} 的繳費紀錄嗎？\n\n執行反沖後：\n1. 該筆金額將重新變回「欠款」狀態\n2. 相關會計帳與收據將同步失效\n\n(此動作無法復原，請確認是否執行)`)) return;
+            
+            try {
+                // 從資料庫中實體刪除該筆付款紀錄，實現所有總計金額的瞬間還原
+                const { error } = await sb.from('payment_logs').delete().eq('serial_no', serialNo);
+                if (error) throw error;
+                
+                alert(`✅ 流水號 ${serialNo} 已成功反沖作廢！`);
+                await refreshGlobalData();
+                await loadStudentData(currentStudent);
+            } catch (err) {
+                alert("反沖作廢失敗：" + err.message);
+            }
         }
 
         async function saveDiscount(cId, sIdx) {
@@ -857,7 +866,6 @@
                 if (checkedClassIndexes.length === 0) return alert("請至少勾選一個要列印的班別！");
                 classesToPrint = currentEnrolled.filter((_, idx) => checkedClassIndexes.includes(idx));
             } else if (type === 'receipt' || type === 'merged') {
-                // 智慧收據過濾：只抓取該次繳費紀錄所屬的班級 (Allocation Details)
                 let targetPayments = [];
                 if (type === 'receipt') targetPayments = [payments.find(x => x.serial_no === serialData)];
                 else targetPayments = payments.filter(p => serialData.includes(p.serial_no));
@@ -872,7 +880,6 @@
                 if (involvedClassNames.size > 0) {
                     classesToPrint = currentEnrolled.filter(en => involvedClassNames.has(`${en.main_name}-${en.sub_name}`));
                 } else {
-                    // 若舊資料沒有分配紀錄，預設印出目前畫面上方有勾選的班別做為相容
                     const checkedClassIndexes = Array.from(document.querySelectorAll('.class-print-chk:checked')).map(cb => parseInt(cb.value));
                     classesToPrint = currentEnrolled.filter((_, idx) => checkedClassIndexes.includes(idx));
                 }
@@ -954,7 +961,6 @@
                 const noticeSerial = `NO.${new Date().toISOString().split('T')[0].replace(/-/g,'')}${Math.floor(1000+Math.random()*9000)}`;
                 document.getElementById('p-serial-info').innerText = `流水編號: ${noticeSerial}`;
                 
-                // 智慧扣除已繳費用引擎
                 let noticeDebt = 0;
                 let deductedAmount = 0;
                 const allHistoricalPaid = payments.reduce((sum, curr) => sum + curr.amount, 0);
@@ -997,7 +1003,7 @@
                 const selectedPayments = payments.filter(p => serialData.includes(p.serial_no));
                 const totalMergedPaid = selectedPayments.reduce((sum, curr) => sum + curr.amount, 0);
                 const allHistoricalPaid = payments.reduce((sum, curr) => sum + curr.amount, 0);
-                const debt = rawTotalPayable - allHistoricalPaid; // 依然顯示系統整體總欠款
+                const debt = rawTotalPayable - allHistoricalPaid; 
 
                 const nextDates = selectedPayments.map(p => p.next_pay_date).filter(d => d);
                 nextDates.sort((a,b) => new Date(b) - new Date(a));

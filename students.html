@@ -6,6 +6,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f8fafc; height: 100vh; overflow: hidden; }
@@ -61,6 +62,7 @@
             </div>
             <div class="flex gap-3">
                 <input type="text" id="search-input" oninput="renderStudents()" placeholder="搜尋姓名或學號..." class="p-2 border rounded-xl font-bold bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none w-64">
+                <button onclick="exportToExcel()" class="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-emerald-200 transition">📊 匯出 Excel</button>
                 <button onclick="openColSelector()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-slate-200 transition">⚙️ 自訂欄位</button>
                 <button onclick="printQRCodes()" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl font-black shadow-sm hover:bg-indigo-200 transition">🖨️ 列印勾選的點名卡</button>
                 <button onclick="openModal()" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-black shadow-lg hover:bg-blue-700 transition">＋ 新增學生</button>
@@ -214,10 +216,14 @@
         const sb = supabase.createClient('https://hlelxeiwamvrntsxnram.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsZWx4ZWl3YW12cm50c3hucmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDA1MDcsImV4cCI6MjA5MjQxNjUwN30.9HeOoGrhkZ3wIQ-tPutf1AQcS4lz3L1VIdTqMr5iqnM');
         
         let allStudents = [];
+        let allPayments = [];
+        let allGroupClasses = [];
+        let allIndSchedules = [];
         let selectedPrintIds = new Set(); 
         
         const colDefs = [
             { id: 'photo', label: '照片', sortable: false },
+            { id: 'identity', label: '身份', sortable: true },
             { id: 'student_id', label: '學號', sortable: true },
             { id: 'name', label: '姓名', sortable: true },
             { id: 'gender', label: '性別', sortable: true },
@@ -236,12 +242,12 @@
         ];
 
         const defaultWidths = {
-            'photo': 60, 'student_id': 120, 'name': 120, 'gender': 80, 'grade': 80, 'school': 150, 
+            'photo': 60, 'identity': 80, 'student_id': 120, 'name': 120, 'gender': 80, 'grade': 80, 'school': 150, 
             'tel_o': 120, 'tel_m': 120, 'tel_p': 120, 'source': 100, 'line_type': 100, 
-            'prospect_course': 180, 'siblings': 120, 'addr': 200, 'created_date': 120, 'note': 180, 'action': 240 // 加寬了一點點給新按鈕
+            'prospect_course': 180, 'siblings': 120, 'addr': 200, 'created_date': 120, 'note': 180, 'action': 240
         };
 
-        let visibleCols = ['photo', 'student_id', 'name', 'gender', 'grade', 'school', 'tel_o', 'tel_m', 'prospect_course'];
+        let visibleCols = ['photo', 'identity', 'student_id', 'name', 'gender', 'grade', 'school', 'tel_o', 'tel_m', 'prospect_course'];
         let currentSortCol = 'created_date';
         let isSortAsc = false;
 
@@ -256,14 +262,64 @@
 
         async function fetchStudents() {
             try {
-                const { data, error } = await sb.from('students').select('*');
-                if (error) throw error;
-                allStudents = data || [];
+                // 並行抓取所有資料庫，避免迴圈 N+1 延遲
+                const [stuRes, payRes, grpRes, indRes] = await Promise.all([
+                    sb.from('students').select('*'),
+                    sb.from('payment_logs').select('*'), 
+                    sb.from('classes').select('*'),
+                    sb.from('individual_schedules').select('*')
+                ]);
+
+                if (stuRes.error) throw stuRes.error;
+                
+                allStudents = stuRes.data || [];
+                allPayments = payRes.data || [];
+                allGroupClasses = grpRes.data || [];
+                allIndSchedules = indRes.data || [];
+
+                // 核心：為每一位學生結算身份
+                calculateIdentities();
+
                 document.getElementById('student-count').innerText = `共 ${allStudents.length} 位學生`;
                 renderStudents();
             } catch (err) {
                 alert("讀取資料失敗：" + err.message);
             }
+        }
+
+        function calculateIdentities() {
+            const today = new Date().toISOString().split('T')[0];
+
+            allStudents.forEach(s => {
+                // 1. 計算總繳費 (相容新版 UUID 或舊版姓名)
+                const payments = allPayments.filter(p => p.student_id === s.id || p.student_name === s.name);
+                const totalPay = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+                // 2. 判斷個指課程
+                const myIndClasses = allIndSchedules.filter(c => c.student_id === s.id);
+                const hasFutureInd = myIndClasses.some(c => c.class_date >= today);
+                const hasHistInd = myIndClasses.length > 0;
+
+                // 3. 判斷團班課程 (相容 UUID 或姓名，並同時掃描 members 與 sub_classes 避免遺漏)
+                const myGrpClasses = allGroupClasses.filter(c => {
+                    const inMembers = Array.isArray(c.members) && (c.members.includes(s.id) || c.members.includes(s.name));
+                    // 使用字串化快速掃描深層 JSON 陣列防呆
+                    const inSub = JSON.stringify(c.sub_classes || {}).includes(s.id) || JSON.stringify(c.sub_classes || {}).includes(s.name);
+                    return inMembers || inSub;
+                });
+                const hasFutureGrp = myGrpClasses.some(c => c.end_date >= today);
+                const hasHistGrp = myGrpClasses.length > 0;
+
+                // 綜合判定
+                const hasFutureClass = hasFutureInd || hasFutureGrp;
+                const hasHistoricalClass = hasHistInd || hasHistGrp;
+
+                if (hasFutureClass) {
+                    s.identity = totalPay >= 3000 ? '在班生' : '試聽生';
+                } else {
+                    s.identity = hasHistoricalClass ? '離班生' : '潛在生';
+                }
+            });
         }
 
         function getAcademicYear() { const d = new Date(); return (d.getMonth() + 1) >= 8 ? d.getFullYear() : d.getFullYear() - 1; }
@@ -408,6 +464,13 @@
                     let cellData = '';
                     switch(colId) {
                         case 'photo': cellData = s.photo_url ? `<img src="${s.photo_url}" class="w-8 h-8 rounded-full object-cover">` : '👤'; break;
+                        case 'identity': 
+                            const idColor = s.identity === '在班生' ? 'bg-emerald-100 text-emerald-700' :
+                                            s.identity === '試聽生' ? 'bg-amber-100 text-amber-700' :
+                                            s.identity === '離班生' ? 'bg-rose-100 text-rose-700' :
+                                            'bg-slate-100 text-slate-600';
+                            cellData = `<span class="${idColor} px-2 py-1 rounded-md text-xs font-black shadow-sm">${s.identity}</span>`; 
+                            break;
                         case 'student_id': cellData = `<span class="text-blue-600 tracking-wider">${fullId}</span>`; break;
                         case 'grade': cellData = calculateDisplayGrade(s.grade_base_year); break;
                         case 'tel_o': cellData = s.tel_o || s.phone || ''; break;
@@ -417,7 +480,6 @@
                     rowHTML += `<td title="${titleText}">${cellData}</td>`;
                 });
 
-                // 🌟 新增：這就是您第三塊積木的位置！加入了一個藍色的 🔗 綁定按鈕
                 rowHTML += `
                     <td class="text-center whitespace-nowrap">
                         <button onclick="openRecordsModal('${s.id}', '${s.name}')" class="text-emerald-600 hover:bg-emerald-100 p-2 rounded-lg" title="歷史紀錄">📊</button>
@@ -428,6 +490,41 @@
                     </td></tr>`;
                 return rowHTML;
             }).join('');
+        }
+
+        // ==========================================
+        // 🌟 匯出 Excel 功能 (排除照片，無差別全欄位匯出)
+        // ==========================================
+        function exportToExcel() {
+            if(allStudents.length === 0) return alert("沒有資料可匯出！");
+
+            // 強制抓取所有已定義的欄位，唯獨不抓取照片 (不管畫面上有沒有勾選顯示，都會全部匯出)
+            const exportCols = colDefs.filter(c => c.id !== 'photo');
+
+            // 轉換為 Excel 可讀的純資料結構
+            const exportData = allStudents.map(s => {
+                let row = {};
+                exportCols.forEach(col => {
+                    let cellData = '';
+                    if(col.id === 'student_id') {
+                        cellData = (s.student_id_prefix || '') + (s.student_id_suffix || '');
+                    } else if(col.id === 'grade') {
+                        cellData = calculateDisplayGrade(s.grade_base_year);
+                    } else if(col.id === 'identity') {
+                        cellData = s.identity;
+                    } else {
+                        cellData = s[col.id] || '';
+                    }
+                    row[col.label] = cellData;
+                });
+                return row;
+            });
+
+            // 使用 SheetJS 生成與下載 XLSX
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "學生總檔");
+            XLSX.writeFile(workbook, `學生總檔_${new Date().toISOString().split('T')[0]}.xlsx`);
         }
 
         // ==========================================
@@ -444,7 +541,6 @@
             aList.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">連線讀取中...</td></tr>';
 
             try {
-                // 1. 抓取繳費紀錄 (使用 UUID 關聯)
                 const { data: payments } = await sb.from('payment_logs').select('*').eq('student_id', studentId).order('pay_date', { ascending: false });
                 
                 if(payments && payments.length > 0) {
@@ -461,7 +557,6 @@
                     pList.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">尚無繳費紀錄</td></tr>';
                 }
 
-                // 2. 抓取出缺席與點名紀錄 (使用 UUID 關聯)
                 const { data: attendance } = await sb.from('attendance').select('*').eq('student_id', studentId).order('check_date', { ascending: false });
                 
                 if(attendance && attendance.length > 0) {
@@ -711,7 +806,7 @@
         }
 
         // ==========================================
-        // 🌟 家長綁定 QR Code 相關功能 (第二塊積木)
+        // 🌟 家長綁定 QR Code 相關功能
         // ==========================================
         
         // ⚠️⚠️⚠️ 請務必將下方的 LIFF_ID 替換為您在 LINE Developers 取得的真實代碼！

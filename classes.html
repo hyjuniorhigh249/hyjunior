@@ -164,6 +164,28 @@
         </div>
     </div>
 
+    <div id="transfer-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 class="text-lg font-black mb-4 flex items-center gap-2"><span>🔄</span> 學生無縫轉班</h3>
+            <p class="text-sm font-bold text-slate-600 mb-4 bg-slate-50 p-3 rounded-lg border">
+                將 <span id="trans-stu-name" class="text-indigo-600 font-black"></span> 從<br>
+                <span id="trans-old-sub" class="text-rose-500 font-black mt-1 inline-block"></span><br>
+                轉移至：
+            </p>
+            <input type="hidden" id="trans-clsId">
+            <input type="hidden" id="trans-oldIdx">
+            <input type="hidden" id="trans-memberValue">
+            
+            <label class="block text-xs font-bold text-slate-500 mb-1">目標子班別 (僅限同主班級內)</label>
+            <select id="trans-targetIdx" class="w-full p-2.5 border-2 border-indigo-200 rounded-lg mb-6 font-black bg-indigo-50 text-indigo-800 outline-none focus:border-indigo-500 shadow-inner"></select>
+            
+            <div class="flex gap-2">
+                <button type="button" onclick="closeModal('transfer-modal')" class="flex-1 py-3 bg-slate-100 rounded-xl font-bold hover:bg-slate-200 text-slate-600 transition">取消</button>
+                <button type="button" onclick="executeTransfer()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-black hover:bg-indigo-700 shadow-md transition transform hover:-translate-y-0.5">確認轉班</button>
+            </div>
+        </div>
+    </div>
+
     <div id="rate-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]">
             <div class="flex justify-between items-center mb-4">
@@ -200,10 +222,12 @@
         const dayMap = { '0': '日', '1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六' };
 
         async function init() {
-            const { data: classes } = await sb.from('classes').select('*').order('created_at', { ascending: false });
-            const { data: students } = await sb.from('students').select('*');
-            const { data: employees } = await sb.from('employees').select('id, name, stage_name, status').eq('status', '在職');
-            const { data: rates, error: rateErr } = await sb.from('hourly_rate_rules').select('*').order('course_level').order('rate_level').order('min_students');
+            const [ { data: classes }, { data: students }, { data: employees }, { data: rates, error: rateErr } ] = await Promise.all([
+                sb.from('classes').select('*').order('created_at', { ascending: false }),
+                sb.from('students').select('*'),
+                sb.from('employees').select('id, name, stage_name, status').eq('status', '在職'),
+                sb.from('hourly_rate_rules').select('*').order('course_level').order('rate_level').order('min_students')
+            ]);
 
             allClassData = classes || [];
             allStudents = students || [];
@@ -213,7 +237,6 @@
             stuMap = {};
             allStudents.forEach(s => { stuMap[s.id] = s.name; });
 
-            // 綁定顯示過期事件
             document.getElementById('show-expired').addEventListener('change', renderClassList);
 
             renderClassList();
@@ -226,7 +249,6 @@
             return m; 
         }
 
-        // 獨立出左側列表渲染邏輯，支援過濾
         function renderClassList() {
             const leftList = document.getElementById('left-class-list');
             const showExpired = document.getElementById('show-expired').checked;
@@ -234,7 +256,7 @@
             
             const displayClasses = allClassData.filter(cls => {
                 if (showExpired) return true;
-                if (!cls.end_date) return true; // 未設定結束日視為永遠有效
+                if (!cls.end_date) return true;
                 return cls.end_date >= today;
             });
 
@@ -276,7 +298,6 @@
                 }).join('');
         }
 
-        // 渲染右側詳細畫面
         function renderRightPanel() {
             const rightPane = document.getElementById('right-class-detail');
             const cls = allClassData.find(c => c.id === selectedClassId);
@@ -343,9 +364,10 @@
                             
                             <div class="flex flex-wrap gap-1.5 bg-slate-50 p-2 rounded-lg min-h-[50px] items-start content-start border border-slate-100">
                                 ${(sub.members || []).map(m => `
-                                    <span class="bg-white px-2 py-1 rounded border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1.5 shadow-sm">
+                                    <span class="bg-white pl-2 pr-1 py-1 rounded border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-1 shadow-sm">
                                         ${getMemberDisplayName(m)} 
-                                        <span onclick="removeStudent('${cls.id}', ${idx}, '${m}')" class="text-slate-300 cursor-pointer hover:text-rose-500 hover:bg-rose-50 rounded-full w-4 h-4 flex items-center justify-center transition">×</span>
+                                        <span onclick="openTransferModal('${cls.id}', ${idx}, '${m}')" class="text-indigo-400 cursor-pointer hover:text-indigo-600 hover:bg-indigo-50 rounded w-5 h-5 flex items-center justify-center transition ml-1" title="轉移至同主班級下的其他子班別">🔄</span>
+                                        <span onclick="removeStudent('${cls.id}', ${idx}, '${m}')" class="text-slate-300 cursor-pointer hover:text-rose-500 hover:bg-rose-50 rounded w-5 h-5 flex items-center justify-center transition" title="移除學生">×</span>
                                     </span>
                                 `).join('')}
                                 ${(sub.members || []).length === 0 ? '<span class="text-xs text-slate-400 font-bold p-1">尚未加入學生</span>' : ''}
@@ -355,6 +377,169 @@
                 </div>
             `;
         }
+
+        // ✅ 防呆機制 1：刪除主班級前檢查是否有子班別已經繳費入帳
+        async function deleteClass(id) {
+            const cls = allClassData.find(c => c.id === id);
+            const targetNames = (cls.sub_classes || []).map(s => `${cls.name}-${s.name}`);
+            
+            // 掃描資料庫中所有繳費紀錄的沖銷明細
+            const { data } = await sb.from('payment_logs').select('allocation_details').not('allocation_details', 'is', null);
+            const hasPayment = data && data.some(log => log.allocation_details && log.allocation_details.some(a => targetNames.includes(a.class_name)));
+            
+            if (hasPayment) {
+                return alert("⚠️ 系統阻擋：無法刪除！\n\n此主班級下的子班別「已有學生繳費紀錄」。\n為確保帳務正確，請先至「會計系統」將相關繳費紀錄【反沖作廢】後，才能進行刪除。");
+            }
+
+            if(confirm("確定要刪除整個主班級與底下的所有子班別嗎？\n注意：此動作無法復原！")) { 
+                await sb.from('classes').delete().eq('id', id); 
+                selectedClassId = null; 
+                init(); 
+            }
+        }
+
+        // ✅ 防呆機制 2：刪除子班別前檢查是否已有學生繳費入帳
+        async function deleteSub(clsId, idx) { 
+            const cls = allClassData.find(c => c.id === clsId);
+            const sub = cls.sub_classes[idx];
+            const targetName = `${cls.name}-${sub.name}`;
+            
+            // 掃描資料庫
+            const { data } = await sb.from('payment_logs').select('allocation_details').not('allocation_details', 'is', null);
+            const hasPayment = data && data.some(log => log.allocation_details && log.allocation_details.some(a => a.class_name === targetName));
+            
+            if (hasPayment) {
+                return alert("⚠️ 系統阻擋：無法刪除！\n\n此子班別「已有學生繳費紀錄」。\n為確保帳務正確，請先至「會計系統」將相關繳費紀錄【反沖作廢】後，才能進行刪除。");
+            }
+
+            if(confirm("確定要刪除此子班別嗎？")) { 
+                let subs = [...cls.sub_classes]; 
+                subs.splice(idx, 1); 
+                await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId); 
+                init(); 
+            } 
+        }
+
+        // ✅ 防呆機制 3：從子班別移除學生(×)前，檢查該名學生是否有繳費該班
+        async function removeStudent(clsId, idx, memberValue) { 
+            const cls = allClassData.find(c => c.id === clsId);
+            const sub = cls.sub_classes[idx];
+            const targetName = `${cls.name}-${sub.name}`;
+            const dispName = getMemberDisplayName(memberValue);
+            
+            // 轉換為精準的 UUID
+            const stu = allStudents.find(s => s.id === memberValue || s.name === memberValue);
+            const stuId = stu ? stu.id : memberValue;
+
+            // 針對該學生的繳費紀錄進行掃描
+            const { data } = await sb.from('payment_logs')
+                .select('allocation_details')
+                .eq('student_id', stuId)
+                .not('allocation_details', 'is', null);
+                
+            const hasPayment = data && data.some(log => log.allocation_details && log.allocation_details.some(a => a.class_name === targetName));
+            
+            if (hasPayment) {
+                return alert(`⚠️ 系統阻擋：無法移除！\n\n「${dispName}」在「${targetName}」已有實際繳費紀錄。\n為避免死帳產生，請先將該筆繳費【反沖作廢】後，才能將學生從班級名單中移除。`);
+            }
+
+            if(confirm(`確定要將 ${dispName} 從這個班別移除嗎？`)) { 
+                let subs = [...cls.sub_classes]; 
+                subs[idx].members = subs[idx].members.filter(m => m !== memberValue); 
+                await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId); 
+                init(); 
+            } 
+        }
+
+        // ==========================================
+        // ✅ 核心黑科技：學生無縫轉班機制 (帳務自動連動)
+        // ==========================================
+        function openTransferModal(clsId, idx, memberValue) {
+            const cls = allClassData.find(c => c.id === clsId);
+            if (!cls || !cls.sub_classes || cls.sub_classes.length <= 1) {
+                return alert("⚠️ 此主班級下無其他子班別可供轉班！\n請先新增其他子班別。");
+            }
+            
+            const dispName = getMemberDisplayName(memberValue);
+            document.getElementById('trans-stu-name').innerText = dispName;
+            document.getElementById('trans-old-sub').innerText = cls.sub_classes[idx].name;
+            
+            document.getElementById('trans-clsId').value = clsId;
+            document.getElementById('trans-oldIdx').value = idx;
+            document.getElementById('trans-memberValue').value = memberValue;
+            
+            const sel = document.getElementById('trans-targetIdx');
+            sel.innerHTML = cls.sub_classes.map((s, i) => {
+                if (i === idx) return ''; // 排除自己目前的班別
+                return `<option value="${i}">${s.name}</option>`;
+            }).join('');
+            
+            document.getElementById('transfer-modal').classList.add('active');
+        }
+
+        async function executeTransfer() {
+            const clsId = document.getElementById('trans-clsId').value;
+            const oldIdx = parseInt(document.getElementById('trans-oldIdx').value);
+            const newIdx = parseInt(document.getElementById('trans-targetIdx').value);
+            const memberValue = document.getElementById('trans-memberValue').value;
+            
+            const cls = allClassData.find(c => c.id === clsId);
+            const oldName = `${cls.name}-${cls.sub_classes[oldIdx].name}`;
+            const newName = `${cls.name}-${cls.sub_classes[newIdx].name}`;
+            
+            const stu = allStudents.find(s => s.id === memberValue || s.name === memberValue);
+            const stuId = stu ? stu.id : memberValue;
+
+            if(!confirm(`即將把該名學生轉至「${cls.sub_classes[newIdx].name}」\n系統將會自動連動其相關帳務與已繳紀錄。\n\n確定執行無縫轉班嗎？`)) return;
+
+            try {
+                // 1. 轉移名單 (Classes Table)
+                let subs = JSON.parse(JSON.stringify(cls.sub_classes));
+                subs[oldIdx].members = subs[oldIdx].members.filter(m => m !== memberValue);
+                if (!subs[newIdx].members) subs[newIdx].members = [];
+                if (!subs[newIdx].members.includes(memberValue)) subs[newIdx].members.push(memberValue);
+                
+                await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId);
+                
+                // 2. 轉移學費折扣設定 (Student Bills Table)
+                await sb.from('student_bills')
+                        .update({ sub_idx: newIdx })
+                        .eq('class_id', clsId)
+                        .eq('sub_idx', oldIdx)
+                        .eq('student_id', stuId);
+
+                // 3. 轉移收據與繳費明細 (Payment Logs Allocation Details)
+                const { data: logs } = await sb.from('payment_logs')
+                    .select('*')
+                    .eq('student_id', stuId)
+                    .not('allocation_details', 'is', null);
+                    
+                if (logs && logs.length > 0) {
+                    for (let log of logs) {
+                        let changed = false;
+                        let newAlloc = log.allocation_details.map(a => {
+                            if (a.class_name === oldName) {
+                                changed = true;
+                                return { ...a, class_name: newName };
+                            }
+                            return a;
+                        });
+                        
+                        // 若這張繳費單有包含該舊班別，將其名稱覆寫儲存，達成報表無縫轉移
+                        if (changed) {
+                            await sb.from('payment_logs').update({ allocation_details: newAlloc }).eq('serial_no', log.serial_no);
+                        }
+                    }
+                }
+                
+                alert("✅ 轉班成功！該學生的名單、帳務明細、優惠設定皆已無縫轉移完畢。");
+                closeModal('transfer-modal');
+                init();
+            } catch (err) {
+                alert("轉班失敗：" + err.message);
+            }
+        }
+        // ==========================================
 
         function openClassModal(id = null) {
             document.getElementById('cls-id').value = id || '';
@@ -516,24 +701,6 @@
             await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId);
             closeModal('sub-modal'); 
             init();
-        }
-
-        async function deleteClass(id) { 
-            if(confirm("確定要刪除整個主班級與底下的所有子班別嗎？\n注意：此動作無法復原！")) { 
-                await sb.from('classes').delete().eq('id', id); 
-                selectedClassId = null; 
-                init(); 
-            } 
-        }
-
-        async function deleteSub(clsId, idx) { 
-            if(confirm("確定要刪除此子班別嗎？")) { 
-                const cls = allClassData.find(c => c.id === clsId); 
-                let subs = [...cls.sub_classes]; 
-                subs.splice(idx, 1); 
-                await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId); 
-                init(); 
-            } 
         }
 
         function openRateModal() {
@@ -699,17 +866,6 @@
             cls.sub_classes = subs; 
             filterStudents(); 
             renderClassList(); 
-        }
-
-        async function removeStudent(clsId, idx, memberValue) { 
-            const dispName = getMemberDisplayName(memberValue);
-            if(confirm(`確定要將 ${dispName} 從這個班別移除嗎？`)) { 
-                const cls = allClassData.find(c => c.id === clsId); 
-                let subs = [...cls.sub_classes]; 
-                subs[idx].members = subs[idx].members.filter(m => m !== memberValue); 
-                await sb.from('classes').update({ sub_classes: subs }).eq('id', clsId); 
-                init(); 
-            } 
         }
 
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }

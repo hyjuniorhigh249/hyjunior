@@ -10,54 +10,55 @@
 <body class="bg-slate-50 font-sans text-gray-800">
 
     <div class="flex h-screen overflow-hidden">
-        <div class="flex-1 flex flex-col overflow-y-auto p-8">
+        <div class="flex-1 flex flex-col p-8 overflow-hidden">
             
-            <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                <h1 class="text-2xl font-bold text-gray-900">個別指導管理</h1>
-                <div class="text-sm text-gray-500">當前系統時間：<span id="current-time-display"></span></div>
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200 shrink-0">
+                <div class="flex items-center gap-6">
+                    <h1 class="text-2xl font-bold text-gray-900">個別指導管理</h1>
+                    <button onclick="toggleCreationSection()" id="btn-toggle-creation" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-black text-sm shadow-md transition transform hover:-translate-y-0.5 flex items-center gap-2">
+                        <span>➕ 展開開單面板</span>
+                    </button>
+                </div>
+                <div class="text-sm text-gray-500 font-bold bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
+                    當前系統時間：<span id="current-time-display" class="text-blue-700"></span>
+                </div>
             </div>
 
-            <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-                
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col h-auto max-h-[350px]">
-                    <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center shrink-0">
-                        <span class="w-6 h-6 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center mr-2">1</span>
-                        選擇學生名單
-                    </h2>
+            <div id="creation-section" class="hidden mb-6 shrink-0 transition-all duration-300">
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     
-                    <div class="mb-4 shrink-0">
-                        <label class="block text-xs font-bold text-gray-500 mb-1">依智慧年級篩選 (7月自動升級)</label>
-                        <select id="filter-grade" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
-                            <option value="ALL">全部年級</option>
-                            <option value="小一">小一</option><option value="小二">小二</option><option value="小三">小三</option>
-                            <option value="小四">小四</option><option value="小五">小五</option><option value="小六">小六</option>
-                            <option value="國一">國一</option><option value="國二">國二</option><option value="國三">國三</option>
-                            <option value="高一">高一</option><option value="高二">高二</option><option value="高三">高三</option>
-                        </select>
-                    </div>
-
-                    <div class="flex-1 border border-gray-200 rounded-lg p-3 overflow-y-auto space-y-2 bg-slate-50 min-h-[120px]" id="student-list-container">
-                        <p class="text-sm text-gray-400 text-center py-6 font-bold">正在從資料庫載入名單...</p>
-                    </div>
-                    
-                    <div class="mt-3 text-xs font-bold text-slate-500 text-right shrink-0" id="selected-count-display">
-                        已選定：0 位學生
-                    </div>
-                </div>
-
-                <div class="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
-                    <div class="p-6 pb-4 flex justify-between items-center cursor-pointer hover:bg-blue-50 transition rounded-t-xl group" onclick="toggleFormPanel()">
-                        <div class="flex items-center">
-                            <h2 class="text-lg font-semibold text-gray-700 flex items-center">
-                                <span class="w-6 h-6 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center mr-2">2</span>
-                                設定班型與學費細項
-                            </h2>
-                            <span id="form-panel-summary" class="ml-4 text-xs font-bold text-blue-600 bg-blue-100 px-3 py-1 rounded-full border border-blue-200 shadow-sm group-hover:bg-blue-200 transition">👉 點擊此處展開，以建立新的個指班單據</span>
+                    <div class="flex flex-col border-r xl:border-gray-200 xl:pr-6">
+                        <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center shrink-0">
+                            <span class="w-6 h-6 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center mr-2">1</span>
+                            選擇學生名單
+                        </h2>
+                        
+                        <div class="mb-4 shrink-0">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">依智慧年級篩選 (7月自動升級)</label>
+                            <select id="filter-grade" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-slate-50 font-bold">
+                                <option value="ALL">全部年級</option>
+                                <option value="小一">小一</option><option value="小二">小二</option><option value="小三">小三</option>
+                                <option value="小四">小四</option><option value="小五">小五</option><option value="小六">小六</option>
+                                <option value="國一">國一</option><option value="國二">國二</option><option value="國三">國三</option>
+                                <option value="高一">高一</option><option value="高二">高二</option><option value="高三">高三</option>
+                            </select>
                         </div>
-                        <span id="form-panel-icon" class="text-gray-500 font-bold transform transition-transform duration-200 text-xl -rotate-90">▼</span>
+
+                        <div class="flex-1 border border-gray-200 rounded-lg p-3 overflow-y-auto space-y-2 bg-slate-50 min-h-[250px] max-h-[350px]" id="student-list-container">
+                            <p class="text-sm text-gray-400 text-center py-6 font-bold">正在從資料庫載入名單...</p>
+                        </div>
+                        
+                        <div class="mt-3 text-xs font-bold text-slate-500 text-right shrink-0" id="selected-count-display">
+                            已選定：0 位學生
+                        </div>
                     </div>
-                    
-                    <div id="form-panel-content" class="px-6 pb-6 pt-2 border-t border-gray-100 hidden">
+
+                    <div class="xl:col-span-2 flex flex-col xl:pl-2">
+                        <h2 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                            <span class="w-6 h-6 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center mr-2">2</span>
+                            設定班型與學費細項
+                        </h2>
+                        
                         <form id="individual-class-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-600 mb-1">1. 班型</label>
@@ -179,21 +180,26 @@
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex-1 min-h-[400px]">
-                <div class="flex justify-between items-center mb-4">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex-1 flex flex-col min-h-0">
+                <div class="flex justify-between items-center mb-4 shrink-0">
                     <div class="flex items-center gap-3">
-                        <h2 class="text-lg font-bold text-slate-800">已設立個指班別列表 <span class="text-xs text-slate-400 font-normal ml-2">(系統已自動置頂「待排課」學生)</span></h2>
-                        <label class="flex items-center gap-1.5 text-xs font-bold text-slate-500 cursor-pointer hover:text-slate-700 bg-slate-100 px-2 py-1 rounded">
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center">
+                            <span class="w-6 h-6 bg-slate-800 text-white text-xs rounded-full flex items-center justify-center mr-2">3</span>
+                            已設立個指班別列表
+                        </h2>
+                        <span class="text-xs text-slate-400 font-normal hidden md:inline">(系統已自動置頂「待排課」學生)</span>
+                        <label class="flex items-center gap-1.5 text-xs font-bold text-slate-500 cursor-pointer hover:text-slate-700 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 ml-2">
                             <input type="checkbox" id="show-expired" class="w-3.5 h-3.5 rounded border-slate-300 cursor-pointer">
                             顯示過期班別
                         </label>
                     </div>
                     <span class="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full border border-slate-200" id="total-records-count">共 0 位學生</span>
                 </div>
-                <div class="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
+                
+                <div class="overflow-y-auto flex-1 rounded-lg border border-slate-200 shadow-sm relative">
                     <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-100 text-slate-600 text-sm font-bold border-b border-slate-200">
+                        <thead class="sticky top-0 bg-slate-100 z-10 shadow-sm">
+                            <tr class="text-slate-600 text-sm font-bold border-b border-slate-200">
                                 <th class="p-3 w-10 text-center"></th>
                                 <th class="p-3">學生姓名</th>
                                 <th class="p-3">學校</th>
@@ -202,9 +208,9 @@
                                 <th class="p-3 text-center">操作動作</th>
                             </tr>
                         </thead>
-                        <tbody id="classes-list-table-body" class="text-sm divide-y divide-slate-200">
+                        <tbody id="classes-list-table-body" class="text-sm divide-y divide-slate-200 bg-white">
                             <tr>
-                                <td colspan="6" class="p-6 text-center text-slate-400 font-bold">正在讀取現有開班紀錄...</td>
+                                <td colspan="6" class="p-8 text-center text-slate-400 font-bold">正在讀取現有開班紀錄...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -290,6 +296,24 @@
         }
         window.onload = init;
 
+        // 🔥 新增：整體控制面板展開/收合
+        function toggleCreationSection() {
+            const section = document.getElementById('creation-section');
+            const btn = document.getElementById('btn-toggle-creation');
+            
+            if (section.classList.contains('hidden')) {
+                section.classList.remove('hidden');
+                btn.innerHTML = '<span>➖ 收合開單面板</span>';
+                btn.classList.replace('bg-blue-600', 'bg-slate-500');
+                btn.classList.replace('hover:bg-blue-700', 'hover:bg-slate-600');
+            } else {
+                section.classList.add('hidden');
+                btn.innerHTML = '<span>➕ 展開開單面板</span>';
+                btn.classList.replace('bg-slate-500', 'bg-blue-600');
+                btn.classList.replace('hover:bg-slate-600', 'hover:bg-blue-700');
+            }
+        }
+
         function addWeeksToDateStr(dateStr, weeksToAdd) {
             if (!dateStr) return '';
             let d = new Date(dateStr);
@@ -298,22 +322,6 @@
             const mm = String(d.getMonth() + 1).padStart(2, '0');
             const dd = String(d.getDate()).padStart(2, '0');
             return `${yy}-${mm}-${dd}`;
-        }
-
-        function toggleFormPanel() {
-            const content = document.getElementById('form-panel-content');
-            const icon = document.getElementById('form-panel-icon');
-            const summary = document.getElementById('form-panel-summary');
-            
-            if (content.classList.contains('hidden')) {
-                content.classList.remove('hidden');
-                icon.classList.remove('-rotate-90');
-                summary.classList.add('hidden');
-            } else {
-                content.classList.add('hidden');
-                icon.classList.add('-rotate-90');
-                summary.classList.remove('hidden');
-            }
         }
 
         function toggleStudentRow(studentId) {
@@ -334,21 +342,21 @@
             const modalHTML = `
             <div id="schedule-modal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 items-center justify-center p-4 backdrop-blur-sm transition-all">
                 <div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden border border-slate-200">
-                    <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
+                    <div class="bg-blue-600 text-white p-4 flex justify-between items-center shrink-0">
                         <h2 class="text-xl font-black tracking-wider flex items-center gap-2">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                             個指專屬排課系統
                         </h2>
                         <button onclick="closeScheduleModal()" class="text-white hover:text-red-200 transition font-bold text-2xl">&times;</button>
                     </div>
-                    <div class="p-4 bg-slate-50 border-b border-slate-200 grid grid-cols-5 gap-4 text-sm shadow-inner">
+                    <div class="p-4 bg-slate-50 border-b border-slate-200 grid grid-cols-5 gap-4 text-sm shadow-inner shrink-0">
                         <div><span class="text-slate-400 font-bold block mb-1">班型 / 年級</span><strong id="sm-type-grade" class="text-blue-800 text-base"></strong></div>
                         <div><span class="text-slate-400 font-bold block mb-1">科目 / 學生</span><strong id="sm-subject-student" class="text-blue-800 text-base"></strong></div>
                         <div><span class="text-slate-400 font-bold block mb-1">總堂數 / 總週數</span><strong id="sm-sessions-weeks" class="text-slate-700 text-base"></strong></div>
                         <div><span class="text-slate-400 font-bold block mb-1">應排總時數</span><strong id="sm-target-hours" class="text-purple-700 text-lg font-black bg-purple-100 px-2 py-0.5 rounded"></strong></div>
                         <div><span class="text-slate-400 font-bold block mb-1">目前已排時數</span><strong id="sm-current-hours" class="text-rose-600 text-lg font-black bg-rose-100 px-2 py-0.5 rounded">0 H</strong></div>
                     </div>
-                    <div class="p-3 bg-white flex space-x-3 border-b border-slate-200">
+                    <div class="p-3 bg-white flex space-x-3 border-b border-slate-200 shrink-0">
                         <button onclick="addScheduleRow()" class="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-bold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-1">
                             <span class="text-lg">+</span> 單堂新增
                         </button>
@@ -358,9 +366,9 @@
                         </button>
                         <span class="text-xs text-slate-400 mt-2 ml-2">※ 批次功能會直接複製目前列表上的星期與時間，自動加7天直到補滿總週數。</span>
                     </div>
-                    <div class="flex-1 overflow-auto bg-slate-50 p-4">
+                    <div class="flex-1 overflow-y-auto bg-slate-50 p-4">
                         <table class="w-full text-sm text-left bg-white shadow-sm rounded-lg overflow-hidden border border-slate-200">
-                            <thead class="bg-slate-100 text-slate-600">
+                            <thead class="bg-slate-100 text-slate-600 sticky top-0 z-10 shadow-sm">
                                 <tr>
                                     <th class="p-3 font-bold">日期</th>
                                     <th class="p-3 font-bold w-16">星期</th>
@@ -376,7 +384,7 @@
                             <tbody id="sm-rows-container"></tbody>
                         </table>
                     </div>
-                    <div class="p-4 bg-white border-t border-slate-200 flex justify-end items-center gap-4">
+                    <div class="p-4 bg-white border-t border-slate-200 flex justify-end items-center gap-4 shrink-0">
                         <button onclick="closeScheduleModal()" class="px-6 py-2.5 font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-lg transition">取消</button>
                         <button onclick="saveSchedules()" class="px-8 py-2.5 font-black text-white bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg rounded-lg transition text-lg">💾 儲存並檢核時數</button>
                     </div>
@@ -632,6 +640,11 @@
                 performCalculations();
                 renderStudentList();
                 await fetchIndividualClasses();
+                
+                // 開單成功後，自動幫行政人員收起大面板
+                if (!document.getElementById('creation-section').classList.contains('hidden')) {
+                    toggleCreationSection();
+                }
             } catch (err) {
                 alert("寫入失敗！\n\n系統錯誤：" + err.message);
             }
@@ -760,7 +773,7 @@
             tbody.innerHTML = "";
 
             if (groupedStudents.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 font-bold">目前尚無符合的紀錄</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-slate-400 font-bold">目前尚無符合的紀錄</td></tr>`;
                 return;
             }
 
@@ -778,16 +791,16 @@
                 }
 
                 const parentTr = document.createElement('tr');
-                parentTr.className = "hover:bg-slate-50 transition border-b border-slate-200 cursor-pointer";
+                parentTr.className = "hover:bg-slate-50 transition border-b border-slate-200 cursor-pointer group";
                 parentTr.onclick = () => toggleStudentRow(stu.id);
                 parentTr.innerHTML = `
-                    <td class="p-3 text-center text-slate-400 font-bold" id="icon-stu-${stu.id}">▶</td>
-                    <td class="p-3 font-black text-blue-800 text-base">${stu.name}</td>
+                    <td class="p-3 text-center text-slate-300 font-bold group-hover:text-blue-500 transition" id="icon-stu-${stu.id}">▶</td>
+                    <td class="p-3 font-black text-blue-800 text-base group-hover:text-blue-600">${stu.name}</td>
                     <td class="p-3 font-bold text-slate-600">${stu.school}</td>
                     <td class="p-3 font-bold text-slate-500">${stu.grade}</td>
                     <td class="p-3">${statusBadge}</td>
                     <td class="p-3 text-center">
-                        <button class="text-xs font-bold bg-white text-slate-600 border border-slate-300 px-3 py-1.5 rounded hover:bg-slate-100 transition shadow-sm pointer-events-none">展開明細</button>
+                        <button class="text-xs font-bold bg-white text-slate-600 border border-slate-300 px-3 py-1.5 rounded group-hover:bg-blue-50 group-hover:text-blue-700 group-hover:border-blue-200 transition shadow-sm pointer-events-none">展開單據</button>
                     </td>
                 `;
                 tbody.appendChild(parentTr);
@@ -799,11 +812,11 @@
                 stu.classes.sort((a, b) => new Date(b.issue_date) - new Date(a.issue_date));
                 
                 let childTableHtml = `
-                    <div class="p-4 pl-10 pr-6">
+                    <div class="p-4 pl-10 pr-6 bg-slate-50/50">
                         <table class="w-full text-sm text-left bg-white shadow-sm rounded-lg overflow-hidden border border-slate-200">
                             <thead class="bg-slate-200/60 text-slate-500">
                                 <tr>
-                                    <th class="p-2.5 font-bold">開單日期</th>
+                                    <th class="p-2.5 font-bold w-24">開單日期</th>
                                     <th class="p-2.5 font-bold">科目 (班型/級別)</th>
                                     <th class="p-2.5 font-bold">時數/堂數</th>
                                     <th class="p-2.5 font-bold">精準推算期間</th>

@@ -10,6 +10,7 @@
         body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f1f5f9; color: #1e293b; }
         .dashboard-card { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0; }
         .course-card { background: #f8fafc; border-radius: 0.75rem; border-left: 6px solid #3b82f6; padding: 1rem; margin-bottom: 0.75rem; }
+        .course-card.indiv { border-left-color: #8b5cf6; background: #f5f3ff; }
         .scroll-area { max-height: 350px; overflow-y: auto; padding-right: 0.5rem; }
         .scroll-area::-webkit-scrollbar { width: 6px; }
         .scroll-area::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -22,13 +23,13 @@
             <div class="dashboard-card bg-gradient-to-br from-blue-500 to-blue-700 text-white border-none">
                 <h3 class="font-bold text-blue-100 text-sm">活躍繳費學生人數</h3>
                 <div class="text-4xl font-black mt-2" id="stat-student-count">--</div>
-                <p class="text-xs text-blue-200 mt-2">今日起有課 且 總繳費≧3000</p>
+                <p class="text-xs text-blue-200 mt-2">今日起有課(含個指) 且 總繳費≧3000</p>
             </div>
             
             <div class="dashboard-card bg-gradient-to-br from-rose-500 to-rose-700 text-white border-none">
                 <h3 class="font-bold text-rose-100 text-sm">全班系尚欠總額</h3>
                 <div class="text-4xl font-black mt-2" id="stat-total-debt">--</div>
-                <p class="text-xs text-rose-200 mt-2">需催繳提醒</p>
+                <p class="text-xs text-rose-200 mt-2">需催繳提醒 (包含個指)</p>
             </div>
             
             <div class="dashboard-card bg-gradient-to-br from-amber-500 to-amber-700 text-white border-none">
@@ -122,66 +123,101 @@
             
             const currentDayOfWeek = new Date(todayStr).getDay().toString();
 
+            // 🌟 核心升級：同時撈取團班資料與個指資料 (使用 select('*') 來防呆欄位變動)
             const [
-                { data: students },
-                { data: classes },
-                { data: attendance },
-                { data: payments },
-                { data: bills }
+                resStudents, resClasses, resAttendance, resPayments, resBills, resIndivClasses, resIndivSchedules
             ] = await Promise.all([
                 sb.from('students').select('id, name'),
                 sb.from('classes').select('*'),
                 sb.from('attendance').select('student_id, leave_type, leave_reason').eq('check_date', todayStr),
                 sb.from('payment_logs').select('student_id, amount'),
-                sb.from('student_bills').select('student_id, class_id, sub_idx, discount_amount')
+                sb.from('student_bills').select('student_id, class_id, sub_idx, discount_amount'),
+                sb.from('individual_classes').select('*'), // 撈取個指費用主檔
+                sb.from('individual_schedules').select('*') // 撈取個指排課檔
             ]);
 
-            const stuIdToName = {};
-            (students || []).forEach(s => stuIdToName[s.id] = s.name);
+            const students = resStudents.data || [];
+            const classes = resClasses.data || [];
+            const attendance = resAttendance.data || [];
+            const payments = resPayments.data || [];
+            const bills = resBills.data || [];
+            
+            // 若表格不存在，Supabase 會返回 error，我們防呆視為空陣列
+            const indivClasses = resIndivClasses.data || [];
+            const indivSchedules = resIndivSchedules.data || [];
 
+            const stuIdToName = {};
+            students.forEach(s => stuIdToName[s.id] = s.name);
+
+            // 已繳總額計算 (這裡完全正確，所有繳費都在 payment_logs)
             const paidMap = {};
-            (payments || []).forEach(p => {
+            payments.forEach(p => {
                 if(p.student_id) paidMap[p.student_id] = (paidMap[p.student_id] || 0) + p.amount;
             });
 
-            // 1. 今日課程
+            // ===============================
+            // 1. 今日課程 (整合團班 + 個指)
+            // ===============================
             let todaysEvents = [];
-            (classes || []).forEach(cls => {
+            
+            // A. 團班
+            classes.forEach(cls => {
                 const isPast = cls.end_date && cls.end_date < todayStr;
                 const isFuture = cls.start_date && cls.start_date > todayStr;
                 if (!isPast && !isFuture && cls.sub_classes) {
                     cls.sub_classes.forEach(sub => {
                         if (sub.day === currentDayOfWeek || (sub.class_days && sub.class_days.includes(parseInt(currentDayOfWeek)))) {
-                            todaysEvents.push({ ...sub, parentName: cls.name });
+                            todaysEvents.push({ ...sub, parentName: cls.name, type: 'group' });
                         }
                     });
                 }
             });
+
+            // B. 個別指導
+            indivSchedules.forEach(sched => {
+                if (sched.class_date === todayStr) {
+                    todaysEvents.push({
+                        start_time: sched.start_time || sched.start || '--:--',
+                        end_time: sched.end_time || sched.end || '--:--',
+                        parentName: '🎯 個別指導',
+                        name: stuIdToName[sched.student_id] ? `${stuIdToName[sched.student_id]} 的專屬課程` : '專屬課程',
+                        teacher_name: sched.teacher_name || sched.teacher || '未定',
+                        type: 'indiv'
+                    });
+                }
+            });
+
+            // 依據時間排序
             todaysEvents.sort((a, b) => (a.start_time || a.start || '').localeCompare(b.start_time || b.start || ''));
+            
             document.getElementById('today-classes-list').innerHTML = todaysEvents.length > 0 
                 ? todaysEvents.map(e => `
-                    <div class="course-card">
-                        <span class="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded">${e.start_time || e.start || ''} - ${e.end_time || e.end || ''}</span>
+                    <div class="course-card ${e.type === 'indiv' ? 'indiv' : ''}">
+                        <span class="${e.type === 'indiv' ? 'bg-purple-600' : 'bg-blue-600'} text-white text-[10px] font-black px-2 py-0.5 rounded">${e.start_time || e.start || ''} - ${e.end_time || e.end || ''}</span>
                         <h4 class="text-base font-black mt-1 text-slate-800">${e.parentName} - ${e.name}</h4>
                         <p class="text-xs font-bold text-slate-500 mt-1">老師：${e.teacher_name || e.teacher || '未定'}</p>
                     </div>`).join('')
                 : '<div class="text-center py-6 text-slate-400 font-bold border-2 border-dashed rounded-lg">今日無課程</div>';
 
-            // 2. 欠費名單 & 活躍學生
+
+            // ===============================
+            // 2. 欠費名單 & 活躍學生 (完美雙軌制)
+            // ===============================
             let totalSysDebt = 0;
             let debtsHtml = '';
             let activeStudentIds = new Set();
 
-            (students || []).forEach(stu => {
+            students.forEach(stu => {
                 let sPayable = 0;
                 let isActiveStudent = false;
 
-                (classes || []).forEach(c => {
+                // A. 團班判斷 (是否活躍、應繳學費)
+                classes.forEach(c => {
                     if (!c.end_date || c.end_date >= todayStr) {
                         (c.sub_classes || []).forEach((sub, idx) => {
-                            if (sub.members && sub.members.includes(stu.name)) {
-                                isActiveStudent = true;
-                                const b = (bills || []).find(x => x.class_id === c.id && x.sub_idx === idx && x.student_id === stu.id);
+                            if (sub.members && (sub.members.includes(stu.id) || sub.members.includes(stu.name))) {
+                                isActiveStudent = true; // 團班活躍
+                                const b = bills.find(x => x.class_id === c.id && x.sub_idx === idx && x.student_id === stu.id);
                                 const discount = b ? b.discount_amount : 0;
                                 sPayable += (sub.fee||0) + (sub.textbook_fee||0) + (sub.misc_fee||0) - discount;
                             }
@@ -189,9 +225,37 @@
                     }
                 });
 
+                // B. 個指活躍判斷：如果今日或未來有個指排課，就算活躍
+                indivSchedules.forEach(sched => {
+                    if ((sched.student_id === stu.id || sched.student_id === stu.name) && sched.class_date >= todayStr) {
+                        isActiveStudent = true;
+                    }
+                });
+
+                // C. 個指應繳費用計算
+                let hasIndivClassRecord = false;
+                indivClasses.forEach(indiv => {
+                    if (indiv.student_id === stu.id || indiv.student_id === stu.name) {
+                        hasIndivClassRecord = true;
+                        // 智能防呆：自動抓取可能的費用欄位
+                        sPayable += (indiv.total_tuition || indiv.tuition || indiv.fee || indiv.amount || 0);
+                    }
+                });
+
+                // 若 `individual_classes` 裡面沒找到該生，防呆去 `individual_schedules` 找是否有單堂費用
+                if (!hasIndivClassRecord) {
+                    indivSchedules.forEach(sched => {
+                        if (sched.student_id === stu.id || sched.student_id === stu.name) {
+                            sPayable += (sched.fee || sched.tuition || sched.amount || 0);
+                        }
+                    });
+                }
+
+                // 計算欠費
                 const sPaid = paidMap[stu.id] || 0;
                 const sDebt = sPayable - sPaid;
                 
+                // 🌟 最終活躍判定：只要 (有團班或個指) 且 (總繳費 >= 3000)
                 if (isActiveStudent && sPaid >= 3000) activeStudentIds.add(stu.id);
 
                 if (sDebt > 0) {
@@ -204,10 +268,12 @@
             document.getElementById('stat-total-debt').innerText = `$${totalSysDebt}`;
             document.getElementById('debts-list').innerHTML = debtsHtml || '<tr><td colspan="4" class="text-center py-6 text-slate-400 font-bold">目前無欠費學生</td></tr>';
 
+            // ===============================
             // 3. 今日缺席名單
+            // ===============================
             let absencesHtml = '';
             let absCount = 0;
-            (attendance || []).forEach(a => {
+            attendance.forEach(a => {
                 if (a.leave_type && a.leave_type !== 'none') {
                     absCount++;
                     const sName = stuIdToName[a.student_id] || '未知';
@@ -259,14 +325,14 @@
             if(error) return alert("新增失敗：" + error.message);
             
             document.getElementById('task-content').value = '';
-            loadTasks(); // 🌟 只重新讀取任務，速度極快
+            loadTasks(); 
         }
 
         async function deleteTask(id) {
             if(!confirm("確定要刪除/完成此事項嗎？")) return;
             const { error } = await sb.from('todo_notes').delete().eq('id', id);
             if(error) return alert("刪除失敗：" + error.message);
-            loadTasks(); // 🌟 只重新讀取任務
+            loadTasks(); 
         }
 
         window.onload = loadDashboard;

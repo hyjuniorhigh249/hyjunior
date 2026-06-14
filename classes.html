@@ -48,6 +48,7 @@
         </div>
     </div>
 
+    <!-- 主班級 Modal -->
     <div id="class-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 id="class-modal-title" class="text-lg font-black mb-4">設定主班級</h3>
@@ -83,6 +84,7 @@
         </div>
     </div>
 
+    <!-- 子班別 Modal -->
     <div id="sub-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto scroll-area">
             <h3 id="sub-modal-title" class="text-lg font-black mb-4">設定子班別</h3>
@@ -148,6 +150,7 @@
         </div>
     </div>
 
+    <!-- 加入學生 Modal -->
     <div id="student-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl flex flex-col max-h-[90vh]">
             <h3 class="text-lg font-black mb-4">加入學生至子班別</h3>
@@ -164,6 +167,7 @@
         </div>
     </div>
 
+    <!-- 學生無縫轉班 Modal -->
     <div id="transfer-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 class="text-lg font-black mb-4 flex items-center gap-2"><span>🔄</span> 學生無縫轉班</h3>
@@ -186,6 +190,7 @@
         </div>
     </div>
 
+    <!-- 鐘點級別設定 Modal -->
     <div id="rate-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]">
             <div class="flex justify-between items-center mb-4">
@@ -378,17 +383,13 @@
             `;
         }
 
-        // ✅ 防呆機制：刪除主班級前檢查是否有子班別已經繳費入帳
+        // ✅ 防呆機制：刪除主班級前，檢查底下的子班別是否還有學生
         async function deleteClass(id) {
             const cls = allClassData.find(c => c.id === id);
-            const targetNames = (cls.sub_classes || []).map(s => `${cls.name}-${s.name}`);
             
-            // 掃描資料庫中所有繳費紀錄的沖銷明細
-            const { data } = await sb.from('payment_logs').select('allocation_details').not('allocation_details', 'is', null);
-            const hasPayment = data && data.some(log => log.allocation_details && log.allocation_details.some(a => targetNames.includes(a.class_name)));
-            
-            if (hasPayment) {
-                return alert("⚠️ 系統阻擋：無法刪除！\n\n此主班級下的子班別「已有學生繳費紀錄」。\n為確保帳務正確，請先至「會計系統」將相關繳費紀錄【反沖作廢】後，才能進行刪除。");
+            const hasStudents = cls.sub_classes && cls.sub_classes.some(sub => sub.members && sub.members.length > 0);
+            if (hasStudents) {
+                return alert("⚠️ 系統阻擋：無法刪除！\n\n此主班級下的子班別「尚有報名學生名單」。\n請先將學生全部移除或轉班後，才能刪除該主班級。");
             }
 
             if(confirm("確定要刪除整個主班級與底下的所有子班別嗎？\n注意：此動作無法復原！")) { 
@@ -398,23 +399,14 @@
             }
         }
 
-        // ✅ 防呆機制 1+2：刪除子班別前，先檢查是否有報名學生，再檢查是否有學生繳費入帳
+        // ✅ 防呆機制 1+2：刪除子班別前，檢查是否有報名學生，再檢查是否有學生繳費入帳
         async function deleteSub(clsId, idx) { 
             const cls = allClassData.find(c => c.id === clsId);
             const sub = cls.sub_classes[idx];
-            const targetName = `${cls.name}-${sub.name}`;
             
             // 【新增防呆】檢查名單內是否有學生
             if (sub.members && sub.members.length > 0) {
                 return alert(`⚠️ 系統阻擋：無法刪除！\n\n此子班別目前尚有「${sub.members.length} 名學生」報名在內。\n請先將學生全部移除或轉班後，才能刪除該子班別。`);
-            }
-
-            // 掃描資料庫檢查是否有歷史帳務
-            const { data } = await sb.from('payment_logs').select('allocation_details').not('allocation_details', 'is', null);
-            const hasPayment = data && data.some(log => log.allocation_details && log.allocation_details.some(a => a.class_name === targetName));
-            
-            if (hasPayment) {
-                return alert("⚠️ 系統阻擋：無法刪除！\n\n此子班別「已有學生繳費紀錄」。\n為確保帳務正確，請先至「會計系統」將相關繳費紀錄【反沖作廢】後，才能進行刪除。");
             }
 
             if(confirm("確定要刪除此子班別嗎？")) { 
@@ -425,7 +417,7 @@
             } 
         }
 
-        // ✅ 防呆機制 3：從子班別移除學生(×)前，檢查該名學生是否有繳費該班
+        // ✅ 防呆機制 3 (終極升級)：移除學生(×)前，檢查新舊版繳費紀錄
         async function removeStudent(clsId, idx, memberValue) { 
             const cls = allClassData.find(c => c.id === clsId);
             const sub = cls.sub_classes[idx];
@@ -436,16 +428,25 @@
             const stu = allStudents.find(s => s.id === memberValue || s.name === memberValue);
             const stuId = stu ? stu.id : memberValue;
 
-            // 針對該學生的繳費紀錄進行掃描
-            const { data } = await sb.from('payment_logs')
-                .select('allocation_details')
-                .eq('student_id', stuId)
-                .not('allocation_details', 'is', null);
+            // 【撈取該學生的所有繳費紀錄】(包含舊版無明細的)
+            const { data: logs } = await sb.from('payment_logs').select('*').eq('student_id', stuId);
+            
+            let hasPayment = false;
+            if (logs && logs.length > 0) {
+                // 檢查是否有明確標示為此班級的新版沖銷紀錄
+                const exactMatch = logs.some(log => log.allocation_details && log.allocation_details.some(a => a.class_name === targetName));
                 
-            const hasPayment = data && data.some(log => log.allocation_details && log.allocation_details.some(a => a.class_name === targetName));
+                // 檢查是否有舊版的系統繳費紀錄 (沒有 allocation_details)
+                // 如果有舊版繳費，因為無法分辨是繳哪一科，為了帳務絕對安全，一律視為有繳費防呆
+                const hasLegacyPayment = logs.some(log => !log.allocation_details || log.allocation_details.length === 0);
+                
+                if (exactMatch || hasLegacyPayment) {
+                    hasPayment = true;
+                }
+            }
             
             if (hasPayment) {
-                return alert(`⚠️ 系統阻擋：無法移除！\n\n「${dispName}」在「${targetName}」已有實際繳費紀錄。\n為避免死帳產生，請先將該筆繳費【反沖作廢】後，才能將學生從班級名單中移除。`);
+                return alert(`⚠️ 系統阻擋：無法移除！\n\n「${dispName}」有與此班別相關的繳費紀錄 (或早期無明細的系統總入帳)。\n為避免帳務錯亂產生死帳，請先至「繳費作業 / 會計系統」將該筆繳費【作廢反沖】後，才能將學生從此班級名單中移除。`);
             }
 
             if(confirm(`確定要將 ${dispName} 從這個班別移除嗎？`)) { 

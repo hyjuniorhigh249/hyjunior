@@ -315,7 +315,6 @@
             }
         }
 
-        // 🔥 本地時區安全日期推算引擎
         function addWeeksToDateStr(dateStr, weeksToAdd) {
             if (!dateStr) return '';
             const parts = dateStr.split('-');
@@ -654,14 +653,14 @@
         });
 
         // ==========================================
-        // 🔥 終極精準查帳演算法 (內含字串崩潰容錯裝甲)
+        // 🔥 先進先出 (FIFO) 專屬資金池沖銷引擎
         // ==========================================
         async function fetchIndividualClasses() {
             try {
                 const { data: classes, error } = await sb.from('individual_classes').select('*').order('created_at', { ascending: false });
                 if (error) throw error;
                 
-                // 🛡️ 強制陣列轉換裝甲：避免資料庫的字串格式造成迴圈崩潰
+                // 強制陣列轉換防呆
                 classDataCache = (classes || []).map(c => {
                     if (typeof c.student_ids === 'string') {
                         try { c.student_ids = JSON.parse(c.student_ids); } catch(e) { c.student_ids = []; }
@@ -681,30 +680,84 @@
                     bills = b || [];
                 } catch(e) {}
                 
+                // 計算每堂課真實應繳總額
+                classDataCache.forEach(ic => {
+                    const b = bills.find(x => x.class_id === ic.id && x.sub_idx === 0) || { discount_amount: Number(ic.discount) || 0 };
+                    ic.actual_total_tuition = (Number(ic.tuition)||0) + (Number(ic.materials_fee)||0) + (Number(ic.misc_fee)||0) - b.discount_amount;
+                });
+
                 classPayments = {};
 
+                // 建立每個學生的課程群組
+                let studentClasses = {};
                 classDataCache.forEach(ic => {
-                    let totalPaidForThisClass = 0;
-                    const classSearchKey = `個指班-${ic.subject} (${ic.class_type})`; 
-
-                    ic.actual_total_tuition = Number(ic.total_tuition) || 0;
-
-                    if (payments && payments.length > 0) {
-                        payments.forEach(p => {
-                            let isOwner = false;
-                            isOwner = ic.student_ids.some(s => s.student_id === p.student_id);
-                            
-                            if (isOwner && Array.isArray(p.allocation_details)) {
-                                p.allocation_details.forEach(alloc => {
-                                    if (alloc.class_name && (alloc.class_name === classSearchKey || (alloc.class_name.includes('個指') && alloc.class_name.includes(ic.subject)))) {
-                                        totalPaidForThisClass += (Number(alloc.amount) || 0);
-                                    }
-                                });
-                            }
-                        });
-                    }
-                    classPayments[ic.id] = totalPaidForThisClass;
+                    ic.student_ids.forEach(stu => {
+                        if (!studentClasses[stu.student_id]) studentClasses[stu.student_id] = [];
+                        studentClasses[stu.student_id].push(ic);
+                    });
                 });
+
+                // 針對每一位學生獨立進行 FIFO 沖銷
+                for (let stuId in studentClasses) {
+                    // 將單據依開單日期由舊到新排序 (確保舊帳優先扣款)
+                    studentClasses[stuId].sort((a, b) => new Date(a.issue_date || a.created_at) - new Date(b.issue_date || b.created_at));
+                    
+                    let stuPayments = payments.filter(p => p.student_id === stuId);
+                    
+                    // 建立學生的可用資金池 (錢包)
+                    let allocatedPool = {}; 
+                    let generalPool = 0; 
+                    
+                    stuPayments.forEach(p => {
+                        if (Array.isArray(p.allocation_details) && p.allocation_details.length > 0) {
+                            p.allocation_details.forEach(alloc => {
+                                let cname = alloc.class_name;
+                                if (!allocatedPool[cname]) allocatedPool[cname] = 0;
+                                allocatedPool[cname] += (Number(alloc.amount) || 0);
+                            });
+                        } else {
+                            generalPool += (Number(p.amount) || 0);
+                        }
+                    });
+
+                    // 依序由舊單到新單沖銷
+                    studentClasses[stuId].forEach(ic => {
+                        let payable = ic.actual_total_tuition;
+                        let paidForThis = 0;
+                        const exactKey = `個指班-${ic.subject} (${ic.class_type})`;
+                        
+                        // 1. 精準名稱資金池扣款
+                        if (allocatedPool[exactKey] > 0) {
+                            let deduct = Math.min(payable, allocatedPool[exactKey]);
+                            paidForThis += deduct;
+                            allocatedPool[exactKey] -= deduct; // 扣完就沒了，新單不能再用
+                            payable -= deduct;
+                        }
+                        
+                        // 2. 模糊匹配資金池扣款 (容錯)
+                        if (payable > 0) {
+                            for (let key in allocatedPool) {
+                                if (allocatedPool[key] > 0 && key.includes('個指') && key.includes(ic.subject)) {
+                                    let deduct = Math.min(payable, allocatedPool[key]);
+                                    paidForThis += deduct;
+                                    allocatedPool[key] -= deduct;
+                                    payable -= deduct;
+                                }
+                            }
+                        }
+
+                        // 3. 泛用資金池扣款 (舊版未選明細的繳款)
+                        if (payable > 0 && generalPool > 0) {
+                            let deduct = Math.min(payable, generalPool);
+                            paidForThis += deduct;
+                            generalPool -= deduct;
+                            payable -= deduct;
+                        }
+
+                        if (!classPayments[ic.id]) classPayments[ic.id] = 0;
+                        classPayments[ic.id] += paidForThis;
+                    });
+                }
 
                 classSchedules = {};
                 try {
@@ -1238,5 +1291,7 @@
             renderStudentList();
         });
     </script>
+</body>
+</html>
 </body>
 </html>

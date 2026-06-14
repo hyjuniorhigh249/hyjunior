@@ -48,7 +48,6 @@
         </div>
     </div>
 
-    <!-- 主班級 Modal -->
     <div id="class-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 id="class-modal-title" class="text-lg font-black mb-4">設定主班級</h3>
@@ -84,7 +83,6 @@
         </div>
     </div>
 
-    <!-- 子班別 Modal -->
     <div id="sub-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto scroll-area">
             <h3 id="sub-modal-title" class="text-lg font-black mb-4">設定子班別</h3>
@@ -150,7 +148,6 @@
         </div>
     </div>
 
-    <!-- 加入學生 Modal -->
     <div id="student-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl flex flex-col max-h-[90vh]">
             <h3 class="text-lg font-black mb-4">加入學生至子班別</h3>
@@ -167,7 +164,6 @@
         </div>
     </div>
 
-    <!-- 學生無縫轉班 Modal -->
     <div id="transfer-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 class="text-lg font-black mb-4 flex items-center gap-2"><span>🔄</span> 學生無縫轉班</h3>
@@ -190,7 +186,6 @@
         </div>
     </div>
 
-    <!-- 鐘點級別設定 Modal -->
     <div id="rate-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div class="bg-white rounded-2xl p-6 w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]">
             <div class="flex justify-between items-center mb-4">
@@ -843,7 +838,16 @@
             init(); 
         }
 
-        function calculateDisplayGrade(baseYear) { if (!baseYear) return null; const grade = getAcademicYear() - baseYear + 1; return grade > 12 ? 13 : grade; }
+        // 【修正：補上年級換算邏輯，解決篩選無反應的問題】
+        function calculateDisplayGrade(baseYear) { 
+            if (!baseYear) return null; 
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = today.getMonth() + 1;
+            // 依據 7 月換學年：>=7月則為 今年-入學年+1，否則 今年-入學年
+            const grade = m >= 7 ? (y - baseYear + 1) : (y - baseYear); 
+            return grade > 12 ? 13 : grade; 
+        }
         
         function openStudentModal(clsId, idx) { 
             targetClassId = clsId; 

@@ -315,9 +315,12 @@
             }
         }
 
+        // 🔥 本地時區安全日期推算引擎
         function addWeeksToDateStr(dateStr, weeksToAdd) {
             if (!dateStr) return '';
-            let d = new Date(dateStr);
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return '';
+            let d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
             d.setDate(d.getDate() + (weeksToAdd * 7));
             const yy = d.getFullYear();
             const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -651,18 +654,32 @@
         });
 
         // ==========================================
-        // 🔥 絕對嚴格查帳演算法
+        // 🔥 終極精準查帳演算法 (內含字串崩潰容錯裝甲)
         // ==========================================
         async function fetchIndividualClasses() {
             try {
                 const { data: classes, error } = await sb.from('individual_classes').select('*').order('created_at', { ascending: false });
                 if (error) throw error;
-                classDataCache = classes || [];
+                
+                // 🛡️ 強制陣列轉換裝甲：避免資料庫的字串格式造成迴圈崩潰
+                classDataCache = (classes || []).map(c => {
+                    if (typeof c.student_ids === 'string') {
+                        try { c.student_ids = JSON.parse(c.student_ids); } catch(e) { c.student_ids = []; }
+                    }
+                    if (!Array.isArray(c.student_ids)) c.student_ids = [];
+                    return c;
+                });
 
-                const [ { data: payments }, { data: bills } ] = await Promise.all([
-                    sb.from('payment_logs').select('*'),
-                    sb.from('student_bills').select('*')
-                ]);
+                let payments = [];
+                let bills = [];
+                try {
+                    const { data: p } = await sb.from('payment_logs').select('*');
+                    payments = p || [];
+                } catch(e) {}
+                try {
+                    const { data: b } = await sb.from('student_bills').select('*');
+                    bills = b || [];
+                } catch(e) {}
                 
                 classPayments = {};
 
@@ -672,12 +689,10 @@
 
                     ic.actual_total_tuition = Number(ic.total_tuition) || 0;
 
-                    if (payments) {
+                    if (payments && payments.length > 0) {
                         payments.forEach(p => {
                             let isOwner = false;
-                            if (Array.isArray(ic.student_ids)) {
-                                isOwner = ic.student_ids.some(s => s.student_id === p.student_id);
-                            }
+                            isOwner = ic.student_ids.some(s => s.student_id === p.student_id);
                             
                             if (isOwner && Array.isArray(p.allocation_details)) {
                                 p.allocation_details.forEach(alloc => {
@@ -704,7 +719,7 @@
                 } catch(e) {}
 
                 renderIndividualClassesTable();
-            } catch (err) { console.error(err); }
+            } catch (err) { console.error("獲取資料失敗:", err); }
         }
 
         function renderIndividualClassesTable() {
@@ -720,7 +735,7 @@
             let studentsMap = {};
 
             displayData.forEach(cls => {
-                if(!cls.student_ids) return;
+                if(!cls.student_ids || cls.student_ids.length === 0) return;
                 
                 const tuition = cls.actual_total_tuition;
                 const paidAmt = classPayments[cls.id] || 0;
@@ -747,7 +762,7 @@
                         const stuInfo = allStudents.find(s => s.id === stu.student_id) || {};
                         studentsMap[stu.student_id] = {
                             id: stu.student_id,
-                            name: stu.student_name,
+                            name: stu.student_name || '未知學生',
                             school: stuInfo.school || '未填寫',
                             grade: calculateGradeByBaseYear(stuInfo.grade_base_year),
                             classes: [],
@@ -843,11 +858,11 @@
                     }
 
                     childTableHtml += `
-                        <tr class="hover:bg-slate-50 transition">
-                            <td class="p-2.5 font-mono text-slate-500 text-xs">${cls.issue_date}</td>
+                        <tr class="hover:bg-white transition">
+                            <td class="p-2.5 font-mono text-slate-500 text-xs">${cls.issue_date || '未定'}</td>
                             <td class="p-2.5 font-bold text-slate-700">${cls.subject} <span class="text-[10px] text-slate-400 font-normal">(${cls.class_type}/${cls.course_level})</span></td>
                             <td class="p-2.5 font-bold text-slate-600 text-xs">${cls.hours_per_session}H * ${cls.total_sessions}堂</td>
-                            <td class="p-2.5 text-[11px] font-mono font-bold text-slate-500">${cls.start_date}<br>~ ${cls.end_date}</td>
+                            <td class="p-2.5 text-[11px] font-mono font-bold text-slate-500">${cls.start_date || '未定'}<br>~ ${cls.end_date || '未定'}</td>
                             <td class="p-2.5 text-right font-mono font-black text-rose-600 text-sm">$${cls.actual_total_tuition}</td>
                             <td class="p-2.5 font-bold text-slate-500 text-xs">${cls.operator}</td>
                             <td class="p-2.5 text-center whitespace-nowrap align-middle">${actionHtml}</td>

@@ -638,33 +638,79 @@
             }
         }
 
+        // 🔥 先進先出 (FIFO) 沖銷引擎
         function renderBillingTable() {
             rawTotalPayable = 0; 
             const tbody = document.getElementById('bill-items'); 
             tbody.innerHTML = '';
             document.getElementById('chk-all-classes').checked = true;
 
-            let classPaidMap = {};
-            payments.forEach(p => {
-                // ✅ 原生陣列解析，保證不漏接明細
-                const details = getDetailsArray(p.allocation_details);
-                details.forEach(a => {
-                    classPaidMap[a.class_name] = (classPaidMap[a.class_name] || 0) + a.amount;
-                });
-            });
-            
             if (currentEnrolled.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-400 font-bold border border-dashed rounded-xl">該名學生目前尚未報名任何班別</td></tr>';
             } else {
-                currentEnrolled.forEach((en, index) => {
-                    const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0, discount_reason: '' };
-                    const subTotal = en.fee + en.tb_fee + en.m_fee;
-                    const finalFee = subTotal - b.discount_amount;
-                    rawTotalPayable += finalFee;
+                // 1. 建立學生個人資金池
+                let allocatedPool = {};
+                let generalPool = 0;
+                
+                payments.forEach(p => {
+                    const details = getDetailsArray(p.allocation_details);
+                    if (details.length > 0) {
+                        details.forEach(a => {
+                            allocatedPool[a.class_name] = (allocatedPool[a.class_name] || 0) + a.amount;
+                        });
+                    } else {
+                        generalPool += (Number(p.amount) || 0);
+                    }
+                });
 
-                    const classNameForLog = `${en.main_name}-${en.sub_name}`;
-                    const paidForThisClass = classPaidMap[classNameForLog] || 0;
-                    const remainingDebt = finalFee - paidForThisClass;
+                // 2. 計算每班應繳總額
+                currentEnrolled.forEach(en => {
+                    const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0, discount_reason: '' };
+                    en._b = b;
+                    en._subTotal = (en.fee || 0) + (en.tb_fee || 0) + (en.m_fee || 0);
+                    en._finalFee = en._subTotal - (Number(b.discount_amount) || 0);
+                    rawTotalPayable += en._finalFee;
+                });
+
+                // 3. 依開單日排序 (舊單優先扣款)
+                let sortedIndices = currentEnrolled.map((en, idx) => ({ idx, start: en.start || '9999-12-31' }))
+                                                   .sort((a, b) => new Date(a.start) - new Date(b.start));
+
+                // 4. 執行 FIFO 沖銷
+                sortedIndices.forEach(item => {
+                    let en = currentEnrolled[item.idx];
+                    let payable = en._finalFee;
+                    let paid = 0;
+                    
+                    const exactKey = en.main_name === en.sub_name ? en.main_name : `${en.main_name}-${en.sub_name}`;
+
+                    // 先扣除指名道姓的專屬資金
+                    if (allocatedPool[exactKey] > 0) {
+                        let deduct = Math.min(payable, allocatedPool[exactKey]);
+                        paid += deduct;
+                        allocatedPool[exactKey] -= deduct;
+                        payable -= deduct;
+                    }
+
+                    // 再扣除沒有寫明細的泛用資金
+                    if (payable > 0 && generalPool > 0) {
+                        let deduct = Math.min(payable, generalPool);
+                        paid += deduct;
+                        generalPool -= deduct;
+                        payable -= deduct;
+                    }
+
+                    en._paid = paid;
+                    en._remaining = payable;
+                });
+
+                // 5. 渲染畫面
+                currentEnrolled.forEach((en, index) => {
+                    const b = en._b;
+                    const subTotal = en._subTotal;
+                    const finalFee = en._finalFee;
+                    const paidForThisClass = en._paid;
+                    const remainingDebt = en._remaining;
 
                     let tagHtml = en.is_individual ? '<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 rounded ml-1 font-bold">個指</span>' : '';
                     let debtHtml = remainingDebt <= 0 
@@ -800,22 +846,10 @@
             document.getElementById('pay-method').value = '現金';
             toggleBankInput();
 
-            let classPaidMap = {};
-            payments.forEach(p => {
-                const details = getDetailsArray(p.allocation_details);
-                details.forEach(a => {
-                    classPaidMap[a.class_name] = (classPaidMap[a.class_name] || 0) + a.amount;
-                });
-            });
-            
             const allocList = document.getElementById('allocation-list');
             allocList.innerHTML = currentEnrolled.map((en, index) => {
-                const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0 };
-                const subTotal = en.fee + en.tb_fee + en.m_fee - b.discount_amount;
-                const classNameForLog = `${en.main_name}-${en.sub_name}`;
-                
-                const paid = classPaidMap[classNameForLog] || 0;
-                const remaining = subTotal - paid;
+                const classNameForLog = en.main_name === en.sub_name ? en.main_name : `${en.main_name}-${en.sub_name}`; 
+                const remaining = en._remaining || 0;
                 const isPaidOff = remaining <= 0;
 
                 return `
@@ -885,7 +919,8 @@
                 const allocAmt = parseInt(container.querySelector('.alloc-amt').value) || 0;
                 if(allocAmt > 0) {
                     const en = currentEnrolled[idx];
-                    allocationDetails.push({ class_name: `${en.main_name}-${en.sub_name}`, amount: allocAmt });
+                    const className = en.main_name === en.sub_name ? en.main_name : `${en.main_name}-${en.sub_name}`;
+                    allocationDetails.push({ class_name: className, amount: allocAmt });
                 }
             });
 
@@ -897,7 +932,6 @@
             try {
                 const serial = `NO.${date.replace(/-/g, '')}${Math.floor(1000+Math.random()*9000)}`;
                 
-                // ✅ 寫入原生 JSON 陣列！
                 const payload = { 
                     serial_no: serial, student_id: currentStudentId, amount: amt, 
                     pay_method: method, pay_date: date, handler: handler,
@@ -911,7 +945,6 @@
                 
                 closeModal('pay-modal'); 
                 
-                // ✅ 記憶體無延遲注射 (Anti-Lag Injection)
                 let savedRecord = (data && data.length > 0) ? data[0] : payload;
                 if (!payments.some(p => p.serial_no === serial)) {
                     payments.unshift(savedRecord);
@@ -959,7 +992,10 @@
                 });
 
                 if (involvedClassNames.size > 0) {
-                    classesToPrint = currentEnrolled.filter(en => involvedClassNames.has(`${en.main_name}-${en.sub_name}`));
+                    classesToPrint = currentEnrolled.filter(en => {
+                        const className = en.main_name === en.sub_name ? en.main_name : `${en.main_name}-${en.sub_name}`;
+                        return involvedClassNames.has(className);
+                    });
                     
                     if (classesToPrint.length === 0 && targetPayments.length > 0) {
                         targetPayments.forEach(p => {
@@ -969,6 +1005,8 @@
                                     main_name: a.class_name,
                                     sub_name: '(歷史/已結業)',
                                     fee: a.amount, tb_fee: 0, m_fee: 0,
+                                    _finalFee: a.amount, 
+                                    _remaining: 0,
                                     is_individual: false,
                                     start: '', end: ''
                                 });
@@ -992,38 +1030,17 @@
             else if (rowCount >= 6) printArea.classList.add('scale-80');
             else if (rowCount >= 4) printArea.classList.add('scale-90');
             
-            document.getElementById('p-stu-info').innerText = `學生姓名: ${currentStudent}   學校/年級: ${schoolStr} / ${gradeStr}`;
+            document.getElementById('p-stu-info').innerText = `學生姓名: ${currentStudent}  學校/年級: ${schoolStr} / ${gradeStr}`;
             
             let html = '<tr><th>報名課程</th><th>收費明細</th><th>優惠原因/金額</th><th>修業期間</th></tr>';
-            let printTotalPayable = 0; 
-            let printTotalPaid = 0;
-            let printTotalRemaining = 0;
-
-            let classPaidMapForPrint = {};
-            payments.forEach(p => {
-                if(p.allocation_details) {
-                    const details = getDetailsArray(p.allocation_details);
-                    details.forEach(a => {
-                        classPaidMapForPrint[a.class_name] = (classPaidMapForPrint[a.class_name] || 0) + a.amount;
-                    });
-                }
-            });
 
             if (classesToPrint.length === 0 && (type === 'receipt' || type === 'merged')) {
                 html += `<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b; font-weight: bold; background-color: #f8fafc;">📝 此為早期歷史繳費紀錄，系統當時尚未綁定專屬科目明細</td></tr>`;
             } else {
                 classesToPrint.forEach(en => {
                     const b = bills.find(x => x.class_id === en.class_id && x.sub_idx === en.sub_idx) || { discount_amount: 0, discount_reason: '' };
-                    const subTotal = en.fee + en.tb_fee + en.m_fee;
-                    const finalFee = subTotal - b.discount_amount;
-                    
-                    const classNameForLog = en.main_name === en.sub_name ? en.main_name : `${en.main_name}-${en.sub_name}`; 
-                    const paid = classPaidMapForPrint[classNameForLog] || 0;
-                    const remaining = Math.max(0, finalFee - paid);
-                    
-                    printTotalPayable += finalFee;
-                    printTotalPaid += paid;
-                    printTotalRemaining += remaining;
+                    const subTotal = (en.fee||0) + (en.tb_fee||0) + (en.m_fee||0);
+                    const finalFee = en._finalFee !== undefined ? en._finalFee : (subTotal - b.discount_amount);
 
                     if (en.is_individual) {
                         const ic = en.ic_data;
@@ -1079,33 +1096,20 @@
                 const noticeSerial = `NO.${new Date().toISOString().split('T')[0].replace(/-/g,'')}${Math.floor(1000+Math.random()*9000)}`;
                 document.getElementById('p-serial-info').innerText = `流水編號: ${noticeSerial}`;
                 
-                let noticeDebt = 0;
-                let deductedAmount = 0;
-                
-                let allocatedPaid = 0;
-                let legacyPaid = 0;
-                payments.forEach(p => {
-                    const details = getDetailsArray(p.allocation_details);
-                    if(details.length > 0) {
-                        details.forEach(a => {
-                            if(classesToPrint.some(en => {
-                                const mapName = en.main_name === en.sub_name ? en.main_name : `${en.main_name}-${en.sub_name}`;
-                                return mapName === a.class_name;
-                            })) {
-                                allocatedPaid += a.amount;
-                            }
-                        })
-                    } else {
-                        legacyPaid += p.amount; 
-                    }
+                // 🔥 FIFO 引擎優化：直接加總剛剛算好的值，杜絕重疊迴圈
+                let noticePayable = 0;
+                let noticeRemaining = 0;
+                classesToPrint.forEach(en => {
+                    noticePayable += (en._finalFee || 0);
+                    noticeRemaining += (en._remaining || 0);
                 });
                 
-                deductedAmount = allocatedPaid + legacyPaid;
-                noticeDebt = Math.max(0, printTotalPayable - deductedAmount);
+                let deductedAmount = noticePayable - noticeRemaining;
+                let noticeDebt = noticeRemaining;
                 
                 html += `<tr>
                     <td colspan="2" class="p-bold text-left" style="font-size:14px; line-height:1.6;">
-                        本單勾選總額: ${numToChinese(printTotalPayable)} (${printTotalPayable} 元)<br>
+                        本單勾選總額: ${numToChinese(noticePayable)} (${noticePayable} 元)<br>
                         此單扣除已繳 (含歷史沖銷): ${deductedAmount} 元
                     </td>
                     <td colspan="2" class="p-bold" style="font-size: 18px; text-align:right;">
@@ -1122,8 +1126,7 @@
                 
                 const selectedPayments = payments.filter(p => serialData.includes(p.serial_no));
                 const totalMergedPaid = selectedPayments.reduce((sum, curr) => sum + curr.amount, 0);
-                const allHistoricalPaid = payments.reduce((sum, curr) => sum + curr.amount, 0);
-                const debt = Math.max(0, rawTotalPayable - allHistoricalPaid); 
+                const debt = currentTotalDebt; 
 
                 const nextDates = selectedPayments.map(p => p.next_pay_date).filter(d => d);
                 nextDates.sort((a,b) => new Date(b) - new Date(a));
@@ -1154,8 +1157,7 @@
                 if(!p) return alert("找不到收據紀錄");
                 document.getElementById('p-serial-info').innerText = `流水編號: ${p.serial_no}`;
                 
-                const allHistoricalPaid = payments.reduce((sum, curr) => sum + curr.amount, 0);
-                const debt = Math.max(0, rawTotalPayable - allHistoricalPaid); 
+                const debt = currentTotalDebt; 
 
                 const bankStr = p.bank_last_5 ? `<br><span style="font-size:13px; color:#475569;">(匯款末五碼: ${p.bank_last_5})</span>` : '';
                 

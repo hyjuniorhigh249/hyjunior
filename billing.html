@@ -185,6 +185,7 @@
         </div>
     </div>
 
+    <!-- 繳費 Modal -->
     <div id="pay-modal" class="modal fixed inset-0 z-50 items-center justify-center p-4 no-print overflow-y-auto">
         <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border my-auto max-h-[90vh] flex flex-col">
             <h3 class="text-xl font-black mb-4 text-slate-800 shrink-0 border-b pb-3">💰 入帳 / 沖銷作業</h3>
@@ -239,6 +240,7 @@
         </div>
     </div>
 
+    <!-- 列印專屬隱藏區塊 -->
     <div id="print-area" class="hidden print:block print-wrapper">
         <div class="p-title-container">
             <div id="p-title" class="p-title">昊學文教   繳費通知單</div>
@@ -364,7 +366,8 @@
                 
                 classes.forEach(c => {
                     (c.sub_classes || []).forEach((sub, idx) => {
-                        if (sub.members && sub.members.includes(stuName)) {
+                        // ✅ UUID 雙向兼容：檢查是否有該名學生姓名，或是有該學生的 UUID
+                        if (sub.members && (sub.members.includes(stuName) || sub.members.includes(stuId))) {
                             let fee = (sub.fee||0) + (sub.textbook_fee||0) + (sub.misc_fee||0);
                             let b = globalAllBills.find(x => x.class_id === c.id && x.sub_idx === idx && x.student_id === stuId);
                             totalPayable += fee - (b ? b.discount_amount : 0);
@@ -394,8 +397,11 @@
                 (c.sub_classes || []).forEach((sub, idx) => {
                     let hasUnpaidChild = false;
                     if (sub.members) {
-                        sub.members.forEach(stuName => {
-                            if (studentDebts[stuName] > 0) {
+                        sub.members.forEach(memberValue => {
+                            // ✅ 雙向翻譯查找
+                            let stuObj = allStudentsData.find(s => s.id === memberValue || s.name === memberValue);
+                            let mappedName = stuObj ? stuObj.name : memberValue;
+                            if (studentDebts[mappedName] > 0) {
                                 hasUnpaidChild = true; hasUnpaidParent = true; classUnpaidStatus.group = true;
                             }
                         });
@@ -505,16 +511,19 @@
 
             if (hasFilters) {
                 filtered = filtered.filter(stuName => {
+                    // ✅ UUID 雙向兼容處理
+                    let stuId = allStudentsData.find(s => s.name === stuName)?.id;
+
                     let inGroup = selectedGroupChildren.some(sc => {
                         let parent = classes.find(c => c.id === sc.p);
                         let child = parent?.sub_classes[sc.c];
-                        return child?.members?.includes(stuName);
+                        return child?.members?.includes(stuName) || (stuId && child?.members?.includes(stuId));
                     });
 
                     let inIndiv = selectedIndivItems.some(icId => {
                         let ic = individualClassesGlobal.find(c => c.id === icId);
                         if (Array.isArray(ic?.student_ids)) {
-                            return ic.student_ids.some(s => s.student_name === stuName);
+                            return ic.student_ids.some(s => s.student_name === stuName || s.student_id === stuId);
                         }
                         return false;
                     });
@@ -556,7 +565,8 @@
                 currentEnrolled = [];
                 
                 classes.forEach(c => (c.sub_classes || []).forEach((sub, idx) => {
-                    if(sub.members && sub.members.includes(name)) {
+                    // ✅ UUID 雙向兼容處理
+                    if(sub.members && (sub.members.includes(name) || sub.members.includes(currentStudentId))) {
                         currentEnrolled.push({
                             class_id: c.id, sub_idx: idx, main_name: c.name, sub_name: sub.name,
                             fee: sub.fee||0, tb_fee: sub.textbook_fee||0, m_fee: sub.misc_fee||0,
@@ -887,7 +897,6 @@
                 if (involvedClassNames.size > 0) {
                     classesToPrint = currentEnrolled.filter(en => involvedClassNames.has(`${en.main_name}-${en.sub_name}`));
                 } else {
-                    // 為了避免早期歷史資料印出「所有」有打勾的班級導致錯覺，這裡改成直接不顯示班級細項
                     classesToPrint = [];
                 }
             }
@@ -910,7 +919,6 @@
             let printTotalPayable = 0; 
 
             if (classesToPrint.length === 0 && (type === 'receipt' || type === 'merged')) {
-                // 若沒有對應到的課程細項，印出一行防呆文字，避免表格空洞
                 html += `<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b; font-weight: bold; background-color: #f8fafc;">📝 此為早期歷史繳費紀錄，系統當時尚未綁定專屬科目明細</td></tr>`;
             } else {
                 classesToPrint.forEach(en => {

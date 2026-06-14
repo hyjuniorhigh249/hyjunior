@@ -176,7 +176,7 @@
             <input type="hidden" id="trans-oldIdx">
             <input type="hidden" id="trans-memberValue">
             
-            <label class="block text-xs font-bold text-slate-500 mb-1">目標子班別 (僅限同主班級內)</label>
+            <label class="block text-xs font-bold text-slate-500 mb-1">目標子班別 (已為您排除該生已報名的班級)</label>
             <select id="trans-targetIdx" class="w-full p-2.5 border-2 border-indigo-200 rounded-lg mb-6 font-black bg-indigo-50 text-indigo-800 outline-none focus:border-indigo-500 shadow-inner"></select>
             
             <div class="flex gap-2">
@@ -378,7 +378,7 @@
             `;
         }
 
-        // ✅ 防呆機制 1：刪除主班級前檢查是否有子班別已經繳費入帳
+        // ✅ 防呆機制：刪除主班級前檢查是否有子班別已經繳費入帳
         async function deleteClass(id) {
             const cls = allClassData.find(c => c.id === id);
             const targetNames = (cls.sub_classes || []).map(s => `${cls.name}-${s.name}`);
@@ -398,13 +398,18 @@
             }
         }
 
-        // ✅ 防呆機制 2：刪除子班別前檢查是否已有學生繳費入帳
+        // ✅ 防呆機制 1+2：刪除子班別前，先檢查是否有報名學生，再檢查是否有學生繳費入帳
         async function deleteSub(clsId, idx) { 
             const cls = allClassData.find(c => c.id === clsId);
             const sub = cls.sub_classes[idx];
             const targetName = `${cls.name}-${sub.name}`;
             
-            // 掃描資料庫
+            // 【新增防呆】檢查名單內是否有學生
+            if (sub.members && sub.members.length > 0) {
+                return alert(`⚠️ 系統阻擋：無法刪除！\n\n此子班別目前尚有「${sub.members.length} 名學生」報名在內。\n請先將學生全部移除或轉班後，才能刪除該子班別。`);
+            }
+
+            // 掃描資料庫檢查是否有歷史帳務
             const { data } = await sb.from('payment_logs').select('allocation_details').not('allocation_details', 'is', null);
             const hasPayment = data && data.some(log => log.allocation_details && log.allocation_details.some(a => a.class_name === targetName));
             
@@ -452,7 +457,7 @@
         }
 
         // ==========================================
-        // ✅ 核心黑科技：學生無縫轉班機制 (帳務自動連動)
+        // ✅ 核心黑科技：學生無縫轉班機制 (含目標防呆)
         // ==========================================
         function openTransferModal(clsId, idx, memberValue) {
             const cls = allClassData.find(c => c.id === clsId);
@@ -468,11 +473,21 @@
             document.getElementById('trans-oldIdx').value = idx;
             document.getElementById('trans-memberValue').value = memberValue;
             
-            const sel = document.getElementById('trans-targetIdx');
-            sel.innerHTML = cls.sub_classes.map((s, i) => {
-                if (i === idx) return ''; // 排除自己目前的班別
+            // ✅ 新增防呆：過濾掉該學生已經報名的其他子班別
+            const availableOptions = cls.sub_classes.map((s, i) => {
+                if (i === idx) return null; // 排除自己目前的班別
+                // 檢查該學生是否已在該目標子班別中
+                const hasStudent = s.members && s.members.includes(memberValue);
+                if (hasStudent) return null; // 排除已報名的班別
                 return `<option value="${i}">${s.name}</option>`;
-            }).join('');
+            }).filter(opt => opt !== null);
+
+            if (availableOptions.length === 0) {
+                return alert("⚠️ 系統阻擋：無法轉班！\n\n該名學生已經報名了此主班級下的「所有其他子班別」，沒有可供轉入的新目標班別。");
+            }
+
+            const sel = document.getElementById('trans-targetIdx');
+            sel.innerHTML = availableOptions.join('');
             
             document.getElementById('transfer-modal').classList.add('active');
         }

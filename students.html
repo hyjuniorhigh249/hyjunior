@@ -244,7 +244,7 @@
         const defaultWidths = {
             'photo': 60, 'identity': 80, 'student_id': 120, 'name': 120, 'gender': 80, 'grade': 80, 'school': 150, 
             'tel_o': 120, 'tel_m': 120, 'tel_p': 120, 'source': 100, 'line_type': 100, 
-            'prospect_course': 180, 'siblings': 120, 'addr': 200, 'created_date': 120, 'note': 180, 'action': 240
+            'prospect_course': 180, 'siblings': 120, 'addr': 200, 'created_date': 120, 'note': 180, 'action': 280 // 加寬一點給新的綁定標籤
         };
 
         let visibleCols = ['photo', 'identity', 'student_id', 'name', 'gender', 'grade', 'school', 'tel_o', 'tel_m', 'prospect_course'];
@@ -480,11 +480,21 @@
                     rowHTML += `<td title="${titleText}">${cellData}</td>`;
                 });
 
+                // 🌟 更新：將 🔗 按鈕與 parent_line_id 綁定狀態標示整合在一個美觀的小區塊內
+                const bindStatusHtml = s.parent_line_id 
+                    ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-black tracking-widest" title="已綁定 LINE">已綁定</span>` 
+                    : `<span class="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded font-black tracking-widest" title="未綁定 LINE">未綁定</span>`;
+
                 rowHTML += `
-                    <td class="text-center whitespace-nowrap">
+                    <td class="text-center whitespace-nowrap flex items-center justify-center gap-1">
                         <button onclick="openRecordsModal('${s.id}', '${s.name}')" class="text-emerald-600 hover:bg-emerald-100 p-2 rounded-lg" title="歷史紀錄">📊</button>
                         <button onclick="showSingleQR('${s.name}', '${fullId}')" class="text-indigo-600 hover:bg-indigo-100 p-2 rounded-lg" title="顯示 QR 碼">📱</button>
-                        <button onclick="openBindModal('${s.id}', '${s.name}')" class="text-blue-600 hover:bg-blue-100 p-2 rounded-lg" title="產生家長綁定連結">🔗</button>
+                        
+                        <div class="inline-flex items-center justify-center gap-1 bg-slate-50 border border-slate-200 px-2 py-1 rounded-lg">
+                            <button onclick="openBindModal('${s.id}', '${s.name}')" class="text-blue-600 hover:scale-110 transition" title="產生家長綁定連結">🔗</button>
+                            ${bindStatusHtml}
+                        </div>
+
                         <button onclick="openModal('${s.id}')" class="text-slate-600 hover:bg-slate-200 p-2 rounded-lg" title="編輯">✏️</button>
                         <button onclick="deleteStudent('${s.id}', '${s.name}')" class="text-red-500 hover:bg-red-100 p-2 rounded-lg" title="刪除">🗑️</button>
                     </td></tr>`;

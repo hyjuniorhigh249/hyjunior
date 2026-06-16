@@ -1,21 +1,31 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-// 👇 請把下面引號裡面的中文，換成你在 LINE 開發者後台拿到的長效型 Token (請保留前後的雙引號)
+// 👇 您的 LINE 長效型 Token
 const LINE_CHANNEL_ACCESS_TOKEN = "By3qNQ0m+6SUaDwrTi3mPMbM+87NTy4ClTpD76fN9YoiZvVnLaieIGmOp6GuUM3ThNP/lZq7AmYj5q/saqrE//JhdhQyzfxkgKo5ylJfSkqoMG3RAqvu36C/s4uz+MA2EAA3tQrpI2uwVA7LONc+lAdB04t89/1O/w1cDnyilFU="
 
 serve(async (req) => {
-  // 解決 CORS 問題 (讓你的 HTML 可以順利呼叫這個函數)
+  // 解決 CORS 問題
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' } })
+    return new Response('ok', { 
+      headers: { 
+        'Access-Control-Allow-Origin': '*', 
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' 
+      } 
+    })
   }
 
   try {
-    // 接收來自 attendance.html 的資料
     const { studentName, time, action, parentLineId } = await req.json()
 
     if (!parentLineId) {
-      return new Response(JSON.stringify({ error: "家長未綁定 LINE" }), { headers: { "Content-Type": "application/json" } })
+      return new Response(JSON.stringify({ error: "家長未綁定 LINE" }), { 
+        status: 400,
+        headers: { "Content-Type": "application/json", 'Access-Control-Allow-Origin': '*' } 
+      })
     }
+
+    // 🔥 強效防呆：自動清除可能因為手動複製貼上夾帶的隱形空格、換行符號
+    const cleanLineId = String(parentLineId).trim()
 
     // 組合要發送給家長的訊息文字
     const messageText = `家長您好，孩子 ${studentName} 已於 ${time} ${action}囉！`
@@ -28,7 +38,7 @@ serve(async (req) => {
         "Authorization": `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`
       },
       body: JSON.stringify({
-        to: parentLineId,
+        to: cleanLineId,
         messages: [
           {
             type: "text",
@@ -39,9 +49,26 @@ serve(async (req) => {
     })
 
     const result = await response.json()
-    return new Response(JSON.stringify({ success: true, result }), { headers: { "Content-Type": "application/json" } })
+
+    // 🔥 核心修正：如果 LINE 官方返回錯誤（如 ID 格式不對、被家長封鎖），必須回傳錯誤狀態碼，不能假裝成功
+    if (!response.ok) {
+      return new Response(JSON.stringify({ 
+        error: result.message || "LINE 官方拒絕發送訊息", 
+        details: result 
+      }), { 
+        status: response.status, 
+        headers: { "Content-Type": "application/json", 'Access-Control-Allow-Origin': '*' } 
+      })
+    }
+
+    return new Response(JSON.stringify({ success: true, result }), { 
+      headers: { "Content-Type": "application/json", 'Access-Control-Allow-Origin': '*' } 
+    })
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 400 })
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 400,
+      headers: { "Content-Type": "application/json", 'Access-Control-Allow-Origin': '*' } 
+    })
   }
 })

@@ -212,7 +212,6 @@
         const switcher = document.getElementById('class-switcher');
         switcher.innerHTML = '<option value="">資料讀取中...</option>';
 
-        // 🌟 對齊首頁邏輯：將查詢欄位修正為 'class_date'
         const { data: indData } = await supabaseClient
             .from('individual_schedules')
             .select('*')
@@ -542,6 +541,7 @@
             const parentLineId = student.parent_line_id; 
             
             if (parentLineId) {
+                // 🔥 核心修正：將變數接收名稱修正為標準官方的 { data, error }，這樣 LINE API 出錯時前端才會知道並警告
                 supabaseClient.functions.invoke('send-line-notify', {
                     body: {
                         studentName: student.name,
@@ -549,11 +549,17 @@
                         action: actionText,
                         parentLineId: parentLineId
                     }
-                }).then(({ data, notifyError }) => {
-                    if (notifyError) console.error("LINE 推播發送失敗:", notifyError);
-                    else console.log("LINE 推播發送成功:", data);
+                }).then(({ data, error }) => {
+                    if (error) {
+                        console.error("LINE 推播發送失敗:", error);
+                        // 彈出紅色警報 Toast，顯示具體的失敗原因
+                        showToast(`⚠️ 打卡成功，但 LINE 通知失敗：${error.error || '格式錯誤或被封鎖'}`, false);
+                    } else {
+                        console.log("LINE 推播發送成功:", data);
+                    }
                 }).catch(err => {
                     console.error("呼叫推播系統發生錯誤:", err);
+                    showToast(`⚠️ LINE 推播系統伺服器異常`, false);
                 });
             }
             

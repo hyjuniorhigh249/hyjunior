@@ -127,7 +127,7 @@
     const recentScans = {}; 
 
     let db = { 
-        allClasses: [], allRooms: [], studentDetails: {}, idToName: {}, studentsById: {},
+        allClasses: [], allRooms: [], studentDetails: {}, idToName: {}, studentsById: {}, allIndSchedules: [],
         activeClassId: null, activeSubIdx: null, 
         currentRoom: null, currentSeats: [], currentAttendance: []
     };
@@ -190,7 +190,7 @@
         }
     };
 
-    function loadDateData() {
+    async function loadDateData() {
         const selectedDate = document.getElementById('date-selector').value;
         isToday = (selectedDate === getLocalToday());
         
@@ -210,12 +210,23 @@
             warning.classList.add('hidden');
         }
 
-        const currentDayOfWeek = new Date(selectedDate).getDay().toString();
         const switcher = document.getElementById('class-switcher');
+        switcher.innerHTML = '<option value="">資料讀取中...</option>';
+
+        // 1. 同步撈取所選日期的個指排課資料
+        const { data: indData } = await supabaseClient
+            .from('individual_schedules')
+            .select('*')
+            .eq('schedule_date', selectedDate);
+        db.allIndSchedules = indData || [];
+
         switcher.innerHTML = '';
+        
+        const currentDayOfWeek = new Date(selectedDate).getDay().toString();
         let firstVal = null;
         let classCount = 0;
 
+        // 2. 塞入今日有課的「團班」
         db.allClasses.forEach(cls => {
             const isPast = cls.end_date && cls.end_date < selectedDate;
             const isFuture = cls.start_date && cls.start_date > selectedDate;
@@ -225,12 +236,20 @@
                     if (sub.day === currentDayOfWeek || (sub.class_days && sub.class_days.includes(parseInt(currentDayOfWeek)))) {
                         const val = `${cls.id}_${idx}`;
                         if (!firstVal) firstVal = val;
-                        switcher.add(new Option(`${cls.name} - ${sub.name}`, val));
+                        switcher.add(new Option(`👥 ${cls.name} - ${sub.name}`, val));
                         classCount++;
                     }
                 });
             }
         });
+
+        // 3. 塞入今日有課的「個指」(若有資料則整合為單一選項)
+        if (db.allIndSchedules.length > 0) {
+            const val = 'ind_all';
+            if (!firstVal) firstVal = val;
+            switcher.add(new Option(`🎯 今日個別指導 (${db.allIndSchedules.length}堂)`, val));
+            classCount++;
+        }
 
         if (classCount === 0) {
             switcher.add(new Option('當日無排定班級', ''));
@@ -254,13 +273,54 @@
             btnIn.className = "flex-1 py-1 text-sm font-bold rounded-md bg-emerald-500 text-white shadow transition-all";
             btnOut.className = "flex-1 py-1 text-sm font-bold rounded-md text-slate-500 hover:bg-slate-200 transition-all";
         } else {
-            btnOut.className = "flex-1 py-1 text-sm font-bold rounded-md bg-red-500 text-white shadow transition-all"; // 為了警示，強制離班換成紅色
+            btnOut.className = "flex-1 py-1 text-sm font-bold rounded-md bg-red-500 text-white shadow transition-all"; 
             btnIn.className = "flex-1 py-1 text-sm font-bold rounded-md text-slate-500 hover:bg-slate-200 transition-all";
         }
     }
 
     async function switchClass(val) {
         if (!val) return;
+        const selectedDate = document.getElementById('date-selector').value;
+
+        // 統一預先撈取當日的點名紀錄
+        const { data: attendanceData } = await supabaseClient.from('attendance')
+            .select('*')
+            .eq('check_date', selectedDate);
+        db.currentAttendance = attendanceData || [];
+
+        // 🎯 處理「個別指導」的特殊顯示邏輯
+        if (val === 'ind_all') {
+            db.activeClassId = 'ind_all';
+            db.activeSubIdx = null;
+
+            document.getElementById('class-info-display').innerHTML = `👨‍🏫 授課師：<span class="text-blue-700">各科指導老師</span> &nbsp;|&nbsp; ⏱️ 時間：<span class="text-emerald-700">依各別排程</span>`;
+
+            // 過濾出今日有排個指的獨立學生清單
+            const uniqueStudentIds = [...new Set(db.allIndSchedules.map(s => s.student_id))];
+            const membersObjects = uniqueStudentIds.map(id => {
+                let stu = db.studentsById[id] || db.studentDetails[id];
+                if (stu) {
+                    // 找出該學生今日的所有個指排課，組合成提示標籤
+                    const schedules = db.allIndSchedules.filter(s => s.student_id === id);
+                    const notes = schedules.map(s => `${s.subject||'個指'} (${s.start_time||'--'})`).join(' / ');
+                    return { ...stu, _ind_note: notes };
+                }
+                return null;
+            }).filter(s => s);
+
+            renderStudentList(membersObjects);
+
+            document.getElementById('seat-grid').innerHTML = `
+                <div class='text-slate-500 font-bold col-span-full p-10 text-center bg-white rounded-2xl shadow-sm border-2 border-dashed border-slate-300 flex flex-col items-center gap-3'>
+                    <span class="text-4xl">🎯</span>
+                    <p>個別指導無固定座位表</p>
+                    <p class="text-sm font-normal text-slate-400">請直接使用左側清單操作，或使用右上方【掃碼/搜尋】進行點名</p>
+                </div>`;
+            document.getElementById('seat-grid').style.gridTemplateColumns = "1fr";
+            return;
+        }
+
+        // 👥 處理常規「團班」顯示邏輯
         const [mainId, subIdx] = val.split('_');
         db.activeClassId = mainId;
         db.activeSubIdx = parseInt(subIdx);
@@ -268,7 +328,6 @@
         const cls = db.allClasses.find(c => c.id === mainId);
         const sub = cls.sub_classes[db.activeSubIdx];
         const roomId = sub.room_id;
-        const selectedDate = document.getElementById('date-selector').value;
 
         let sTime = sub.start_time || sub.start || cls.start_time || '';
         let eTime = sub.end_time || sub.end || cls.end_time || '';
@@ -276,11 +335,6 @@
         const teacherName = sub.teacher_name || sub.teacher || '未設定';
         const classTime = (sTime && eTime) ? `${sTime} ~ ${eTime}` : (sTime ? sTime : '未設定時間');
         document.getElementById('class-info-display').innerHTML = `👨‍🏫 授課師：<span class="text-blue-700">${teacherName}</span> &nbsp;|&nbsp; ⏱️ 時間：<span class="text-emerald-700">${classTime}</span>`;
-
-        const { data: attendanceData } = await supabaseClient.from('attendance')
-            .select('*')
-            .eq('check_date', selectedDate);
-        db.currentAttendance = attendanceData || [];
 
         const membersObjects = (sub.members || []).map(identifier => {
             return db.studentsById[identifier] || db.studentDetails[identifier];
@@ -362,11 +416,17 @@
             const stuId = stu.id || stu.student_id || stu.UUID;
             const record = db.currentAttendance.find(a => a.student_id === stuId) || {};
             
+            // 若有 _ind_note 屬性，代表這是個指學生，附加上課時間標籤
+            const indNoteHtml = stu._ind_note ? `<div class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-black mt-1 inline-block">${stu._ind_note}</div>` : '';
+
             const html = `
                 <div class="bg-white p-3 rounded-lg shadow-sm border border-slate-200 text-sm">
-                    <div class="flex justify-between items-center mb-2 font-bold">
-                        <span class="text-slate-800">${stu.name}</span>
-                        <div class="flex items-center gap-1">
+                    <div class="flex justify-between items-start mb-2 font-bold">
+                        <div>
+                            <span class="text-slate-800">${stu.name}</span>
+                            <br>${indNoteHtml}
+                        </div>
+                        <div class="flex items-center gap-1 mt-0.5">
                             <span class="text-[10px] text-slate-400 font-black">進</span>
                             <input type="time" id="in-time-${stuId}" value="${record.check_in_time || ''}" class="bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-xs outline-none focus:border-blue-400 text-slate-600">
                             <span class="text-[10px] text-slate-400 font-black ml-1">離</span>
@@ -403,7 +463,6 @@
         await executeCheckInDB(student);
     }
 
-    // 🌟 加入手動強制離班機制的打卡函數
     async function executeCheckInDB(student) {
         if (!isToday) return showToast('⚠️ 只能針對「今日」進行打卡', false);
         const todayStr = getLocalToday();
@@ -446,7 +505,7 @@
             check_time: timeNow
         };
 
-        const isForceOut = (currentMode === 'out'); // 判斷是否點擊了「強制離班」按鈕
+        const isForceOut = (currentMode === 'out');
 
         // --- 3. 智慧判斷進班或離班 (結合強制模式) ---
         if (existing && existing.check_in_time) {
@@ -455,19 +514,18 @@
             const diffMins = (currentNowDate - checkInDate) / (1000 * 60);
 
             if (isForceOut) {
-                actionText = '提早離班'; // 手動強制模式觸發
+                actionText = '提早離班'; 
                 dataToUpsert.check_out_time = timeNow;
             } else if (diffMins < AUTO_CHECKOUT_MINUTES) {
-                // 自動模式下，未滿 60 分鐘阻擋打卡，並提示如何強制離班
                 showToast(`🛑 ${student.name} 進班未滿 ${AUTO_CHECKOUT_MINUTES} 分鐘。<br>若需提早離開，請點擊上方「離班」按鈕後再掃碼。`, false);
                 return; 
             } else {
-                actionText = '離班'; // 自動模式觸發正常離班
+                actionText = '離班'; 
                 dataToUpsert.check_out_time = timeNow;
             }
         } else {
             if (isForceOut) {
-                actionText = '離班'; // 若還沒進班就按強制離班，防呆直接記錄
+                actionText = '離班'; 
                 dataToUpsert.check_out_time = timeNow;
             } else {
                 actionText = '到班';
@@ -491,7 +549,6 @@
             showToast(`✅ ${student.name} ${actionText}成功`, true);
             switchClass(document.getElementById('class-switcher').value);
             
-            // 防呆：如果剛才是使用「強制離班」，打卡完立刻幫櫃檯切回「自動模式」
             if (isForceOut) {
                 setMode('in');
             }

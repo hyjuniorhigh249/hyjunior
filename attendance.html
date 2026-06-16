@@ -132,7 +132,6 @@
         currentRoom: null, currentSeats: [], currentAttendance: []
     };
 
-    // currentMode = 'in' 作為預設的「自動判斷」模式； 'out' 為「單次強制離班」模式
     let currentMode = 'in'; 
     let isToday = true;
     let html5QrcodeScanner = null;
@@ -213,11 +212,11 @@
         const switcher = document.getElementById('class-switcher');
         switcher.innerHTML = '<option value="">資料讀取中...</option>';
 
-        // 1. 同步撈取所選日期的個指排課資料
+        // 🌟 對齊首頁邏輯：將查詢欄位修正為 'class_date'
         const { data: indData } = await supabaseClient
             .from('individual_schedules')
             .select('*')
-            .eq('schedule_date', selectedDate);
+            .eq('class_date', selectedDate);
         db.allIndSchedules = indData || [];
 
         switcher.innerHTML = '';
@@ -226,7 +225,6 @@
         let firstVal = null;
         let classCount = 0;
 
-        // 2. 塞入今日有課的「團班」
         db.allClasses.forEach(cls => {
             const isPast = cls.end_date && cls.end_date < selectedDate;
             const isFuture = cls.start_date && cls.start_date > selectedDate;
@@ -243,7 +241,6 @@
             }
         });
 
-        // 3. 塞入今日有課的「個指」(若有資料則整合為單一選項)
         if (db.allIndSchedules.length > 0) {
             const val = 'ind_all';
             if (!firstVal) firstVal = val;
@@ -262,7 +259,6 @@
         }
     }
 
-    // 切換按鈕狀態：in=自動模式, out=強制離班模式
     function setMode(mode) {
         if (!isToday) return showToast('只能對「今日」切換打卡模式', false);
         currentMode = mode;
@@ -282,25 +278,21 @@
         if (!val) return;
         const selectedDate = document.getElementById('date-selector').value;
 
-        // 統一預先撈取當日的點名紀錄
         const { data: attendanceData } = await supabaseClient.from('attendance')
             .select('*')
             .eq('check_date', selectedDate);
         db.currentAttendance = attendanceData || [];
 
-        // 🎯 處理「個別指導」的特殊顯示邏輯
         if (val === 'ind_all') {
             db.activeClassId = 'ind_all';
             db.activeSubIdx = null;
 
             document.getElementById('class-info-display').innerHTML = `👨‍🏫 授課師：<span class="text-blue-700">各科指導老師</span> &nbsp;|&nbsp; ⏱️ 時間：<span class="text-emerald-700">依各別排程</span>`;
 
-            // 過濾出今日有排個指的獨立學生清單
             const uniqueStudentIds = [...new Set(db.allIndSchedules.map(s => s.student_id))];
             const membersObjects = uniqueStudentIds.map(id => {
                 let stu = db.studentsById[id] || db.studentDetails[id];
                 if (stu) {
-                    // 找出該學生今日的所有個指排課，組合成提示標籤
                     const schedules = db.allIndSchedules.filter(s => s.student_id === id);
                     const notes = schedules.map(s => `${s.subject||'個指'} (${s.start_time||'--'})`).join(' / ');
                     return { ...stu, _ind_note: notes };
@@ -320,7 +312,6 @@
             return;
         }
 
-        // 👥 處理常規「團班」顯示邏輯
         const [mainId, subIdx] = val.split('_');
         db.activeClassId = mainId;
         db.activeSubIdx = parseInt(subIdx);
@@ -416,7 +407,6 @@
             const stuId = stu.id || stu.student_id || stu.UUID;
             const record = db.currentAttendance.find(a => a.student_id === stuId) || {};
             
-            // 若有 _ind_note 屬性，代表這是個指學生，附加上課時間標籤
             const indNoteHtml = stu._ind_note ? `<div class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-black mt-1 inline-block">${stu._ind_note}</div>` : '';
 
             const html = `
@@ -474,7 +464,6 @@
             return;
         }
 
-        // --- 1. 防連點機制檢查 ---
         const nowMs = Date.now();
         if (recentScans[studentUuid]) {
             const diffMins = (nowMs - recentScans[studentUuid]) / (1000 * 60);
@@ -484,7 +473,6 @@
             }
         }
 
-        // --- 2. 查詢該學生今天的打卡紀錄 ---
         const { data: existing, error: fetchError } = await supabaseClient
             .from('attendance')
             .select('*')
@@ -507,7 +495,6 @@
 
         const isForceOut = (currentMode === 'out');
 
-        // --- 3. 智慧判斷進班或離班 (結合強制模式) ---
         if (existing && existing.check_in_time) {
             const checkInDate = new Date(`${todayStr}T${existing.check_in_time}`);
             const currentNowDate = new Date();
@@ -535,7 +522,6 @@
 
         recentScans[studentUuid] = nowMs;
 
-        // --- 4. 寫入 Supabase 資料庫 ---
         let error;
         if (existing) {
             const res = await supabaseClient.from('attendance').update(dataToUpsert).eq('id', existing.id);
@@ -553,7 +539,6 @@
                 setMode('in');
             }
 
-            // --- 5. 背景呼叫 Edge Function 發送 LINE 推播 ---
             const parentLineId = student.parent_line_id; 
             
             if (parentLineId) {

@@ -541,7 +541,7 @@
             const parentLineId = student.parent_line_id; 
             
             if (parentLineId) {
-                // 🔥 核心修正：將變數接收名稱修正為標準官方的 { data, error }，這樣 LINE API 出錯時前端才會知道並警告
+                // 💡 核心破解：改為解析 data 裡面的 success 狀態，直接將真實原因彈跳顯示！
                 supabaseClient.functions.invoke('send-line-notify', {
                     body: {
                         studentName: student.name,
@@ -551,15 +551,17 @@
                     }
                 }).then(({ data, error }) => {
                     if (error) {
-                        console.error("LINE 推播發送失敗:", error);
-                        // 彈出紅色警報 Toast，顯示具體的失敗原因
-                        showToast(`⚠️ 打卡成功，但 LINE 通知失敗：${error.error || '格式錯誤或被封鎖'}`, false);
+                        console.error("Supabase 函數異常:", error);
+                        showToast(`⚠️ 系統連線異常，推播未送出`, false);
+                    } else if (data && data.success === false) {
+                        console.error("LINE 詳細退件原因:", data.details || data.error);
+                        showToast(`⚠️ LINE 拒絕發送：${data.error}`, false);
                     } else {
                         console.log("LINE 推播發送成功:", data);
                     }
                 }).catch(err => {
                     console.error("呼叫推播系統發生錯誤:", err);
-                    showToast(`⚠️ LINE 推播系統伺服器異常`, false);
+                    showToast(`⚠️ LINE 推播系統伺服器無回應`, false);
                 });
             }
             

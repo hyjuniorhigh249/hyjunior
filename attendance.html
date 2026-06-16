@@ -541,27 +541,39 @@
             const parentLineId = student.parent_line_id; 
             
             if (parentLineId) {
-                // 💡 核心破解：改為解析 data 裡面的 success 狀態，直接將真實原因彈跳顯示！
+                // 🔥 終極大雜燴包裝 (Universal Payload)：把所有可能的欄位名稱一次全送過去！
+                const fallbackMessage = `家長您好，孩子 ${student.name} 已於 ${timeNow} ${actionText}囉！`;
+                
                 supabaseClient.functions.invoke('send-line-notify', {
                     body: {
+                        // 1. 預設標準寫法 (給您稍早傳給我的 Edge Function 用的)
                         studentName: student.name,
                         time: timeNow,
                         action: actionText,
-                        parentLineId: parentLineId
+                        parentLineId: parentLineId,
+                        
+                        // 2. 歷史殘留版本的各種可能寫法 (相容各種變形舊版)
+                        parent_line_id: parentLineId,
+                        lineId: parentLineId,
+                        message: fallbackMessage,
+                        text: fallbackMessage,
+                        
+                        // 3. 直通 LINE 官方 API 的究極寫法 (給那種沒有任何過濾的直接轉發版)
+                        to: parentLineId,
+                        messages: [{ type: "text", text: fallbackMessage }]
                     }
                 }).then(({ data, error }) => {
                     if (error) {
-                        console.error("Supabase 函數異常:", error);
-                        showToast(`⚠️ 系統連線異常，推播未送出`, false);
+                        console.warn("後端 Edge Function 拒絕回應或發生異常:", error);
+                        showToast(`⚠️ 打卡成功，但雲端推播伺服器異常`, false);
                     } else if (data && data.success === false) {
-                        console.error("LINE 詳細退件原因:", data.details || data.error);
-                        showToast(`⚠️ LINE 拒絕發送：${data.error}`, false);
+                        console.error("LINE 官方拒絕發送:", data.error || data);
+                        showToast(`⚠️ 打卡成功，但 LINE 拒絕發送訊息`, false);
                     } else {
                         console.log("LINE 推播發送成功:", data);
                     }
                 }).catch(err => {
-                    console.error("呼叫推播系統發生錯誤:", err);
-                    showToast(`⚠️ LINE 推播系統伺服器無回應`, false);
+                    console.error("呼叫推播系統發生未預期錯誤:", err);
                 });
             }
             

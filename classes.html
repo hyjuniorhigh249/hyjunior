@@ -101,12 +101,27 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">開始時間</label>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">上課開始時間</label>
                     <input type="time" id="sub-start" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">結束時間</label>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">上課結束時間</label>
                     <input type="time" id="sub-end" class="w-full p-2 border rounded-lg font-bold text-sm bg-slate-50">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 mb-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">修業開始日</label>
+                    <input type="date" id="sub-start-date" class="w-full p-2 border rounded-lg font-bold text-sm bg-indigo-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">修業結束日</label>
+                    <input type="date" id="sub-end-date" class="w-full p-2 border rounded-lg font-bold text-sm bg-indigo-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">授課總堂數</label>
+                    <input type="number" id="sub-total-lessons" class="w-full p-2 border rounded-lg font-bold text-sm bg-indigo-50" placeholder="例如: 20">
                 </div>
             </div>
 
@@ -346,6 +361,7 @@
                                     </p>
                                     
                                     <div class="flex flex-wrap gap-1 mt-2">
+                                        ${(sub.start_date || sub.end_date || sub.total_lessons) ? `<span class="text-[11px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-100">📅 ${sub.start_date ? sub.start_date.replace(/-/g, '/') : '未定'} ~ ${sub.end_date ? sub.end_date.replace(/-/g, '/') : '未定'} (共 ${sub.total_lessons || 0} 堂)</span>` : ''}
                                         <span class="text-[11px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100">👨‍🏫 老師：${sub.teacher || '未定'}</span>
                                         ${sub.course_level ? `<span class="text-[11px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">🎓 ${sub.course_level}</span>` : ''}
                                         ${sub.rate_level ? `<span class="text-[11px] text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded border border-purple-100">💰 ${sub.rate_level} ${sub.rate_level === '固定鐘點' ? `($${sub.fixed_rate||0})` : ''}</span>` : ''}
@@ -643,6 +659,12 @@
                 document.getElementById('sub-day').value = sub.day || '1';
                 document.getElementById('sub-start').value = sub.start || '';
                 document.getElementById('sub-end').value = sub.end || '';
+                
+                // 智慧帶入：若子班別本身有日期，優先帶入；若無，回退帶入父班級日期作為預設
+                document.getElementById('sub-start-date').value = sub.start_date || cls.start_date || '';
+                document.getElementById('sub-end-date').value = sub.end_date || cls.end_date || '';
+                document.getElementById('sub-total-lessons').value = sub.total_lessons || '';
+
                 document.getElementById('sub-fee').value = sub.fee !== undefined ? sub.fee : (cls.default_fee || 0);
                 document.getElementById('sub-textbook').value = sub.textbook_fee !== undefined ? sub.textbook_fee : (cls.default_textbook_fee || 0);
                 document.getElementById('sub-misc').value = sub.misc_fee !== undefined ? sub.misc_fee : (cls.default_misc_fee || 0);
@@ -664,6 +686,12 @@
                 document.getElementById('sub-day').value = '1';
                 document.getElementById('sub-start').value = '';
                 document.getElementById('sub-end').value = '';
+                
+                // 智慧預設：新增時直接帶入父班級的修業期間
+                document.getElementById('sub-start-date').value = cls.start_date || '';
+                document.getElementById('sub-end-date').value = cls.end_date || '';
+                document.getElementById('sub-total-lessons').value = '';
+
                 document.getElementById('sub-fee').value = cls.default_fee || 0; 
                 document.getElementById('sub-textbook').value = cls.default_textbook_fee || 0; 
                 document.getElementById('sub-misc').value = cls.default_misc_fee || 0; 
@@ -699,6 +727,12 @@
                 day: document.getElementById('sub-day').value, 
                 start: document.getElementById('sub-start').value, 
                 end: document.getElementById('sub-end').value, 
+                
+                // 新增儲存修業期間與總堂數
+                start_date: document.getElementById('sub-start-date').value || null,
+                end_date: document.getElementById('sub-end-date').value || null,
+                total_lessons: parseInt(document.getElementById('sub-total-lessons').value) || 0,
+
                 teacher_id: teacherId,     
                 teacher: teacherText,      
                 course_level: document.getElementById('sub-course-level').value,

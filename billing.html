@@ -17,61 +17,49 @@
         .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         /* ========================================================= */
-        /* 專屬彩色專業列印排版 (支援 Logo、多色系與自動縮放 1 頁)        */
+        /* 專屬彩色專業列印排版 (全版滿寬設計，完美單頁極限壓縮)           */
         /* ========================================================= */
         @media print {
             /* 將邊距縮小到 5mm 極限，爭取最大可用空間 */
             @page { margin: 5mm; size: A4 portrait; }
-            body { background: white !important; padding: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; display: block !important; }
+            body { background: white !important; padding: 0 !important; margin: 0 !important; height: auto !important; max-height: none !important; overflow: visible !important; display: block !important; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             
-            /* 解除 max-width 限制，改為全版 100%，並微調預設字體大小 */
-            .print-wrapper { width: 100%; max-width: 100%; margin: 0; color: #1e293b; font-size: 14px; }
+            /* 保證 100% 滿版，基準字體設定 */
+            .print-wrapper { width: 100%; max-width: 100%; margin: 0; color: #1e293b; font-size: 15px; }
             
-            .print-wrapper.scale-90 { zoom: 0.9; }
-            .print-wrapper.scale-80 { zoom: 0.8; }
-            .print-wrapper.scale-70 { zoom: 0.7; }
-            .print-wrapper.scale-60 { zoom: 0.6; }
+            /* 捨棄 transform: scale，改用直接控制 font-size 與 padding 來縮放，避免左右留白 */
+            .print-wrapper.scale-90 { font-size: 14px; }
+            .print-wrapper.scale-80 { font-size: 13px; }
+            .print-wrapper.scale-70 { font-size: 12px; }
+            .print-wrapper.scale-60 { font-size: 11px; }
             
-            /* 隨著縮小，進一步極致壓縮表格內距 */
-            .print-wrapper.scale-90 .p-table th, .print-wrapper.scale-90 .p-table td { padding: 6px; }
-            .print-wrapper.scale-80 .p-table th, .print-wrapper.scale-80 .p-table td { padding: 4px; }
-            .print-wrapper.scale-70 .p-table th, .print-wrapper.scale-70 .p-table td { padding: 3px; font-size: 12px; }
-            .print-wrapper.scale-60 .p-table th, .print-wrapper.scale-60 .p-table td { padding: 2px; font-size: 11px; }
-            .print-wrapper.scale-60 .p-info { padding: 4px 8px; margin-bottom: 6px; }
-            .print-wrapper.scale-60 .p-footer-note { padding: 8px; margin-top: 8px; }
-
-            @-moz-document url-prefix() {
-                .print-wrapper.scale-90 { transform: scale(0.9); transform-origin: top left; }
-                .print-wrapper.scale-80 { transform: scale(0.8); transform-origin: top left; }
-                .print-wrapper.scale-70 { transform: scale(0.7); transform-origin: top left; }
-                .print-wrapper.scale-60 { transform: scale(0.6); transform-origin: top left; }
-            }
-
-            /* 縮小標題與表格的上下間距 */
-            .p-title-container { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 8px; border-bottom: 3px solid #1e3a8a; padding-bottom: 8px; }
-            .p-logo { height: 45px; object-fit: contain; }
-            .p-title { font-size: 26px; font-weight: 900; letter-spacing: 2px; color: #1e3a8a; }
-            .p-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; color: #475569; font-size: 15px;}
+            /* 標題與標頭極致壓縮 */
+            .p-title-container { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 6px; border-bottom: 2px solid #1e3a8a; padding-bottom: 6px; }
+            .p-title { font-size: 1.6em; font-weight: 900; letter-spacing: 2px; color: #1e3a8a; }
+            .p-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: bold; color: #475569; font-size: 0.95em; }
             
-            .p-info { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; background-color: #f0fdf4 !important; padding: 10px 14px; border-radius: 8px; border-left: 5px solid #16a34a; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #14532d; }
-            
-            .p-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; border: 2px solid #cbd5e1; }
-            .p-table th, .p-table td { border: 1px solid #cbd5e1; padding: 8px 6px; text-align: center; vertical-align: middle; }
+            /* 表格滿寬並強制分配欄寬 */
+            .p-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; border: 2px solid #cbd5e1; table-layout: fixed; }
+            .p-table th, .p-table td { border: 1px solid #cbd5e1; padding: 6px 4px; text-align: center; vertical-align: middle; word-wrap: break-word; }
             .p-table th { background-color: #f1f5f9 !important; color: #0f172a; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: 900; }
             .p-table tr { page-break-inside: avoid; }
             
-            /* 壓縮頁尾注意事項空間 */
-            .p-footer-note { font-size: 13px; line-height: 1.5; background-color: #f8fafc !important; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin-top: 15px; page-break-inside: avoid;}
-            .p-section-title { color: #1e3a8a; font-size: 15px; font-weight: 900; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 6px; margin-top: 6px; }
+            /* 各種縮放級別的表格內距微調，能擠多少算多少 */
+            .print-wrapper.scale-90 .p-table th, .print-wrapper.scale-90 .p-table td { padding: 5px 3px; }
+            .print-wrapper.scale-80 .p-table th, .print-wrapper.scale-80 .p-table td { padding: 4px 2px; }
+            .print-wrapper.scale-70 .p-table th, .print-wrapper.scale-70 .p-table td { padding: 3px 2px; }
+            .print-wrapper.scale-60 .p-table th, .print-wrapper.scale-60 .p-table td { padding: 2px 1px; }
+
+            .p-footer-note { font-size: 0.85em; line-height: 1.4; background-color: #f8fafc !important; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin-top: 10px; page-break-inside: avoid; }
+            .p-section-title { color: #1e3a8a; font-size: 1em; font-weight: 900; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; margin-bottom: 4px; margin-top: 4px; }
             
             .p-bold { font-weight: 900; }
-            .p-highlight { color: #be123c !important; font-weight: 900; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .p-highlight { color: #be123c !important; font-weight: 900; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 1.1em; }
             
-            .deadline-box { font-size: 16px; font-weight: 900; border: 2px dashed #be123c; padding: 4px 10px; display: inline-block; margin-top: 6px; background-color: #fff1f2 !important; color: #be123c !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-radius: 6px; }
-            
-            .next-pay-box { font-size: 15px; font-weight: 900; border: 2px solid #f59e0b; padding: 4px 10px; display: inline-block; margin-top: 6px; background-color: #fffbeb !important; color: #d97706 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-radius: 6px; }
+            .deadline-box { font-weight: 900; border: 2px dashed #be123c; padding: 4px 8px; display: inline-block; margin-top: 4px; background-color: #fff1f2 !important; color: #be123c !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-radius: 6px; font-size: 1em; }
+            .next-pay-box { font-weight: 900; border: 2px solid #f59e0b; padding: 4px 8px; display: inline-block; margin-top: 4px; background-color: #fffbeb !important; color: #d97706 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-radius: 6px; font-size: 0.95em; }
         }
     </style>
 </head>
@@ -579,7 +567,6 @@
                 
                 classes.forEach(c => (c.sub_classes || []).forEach((sub, idx) => {
                     if(sub.members && (sub.members.includes(name) || sub.members.includes(currentStudentId))) {
-                        // ✅ 修改這裡：優先讀取 sub.start_date / sub.end_date，沒有再退回 c.start_date / c.end_date
                         currentEnrolled.push({
                             class_id: c.id, sub_idx: idx, main_name: c.name, sub_name: sub.name,
                             fee: sub.fee||0, tb_fee: sub.textbook_fee||0, m_fee: sub.misc_fee||0,
@@ -1029,9 +1016,9 @@
             
             const printArea = document.getElementById('print-area');
             printArea.classList.remove('scale-90', 'scale-80', 'scale-70', 'scale-60');
-            const rowCount = classesToPrint.length;
             
-            // 自動縮放邏輯微調，讓它更不容易縮得太小，並依靠 CSS 的自動排版
+            // 依靠 CSS 的滿寬排版，微調縮放級別的觸發數量，避免不必要地縮得太小
+            const rowCount = classesToPrint.length;
             if (rowCount >= 15) printArea.classList.add('scale-60');
             else if (rowCount >= 11) printArea.classList.add('scale-70');
             else if (rowCount >= 8) printArea.classList.add('scale-80');
@@ -1039,7 +1026,13 @@
             
             document.getElementById('p-stu-info').innerText = `學生姓名: ${currentStudent}  學校/年級: ${schoolStr} / ${gradeStr}`;
             
-            let html = '<tr><th>報名課程</th><th>收費明細</th><th>優惠原因/金額</th><th>修業期間</th></tr>';
+            // 加入行內樣式鎖定欄寬比例，避免文字過度換行把表格拉高
+            let html = `<tr>
+                <th style="width: 28%">報名課程</th>
+                <th style="width: 20%">收費明細</th>
+                <th style="width: 24%">優惠原因/金額</th>
+                <th style="width: 28%">修業期間</th>
+            </tr>`;
 
             if (classesToPrint.length === 0 && (type === 'receipt' || type === 'merged')) {
                 html += `<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b; font-weight: bold; background-color: #f8fafc;">📝 此為早期歷史繳費紀錄，系統當時尚未綁定專屬科目明細</td></tr>`;
@@ -1060,14 +1053,14 @@
 
                         html += `
                         <tr>
-                            <td colspan="4" style="text-align: left; padding: 12px; background-color: #f8fafc;">
-                                <div style="font-size: 16px; font-weight: 900; color: #047857; margin-bottom: 8px; border-bottom: 2px solid #047857; padding-bottom: 4px;">
+                            <td colspan="4" style="text-align: left; padding: 10px; background-color: #f8fafc;">
+                                <div style="font-size: 1.05em; font-weight: 900; color: #047857; margin-bottom: 6px; border-bottom: 2px solid #047857; padding-bottom: 4px;">
                                     🎯 【個別指導班】 專屬繳費明細
                                 </div>
-                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 13px; font-weight: normal;">
-                                    <div><span style="color:#64748b;font-weight:bold;">班型 / 科目:</span> ${ic.class_type} / ${ic.subject}</div>
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; font-size: 0.9em; font-weight: normal;">
+                                    <div><span style="color:#64748b;font-weight:bold;">班型/科目:</span> ${ic.class_type} / ${ic.subject}</div>
                                     <div><span style="color:#64748b;font-weight:bold;">適用年級:</span> ${ic.grade}</div>
-                                    <div><span style="color:#64748b;font-weight:bold;">時數 / 堂數:</span> ${ic.sessions_per_week} (${ic.hours_per_session}H/堂)</div>
+                                    <div><span style="color:#64748b;font-weight:bold;">時數/堂數:</span> ${ic.sessions_per_week} (${ic.hours_per_session}H/堂)</div>
                                     <div><span style="color:#64748b;font-weight:bold;">總計規劃:</span> 共${ic.total_weeks}週 / ${ic.total_sessions}堂 / ${ic.total_hours}H</div>
                                     
                                     <div><span style="color:#64748b;font-weight:bold;">學費:</span> $${ic.tuition}</div>
@@ -1079,17 +1072,17 @@
                                     <div><span style="color:#64748b;font-weight:bold;">開單日期:</span> ${ic.issue_date.replace(/-/g,'/')}</div>
                                     <div><span style="color:#64748b;font-weight:bold;">承辦人員:</span> ${ic.operator}</div>
                                 </div>
-                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: flex-end; align-items: center;">
-                                    <div style="font-size: 16px; font-weight: 900; color: #0f172a;">此科應繳小計: <span style="color: #be123c; font-size: 18px;">$${finalFee}</span></div>
+                                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: flex-end; align-items: center;">
+                                    <div style="font-size: 1em; font-weight: 900; color: #0f172a;">此科應繳小計: <span style="color: #be123c; font-size: 1.2em;">$${finalFee}</span></div>
                                 </div>
                             </td>
                         </tr>`;
                     } else {
                         html += `<tr>
-                            <td class="p-bold" style="color: #1e3a8a;">${en.main_name}<br>(${en.sub_name})</td>
-                            <td style="text-align:left;">學費: ${en.fee}<br>雜費: ${en.m_fee}<br>教材費: ${en.tb_fee}<br>總價: ${subTotal}</td>
-                            <td>${b.discount_reason}<br>折 ${b.discount_amount} 元<br>折扣後金額:<br><span class="p-highlight">${finalFee}</span></td>
-                            <td>${en.start ? en.start.replace(/-/g,'/') : '未定'}<br>至<br>${en.end ? en.end.replace(/-/g,'/') : '未定'}</td>
+                            <td class="p-bold" style="color: #1e3a8a;">${en.main_name}<br><span style="font-size: 0.9em; font-weight: bold; color: #475569;">(${en.sub_name})</span></td>
+                            <td style="text-align:left; font-size: 0.9em;">學: ${en.fee} | 雜: ${en.m_fee}<br>教: ${en.tb_fee} | <span class="p-bold">總: ${subTotal}</span></td>
+                            <td style="font-size: 0.9em;">${b.discount_reason}<br>折 ${b.discount_amount} 元<br>折扣後金額:<br><span class="p-highlight">${finalFee}</span></td>
+                            <td style="font-size: 0.9em;">${en.start ? en.start.replace(/-/g,'/') : '未定'} ~ ${en.end ? en.end.replace(/-/g,'/') : '未定'}</td>
                         </tr>`;
                     }
                 });
@@ -1103,7 +1096,6 @@
                 const noticeSerial = `NO.${new Date().toISOString().split('T')[0].replace(/-/g,'')}${Math.floor(1000+Math.random()*9000)}`;
                 document.getElementById('p-serial-info').innerText = `流水編號: ${noticeSerial}`;
                 
-                // 🔥 FIFO 引擎優化：直接加總剛剛算好的值，杜絕重疊迴圈
                 let noticePayable = 0;
                 let noticeRemaining = 0;
                 classesToPrint.forEach(en => {
@@ -1115,11 +1107,11 @@
                 let noticeDebt = noticeRemaining;
                 
                 html += `<tr>
-                    <td colspan="2" class="p-bold text-left" style="font-size:14px; line-height:1.6;">
+                    <td colspan="2" class="p-bold text-left" style="font-size: 0.95em; line-height:1.6;">
                         本單勾選總額: ${numToChinese(noticePayable)} (${noticePayable} 元)<br>
                         此單扣除已繳 (含歷史沖銷): ${deductedAmount} 元
                     </td>
-                    <td colspan="2" class="p-bold" style="font-size: 18px; text-align:right;">
+                    <td colspan="2" class="p-bold" style="font-size: 1.1em; text-align:right;">
                         本次應繳(尚欠): <span class="p-highlight">${noticeDebt} 元</span><br>
                         <div class="deadline-box">繳費期限: ${deadlineStr.replace(/-/g,'/')} 前</div>
                     </td>
@@ -1147,10 +1139,10 @@
                 html += `<tr>
                     <td colspan="2" class="p-bold text-left" style="vertical-align: top;">
                         <span style="color:#047857;">本次合併收據明細：</span><br>
-                        <div style="font-size:13px; font-weight:normal; margin-top:4px;">${detailsHtml}</div>
+                        <div style="font-size:0.9em; font-weight:normal; margin-top:4px;">${detailsHtml}</div>
                     </td>
                     <td colspan="2" class="p-bold text-left" style="vertical-align: top;">
-                        本次列印繳款總額: <span class="p-highlight" style="font-size: 18px;">${totalMergedPaid} 元</span><br>
+                        本次列印繳款總額: <span class="p-highlight" style="font-size: 1.2em;">${totalMergedPaid} 元</span><br>
                         全系統目前尚欠: ${debt} 元
                         ${latestNextDate && debt > 0 ? `<br><div class="next-pay-box">下次繳費期限: ${latestNextDate.replace(/-/g,'/')} 前</div>` : ''}
                     </td>
@@ -1166,18 +1158,18 @@
                 
                 const debt = currentTotalDebt; 
 
-                const bankStr = p.bank_last_5 ? `<br><span style="font-size:13px; color:#475569;">(匯款末五碼: ${p.bank_last_5})</span>` : '';
+                const bankStr = p.bank_last_5 ? `<br><span style="font-size:0.85em; color:#475569;">(匯款末五碼: ${p.bank_last_5})</span>` : '';
                 
                 let allocStr = '';
                 if(p.allocation_details && p.allocation_details.length > 0) {
                     const details = getDetailsArray(p.allocation_details);
-                    allocStr = `<div style="font-size:12px; font-weight:normal; margin-top:4px; color:#475569;">沖銷明細: ` + 
+                    allocStr = `<div style="font-size:0.85em; font-weight:normal; margin-top:4px; color:#475569;">沖銷明細: ` + 
                                details.map(a => `${a.class_name}($${a.amount})`).join(', ') + `</div>`;
                 }
                 
                 html += `<tr>
                     <td colspan="2" class="p-bold text-left">
-                        ${p.pay_date.replace(/-/g, '/')} 繳費: <span class="p-highlight" style="font-size: 18px;">${p.amount} 元</span>
+                        ${p.pay_date.replace(/-/g, '/')} 繳費: <span class="p-highlight" style="font-size: 1.2em;">${p.amount} 元</span>
                         <br>全系統目前尚欠: ${debt} 元
                         ${p.next_pay_date && debt > 0 ? `<br><div class="next-pay-box">下次繳費期限: ${p.next_pay_date.replace(/-/g,'/')} 前</div>` : ''}
                     </td>

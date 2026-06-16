@@ -52,7 +52,7 @@
             .print-wrapper.scale-70 .p-table th, .print-wrapper.scale-70 .p-table td { padding: 3px 2px; }
             .print-wrapper.scale-60 .p-table th, .print-wrapper.scale-60 .p-table td { padding: 2px 1px; }
 
-            .p-footer-note { font-size: 0.85em; line-height: 1.4; background-color: #f8fafc !important; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin-top: 10px; page-break-inside: avoid; }
+            .p-footer-note { font-size: 0.85em; line-height: 1.4; background-color: #f8fafc !important; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin-top: 6px; }
             .p-section-title { color: #1e3a8a; font-size: 1em; font-weight: 900; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; margin-bottom: 4px; margin-top: 4px; }
             
             .p-bold { font-weight: 900; }
@@ -630,7 +630,7 @@
             }
         }
 
-        // 🔥 先進先出 (FIFO) 沖銷引擎
+        // 🔥 先進先出 (FIFO) 沖銷引擎 (支援模糊比對與資金掃水防漏)
         function renderBillingTable() {
             rawTotalPayable = 0; 
             const tbody = document.getElementById('bill-items'); 
@@ -668,7 +668,7 @@
                 let sortedIndices = currentEnrolled.map((en, idx) => ({ idx, start: en.start || '9999-12-31' }))
                                                    .sort((a, b) => new Date(a.start) - new Date(b.start));
 
-                // 4. 執行 FIFO 沖銷
+                // 4. 執行 FIFO 沖銷 (Pass 1: 專屬資金模糊比對)
                 sortedIndices.forEach(item => {
                     let en = currentEnrolled[item.idx];
                     let payable = en._finalFee;
@@ -676,24 +676,38 @@
                     
                     const exactKey = en.main_name === en.sub_name ? en.main_name : `${en.main_name}-${en.sub_name}`;
 
-                    // 先扣除指名道姓的專屬資金
-                    if (allocatedPool[exactKey] > 0) {
-                        let deduct = Math.min(payable, allocatedPool[exactKey]);
-                        paid += deduct;
-                        allocatedPool[exactKey] -= deduct;
-                        payable -= deduct;
-                    }
+                    // 尋找完全符合或「包含」的舊名稱資金池
+                    let matchKey = Object.keys(allocatedPool).find(k => k === exactKey) ||
+                                   Object.keys(allocatedPool).find(k => exactKey.includes(k) || k.includes(exactKey));
 
-                    // 再扣除沒有寫明細的泛用資金
-                    if (payable > 0 && generalPool > 0) {
-                        let deduct = Math.min(payable, generalPool);
+                    if (matchKey && allocatedPool[matchKey] > 0) {
+                        let deduct = Math.min(payable, allocatedPool[matchKey]);
                         paid += deduct;
-                        generalPool -= deduct;
+                        allocatedPool[matchKey] -= deduct;
                         payable -= deduct;
                     }
 
                     en._paid = paid;
                     en._remaining = payable;
+                });
+
+                // Pass 2: 資金防漏掃水機制 (把所有對不上名字的殘留資金，全部掃入泛用資金池)
+                Object.keys(allocatedPool).forEach(k => {
+                    if (allocatedPool[k] > 0) {
+                        generalPool += allocatedPool[k];
+                        allocatedPool[k] = 0;
+                    }
+                });
+
+                // Pass 3: 泛用資金沖銷 (拿剛掃進來的錢去還剩餘欠款)
+                sortedIndices.forEach(item => {
+                    let en = currentEnrolled[item.idx];
+                    if (en._remaining > 0 && generalPool > 0) {
+                        let deduct = Math.min(en._remaining, generalPool);
+                        en._paid += deduct;
+                        generalPool -= deduct;
+                        en._remaining -= deduct;
+                    }
                 });
 
                 // 5. 渲染畫面
@@ -986,7 +1000,8 @@
                 if (involvedClassNames.size > 0) {
                     classesToPrint = currentEnrolled.filter(en => {
                         const className = en.main_name === en.sub_name ? en.main_name : `${en.main_name}-${en.sub_name}`;
-                        return involvedClassNames.has(className);
+                        // 加入模糊比對：解決班級改名後收據印不出來的問題
+                        return Array.from(involvedClassNames).some(name => className.includes(name) || name.includes(className));
                     });
                     
                     if (classesToPrint.length === 0 && targetPayments.length > 0) {
@@ -1017,12 +1032,12 @@
             const printArea = document.getElementById('print-area');
             printArea.classList.remove('scale-90', 'scale-80', 'scale-70', 'scale-60');
             
-            // 依靠 CSS 的滿寬排版，微調縮放級別的觸發數量，避免不必要地縮得太小
+            // 自動縮放邏輯微調，讓它更不容易縮得太小，提早觸發縮放以容納注意事項
             const rowCount = classesToPrint.length;
             if (rowCount >= 15) printArea.classList.add('scale-60');
             else if (rowCount >= 11) printArea.classList.add('scale-70');
             else if (rowCount >= 8) printArea.classList.add('scale-80');
-            else if (rowCount >= 6) printArea.classList.add('scale-90');
+            else if (rowCount >= 5) printArea.classList.add('scale-90'); // 改為 5 科就微縮
             
             document.getElementById('p-stu-info').innerText = `學生姓名: ${currentStudent}  學校/年級: ${schoolStr} / ${gradeStr}`;
             

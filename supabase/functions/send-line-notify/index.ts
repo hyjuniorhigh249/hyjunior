@@ -18,13 +18,14 @@ serve(async (req) => {
     const { studentName, time, action, parentLineId } = await req.json()
 
     if (!parentLineId) {
-      return new Response(JSON.stringify({ error: "家長未綁定 LINE" }), { 
-        status: 400,
+      // 💡 強制 200，把錯誤包在 JSON 的 success: false 裡面
+      return new Response(JSON.stringify({ success: false, error: "家長未綁定 LINE" }), { 
+        status: 200,
         headers: { "Content-Type": "application/json", 'Access-Control-Allow-Origin': '*' } 
       })
     }
 
-    // 🔥 強效防呆：自動清除可能因為手動複製貼上夾帶的隱形空格、換行符號
+    // 強效防呆：自動清除可能夾帶的隱形空格、換行符號
     const cleanLineId = String(parentLineId).trim()
 
     // 組合要發送給家長的訊息文字
@@ -50,13 +51,14 @@ serve(async (req) => {
 
     const result = await response.json()
 
-    // 🔥 核心修正：如果 LINE 官方返回錯誤（如 ID 格式不對、被家長封鎖），必須回傳錯誤狀態碼，不能假裝成功
+    // 💡 核心破解：就算 LINE 官方退件，我們也回傳 200，逼迫 Supabase 前端接收這段錯誤 JSON
     if (!response.ok) {
       return new Response(JSON.stringify({ 
+        success: false,
         error: result.message || "LINE 官方拒絕發送訊息", 
         details: result 
       }), { 
-        status: response.status, 
+        status: 200, 
         headers: { "Content-Type": "application/json", 'Access-Control-Allow-Origin': '*' } 
       })
     }
@@ -66,8 +68,8 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 400,
+    return new Response(JSON.stringify({ success: false, error: error.message }), { 
+      status: 200,
       headers: { "Content-Type": "application/json", 'Access-Control-Allow-Origin': '*' } 
     })
   }

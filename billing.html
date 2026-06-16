@@ -575,10 +575,11 @@
                 
                 classes.forEach(c => (c.sub_classes || []).forEach((sub, idx) => {
                     if(sub.members && (sub.members.includes(name) || sub.members.includes(currentStudentId))) {
+                        // ✅ 修改這裡：優先讀取 sub.start_date / sub.end_date，沒有再退回 c.start_date / c.end_date
                         currentEnrolled.push({
                             class_id: c.id, sub_idx: idx, main_name: c.name, sub_name: sub.name,
                             fee: sub.fee||0, tb_fee: sub.textbook_fee||0, m_fee: sub.misc_fee||0,
-                            start: c.start_date, end: c.end_date,
+                            start: sub.start_date || c.start_date, end: sub.end_date || c.end_date,
                             is_individual: false 
                         });
                     }
